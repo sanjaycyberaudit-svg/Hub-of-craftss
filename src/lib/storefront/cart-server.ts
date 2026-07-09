@@ -98,7 +98,7 @@ export type CartPagePrefetch = {
 };
 
 export async function prefetchCartPageData(): Promise<CartPagePrefetch> {
-  const cookieStore = cookies();
+  const cookieStore = await cookies();
   const user = await getSessionUser();
   const guestCartItems = readGuestCartItemsFromCookies(cookieStore);
 

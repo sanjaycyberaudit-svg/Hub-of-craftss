@@ -2,8 +2,6 @@
 
 const nextConfig = {
   reactStrictMode: true,
-  swcMinify: true,
-  output: "standalone",
   poweredByHeader: false,
   productionBrowserSourceMaps: false,
   async headers() {
@@ -78,7 +76,7 @@ const nextConfig = {
     ],
   },
   experimental: {
-    serverComponentsExternalPackages: ["@aws-sdk/client-s3", "sharp"],
+    // (Next 15+) moved to top-level `serverExternalPackages`.
     // Always refetch dynamic routes (e.g. admin dashboard) when navigating
     // back to them, instead of replaying the stale client Router Cache.
     staleTimes: {
@@ -86,6 +84,10 @@ const nextConfig = {
       static: 180,
     },
   },
+  serverExternalPackages: ["@aws-sdk/client-s3", "sharp"],
 }
 
 export default nextConfig
+
+import { initOpenNextCloudflareForDev } from "@opennextjs/cloudflare";
+initOpenNextCloudflareForDev();

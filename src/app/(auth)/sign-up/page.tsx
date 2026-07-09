@@ -15,7 +15,8 @@ export const metadata: Metadata = {
 };
 
 export default async function SignUpPage() {
-  const supabase = createClient({ cookieStore: cookies() });
+  const cookieStore = await cookies();
+  const supabase = createClient({ cookieStore });
   const {
     data: { user },
   } = await supabase.auth.getUser();

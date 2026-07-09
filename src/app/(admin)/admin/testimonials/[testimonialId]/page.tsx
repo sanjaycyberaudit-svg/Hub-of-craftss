@@ -8,7 +8,7 @@ import {
 } from "@/features/testimonials";
 
 type Props = {
-  params: { testimonialId: string };
+  params: Promise<{ testimonialId: string }>;
 };
 
 const EditTestimonialPageQuery = gql(/* GraphQL */ `
@@ -26,8 +26,9 @@ const EditTestimonialPageQuery = gql(/* GraphQL */ `
 `);
 
 export default async function EditTestimonialPage({ params }: Props) {
+  const { testimonialId } = await params;
   const { data } = await getClient().query(EditTestimonialPageQuery, {
-    testimonialId: params.testimonialId,
+    testimonialId,
   });
 
   const node = data?.testimonialsCollection?.edges?.[0]?.node;

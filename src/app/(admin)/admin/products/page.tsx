@@ -11,20 +11,25 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
 type AdminProjectsPageProps = {
-  searchParams: {
+  searchParams: Promise<{
     [key: string]: string | string[] | undefined;
-  };
+  }>;
 };
 
-export default function ProductsPage({ searchParams }: AdminProjectsPageProps) {
+export default async function ProductsPage({ searchParams }: AdminProjectsPageProps) {
+  const resolved = await searchParams;
   return (
     <Suspense fallback={<AdminTablePageSkeleton tableRows={10} />}>
-      <ProductsPageContent searchParams={searchParams} />
+      <ProductsPageContent searchParams={resolved} />
     </Suspense>
   );
 }
 
-async function ProductsPageContent({ searchParams }: AdminProjectsPageProps) {
+async function ProductsPageContent({
+  searchParams,
+}: {
+  searchParams: { [key: string]: string | string[] | undefined };
+}) {
   let productRows: Awaited<ReturnType<typeof getAdminProductsList>>["rows"] =
     [];
   let loadError: string | null = null;

@@ -4,12 +4,16 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "graphql-codegen && SKIP_ENV_VALIDATION=true next build",
+    "build": "graphql-codegen && cross-env SKIP_ENV_VALIDATION=true next build",
     "start": "node .next/standalone/server.js",
     "lint": "next lint --ignore-path .gitignore .",
     "export": "next build && next export",
     "serve:out": "serve out",
     "serve": "npm run build && npm run start",
+    "preview": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
+    "deploy": "opennextjs-cloudflare build && opennextjs-cloudflare deploy",
+    "upload": "opennextjs-cloudflare build && opennextjs-cloudflare upload",
+    "cf-typegen": "wrangler types --env-interface CloudflareEnv cloudflare-env.d.ts",
     "test": "jest",
     "format": "prettier --ignore-path .gitignore --write \"**/*.{ts,tsx,css,scss}\"",
     "coverage": "npm test --coverage --watchAll --collectCoverageFrom='src/components'",
@@ -96,7 +100,7 @@
     "js-cookie": "^3.0.5",
     "lucide-react": "^0.314.0",
     "nanoid": "^5.0.5",
-    "next": "^14.2.35",
+    "next": "^15.5.20",
     "next-themes": "^0.2.1",
     "npm": "^10.4.0",
     "persist-and-sync": "^1.2.1",
@@ -122,12 +126,13 @@
     "zustand": "^4.5.1"
   },
   "engines": {
-    "node": ">=24.0.0",
+    "node": ">=22.0.0",
     "npm": ">=10.0.0"
   },
   "devDependencies": {
     "@graphql-codegen/cli": "^5.0.2",
     "@graphql-codegen/gql-tag-operations-preset": "^2.1.0",
+    "@opennextjs/cloudflare": "^1.20.1",
     "@testing-library/cypress": "^10.0.1",
     "@testing-library/jest-dom": "^6.4.2",
     "@testing-library/react": "^14.2.1",
@@ -140,11 +145,12 @@
     "@typescript-eslint/eslint-plugin": "^6.21.0",
     "autoprefixer": "^10.0.1",
     "concurrently": "^8.2.2",
+    "cross-env": "^10.1.0",
     "cross-undici-fetch": "^0.4.10",
     "cypress": "^13.6.6",
     "drizzle-kit": "^0.20.13",
     "eslint": "^8",
-    "eslint-config-next": "14.1.0",
+    "eslint-config-next": "^15.5.20",
     "gradient-string": "^2.0.2",
     "graphql": "^16.8.1",
     "jest": "^29.7.0",
@@ -157,6 +163,7 @@
     "supabase": "^1.136.3",
     "tailwindcss": "^3.3.0",
     "tsx": "^4.7.0",
-    "typescript": "^5.0.0"
+    "typescript": "^5.0.0",
+    "wrangler": "^4.107.1"
   }
 }

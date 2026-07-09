@@ -8,9 +8,9 @@ import { CollectionsDataTable } from "@/features/collections";
 export const dynamic = "force-dynamic";
 
 type AdminCollectionsPageProps = {
-  searchParams: {
+  searchParams: Promise<{
     [key: string]: string | string[] | undefined;
-  };
+  }>;
 };
 
 const AdminCollectionsPageQuery = gql(/* GraphQL */ `
@@ -28,6 +28,7 @@ const AdminCollectionsPageQuery = gql(/* GraphQL */ `
 `);
 
 async function collectionsPage({ searchParams }: AdminCollectionsPageProps) {
+  await searchParams;
   const { data } = await getClient().query(AdminCollectionsPageQuery, {});
 
   if (!data) return notFound();

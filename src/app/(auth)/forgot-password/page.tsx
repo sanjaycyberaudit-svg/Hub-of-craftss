@@ -15,9 +15,11 @@ export const metadata: Metadata = {
 export default async function ForgotPasswordPage({
   searchParams,
 }: {
-  searchParams?: { error?: string };
+  searchParams?: Promise<{ error?: string }>;
 }) {
-  const supabase = createClient({ cookieStore: cookies() });
+  const cookieStore = await cookies();
+  const supabase = createClient({ cookieStore });
+  const resolvedSearchParams = searchParams ? await searchParams : undefined;
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -37,8 +39,10 @@ export default async function ForgotPasswordPage({
             Enter your email and we&apos;ll send a reset link. Links expire
             within one hour.
           </p>
-          {searchParams?.error ? (
-            <p className="text-sm text-destructive">{searchParams.error}</p>
+          {resolvedSearchParams?.error ? (
+            <p className="text-sm text-destructive">
+              {resolvedSearchParams.error}
+            </p>
           ) : null}
         </div>
       </div>

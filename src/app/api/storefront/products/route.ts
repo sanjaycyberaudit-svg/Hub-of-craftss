@@ -13,7 +13,7 @@ import type { SearchQueryVariables } from "@/gql/graphql";
 import { NextRequest, NextResponse } from "next/server";
 
 export const dynamic = "force-dynamic";
-export const revalidate = STOREFRONT_REVALIDATE_SECONDS;
+export const revalidate = 120;
 
 const CACHE_HEADERS = {
   "Cache-Control": `public, s-maxage=${STOREFRONT_REVALIDATE_SECONDS}, stale-while-revalidate=300`,

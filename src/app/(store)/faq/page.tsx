@@ -4,7 +4,7 @@ import Link from "next/link";
 import { Metadata } from "next";
 import { STOREFRONT_STATIC_REVALIDATE_SECONDS } from "@/lib/cache/constants";
 
-export const revalidate = STOREFRONT_STATIC_REVALIDATE_SECONDS;
+export const revalidate = 3600;
 
 export const metadata: Metadata = {
   title: "FAQ | SRI SAI RAGHAVENDRA TEX",

@@ -9,14 +9,13 @@ import { Suspense } from "react";
 export const dynamic = "force-dynamic";
 
 type EditProjectPageProps = {
-  params: {
+  params: Promise<{
     productId: string;
-  };
+  }>;
 };
 
-async function EditProjectPage({
-  params: { productId },
-}: EditProjectPageProps) {
+async function EditProjectPage({ params }: EditProjectPageProps) {
+  const { productId } = await params;
   const product = await db.query.products.findFirst({
     where: eq(products.id, productId),
   });

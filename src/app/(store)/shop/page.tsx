@@ -17,7 +17,7 @@ import {
 import type { Metadata } from "next";
 import { Suspense } from "react";
 
-export const revalidate = STOREFRONT_REVALIDATE_SECONDS;
+export const revalidate = 120;
 
 export const metadata: Metadata = {
   title: "Shop All Sarees",
@@ -35,14 +35,15 @@ export const metadata: Metadata = {
 };
 
 interface ProductsPageProps {
-  searchParams: {
+  searchParams: Promise<{
     [key: string]: string | string[] | undefined;
-  };
+  }>;
 }
 
 async function ProductsPage({ searchParams }: ProductsPageProps) {
-  const variables = buildShopSearchVariables(searchParams);
-  const priceHeading = formatShopPriceRangeHeading(searchParams);
+  const resolvedSearchParams = await searchParams;
+  const variables = buildShopSearchVariables(resolvedSearchParams);
+  const priceHeading = formatShopPriceRangeHeading(resolvedSearchParams);
   const [initialSearchResult, initialDraftIds, collectionsData] =
     await Promise.all([
       fetchProductSearchCached(variables),

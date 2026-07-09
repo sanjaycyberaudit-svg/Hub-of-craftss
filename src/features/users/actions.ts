@@ -19,14 +19,14 @@ export const getCurrentUserSession = async () => {
   const user = await getSessionUser();
   if (!user) return null;
 
-  const cookieStore = cookies();
+  const cookieStore = await cookies();
   const supabase = createServerClient({ cookieStore });
   const { data } = await supabase.auth.getSession();
   return data.session;
 };
 
 /** Quick check from JWT metadata (safe optional chaining). */
-export const isAdmin = (currentUser: User | null) =>
+export const isAdmin = async (currentUser: User | null) =>
   Boolean(currentUser?.app_metadata?.isAdmin);
 
 /** DB + metadata check for admin routes (profiles.is_admin fallback). */
@@ -37,7 +37,7 @@ export const checkIsAdmin = async (currentUser: User | null) => {
 
 export const getUser = async ({ userId }: { userId: string }) => {
   await requireAdminActionUser();
-  const cookieStore = cookies();
+  const cookieStore = await cookies();
   const adminAuthClient = createClient({ cookieStore, isAdmin: true }).auth
     .admin;
 
@@ -57,7 +57,7 @@ export const listUsers = async ({
   perPage?: number;
 }) => {
   await requireAdminActionUser();
-  const cookieStore = cookies();
+  const cookieStore = await cookies();
   const adminAuthClient = createClient({ cookieStore, isAdmin: true }).auth
     .admin;
 
@@ -77,7 +77,7 @@ export const createUser = async ({
   password,
 }: AdminUserFormData) => {
   await requireAdminActionUser();
-  const cookieStore = cookies();
+  const cookieStore = await cookies();
   const adminAuthClient = createClient({ cookieStore, isAdmin: true }).auth
     .admin;
 

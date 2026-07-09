@@ -27,8 +27,8 @@ import { eq } from "drizzle-orm";
 import Image from "next/image";
 
 type TrackOrderProps = {
-  params: { orderId: string };
-  searchParams?: { token?: string };
+  params: Promise<{ orderId: string }>;
+  searchParams?: Promise<{ token?: string }>;
 };
 
 const STATUS_STEPS = ["ordered", "packed", "shipped", "delivered"] as const;
@@ -64,9 +64,11 @@ function buildShippingAddress(details: {
 }
 
 async function TrackOrderPage({
-  params: { orderId },
+  params,
   searchParams,
 }: TrackOrderProps) {
+  const { orderId } = await params;
+  const resolvedSearchParams = searchParams ? await searchParams : undefined;
   const orderRows = await db
     .select({
       id: orders.id,
@@ -101,7 +103,7 @@ async function TrackOrderPage({
       user_id: order.user_id,
       createdAt: order.createdAt,
     },
-    searchParams?.token,
+    resolvedSearchParams?.token,
   );
 
   if (!allowed) {

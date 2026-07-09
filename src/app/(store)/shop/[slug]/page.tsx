@@ -32,17 +32,19 @@ import { JsonLd } from "@/components/seo/JsonLd";
 import { Metadata } from "next";
 import { notFound } from "next/navigation";
 
-export const revalidate = STOREFRONT_REVALIDATE_SECONDS;
+export const revalidate = 120;
+ 
 
 type Props = {
-  params: {
+  params: Promise<{
     slug: string;
-  };
+  }>;
 };
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const data = await getPublishedProductDetailCached(params.slug);
+  const resolvedParams = await params;
+  const data = await getPublishedProductDetailCached(resolvedParams.slug);
   const productName = data?.productsCollection?.edges?.[0]?.node?.name;
-  const path = `/shop/${params.slug}`;
+  const path = `/shop/${resolvedParams.slug}`;
 
   if (productName) {
     return {
@@ -66,7 +68,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 }
 
 async function ProductDetailPage({ params }: Props) {
-  const data = await getPublishedProductDetailCached(params.slug);
+  const resolvedParams = await params;
+  const data = await getPublishedProductDetailCached(resolvedParams.slug);
 
   const productEdge = data?.productsCollection?.edges?.[0];
   if (!productEdge?.node) return notFound();
@@ -80,7 +83,7 @@ async function ProductDetailPage({ params }: Props) {
     totalComments,
     featuredImage,
   } = productEdge.node;
-  const productSlug = params.slug;
+  const productSlug = resolvedParams.slug;
   const sizeConfig = await getProductSizeConfig(id);
   const livePricing = await getCartProductPricingByIds([id]);
   const resolvedPricing = livePricing[id];

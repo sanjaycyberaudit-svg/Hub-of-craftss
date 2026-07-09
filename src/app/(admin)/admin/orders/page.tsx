@@ -19,20 +19,25 @@ const PENDING_PAGE_PARAM = "pendingPage";
 const PAGE_SIZE_PARAM = "pageSize";
 
 type AdminOrdersPageProps = {
-  searchParams: {
+  searchParams: Promise<{
     [key: string]: string | string[] | undefined;
-  };
+  }>;
 };
 
-export default function OrdersPage({ searchParams }: AdminOrdersPageProps) {
+export default async function OrdersPage({ searchParams }: AdminOrdersPageProps) {
+  const resolved = await searchParams;
   return (
     <Suspense fallback={<AdminTablePageSkeleton statCards={2} tableRows={8} />}>
-      <OrdersPageContent searchParams={searchParams} />
+      <OrdersPageContent searchParams={resolved} />
     </Suspense>
   );
 }
 
-async function OrdersPageContent({ searchParams }: AdminOrdersPageProps) {
+async function OrdersPageContent({
+  searchParams,
+}: {
+  searchParams: { [key: string]: string | string[] | undefined };
+}) {
   const rawPageSize = searchParams[PAGE_SIZE_PARAM];
   const pageSize = clampAdminOrdersPageSize(
     Number.parseInt(

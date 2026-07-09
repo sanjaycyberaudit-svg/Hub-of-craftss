@@ -6,10 +6,11 @@ import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } },
+  { params }: { params: Promise<{ id: string }> },
 ) {
+  const resolvedParams = await params;
   const media = await db.query.medias.findFirst({
-    where: eq(medias.id, params.id),
+    where: eq(medias.id, resolvedParams.id),
   });
 
   if (!media) {

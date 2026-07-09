@@ -23,7 +23,7 @@ const relevantEvents = new Set([
 
 export async function POST(request: NextRequest) {
   const body = await request.text();
-  const sig = headers().get("Stripe-Signature");
+  const sig = (await headers()).get("Stripe-Signature");
 
   const webhookSecret = env.STRIPE_WEBHOOK_SECERT_KEY;
 

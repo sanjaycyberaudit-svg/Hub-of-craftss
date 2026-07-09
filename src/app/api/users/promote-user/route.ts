@@ -24,7 +24,7 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const cookieStore = cookies();
+  const cookieStore = await cookies();
   const client = createClient({ cookieStore, isAdmin: true });
 
   const { data: userResponse } = await client.auth.admin.getUserById(

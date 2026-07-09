@@ -1,4 +1,3 @@
-"use server";
 import { requireAdminActionUser } from "@/lib/auth/require-admin";
 import { env } from "@/env.mjs";
 import {

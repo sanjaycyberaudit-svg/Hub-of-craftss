@@ -7,7 +7,7 @@ export function createClient({
   cookieStore,
   isAdmin = false,
 }: {
-  cookieStore: ReturnType<typeof cookies>;
+  cookieStore: Awaited<ReturnType<typeof cookies>>;
   isAdmin?: boolean;
 }) {
   return createServerClient(

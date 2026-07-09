@@ -16,11 +16,13 @@ export const metadata: Metadata = {
 };
 
 type SignInPageProps = {
-  searchParams?: { from?: string; next?: string; redirect?: string };
+  searchParams?: Promise<{ from?: string; next?: string; redirect?: string }>;
 };
 
 export default async function SignInPage({ searchParams }: SignInPageProps) {
-  const supabase = createClient({ cookieStore: cookies() });
+  const cookieStore = await cookies();
+  const supabase = createClient({ cookieStore });
+  const resolvedSearchParams = searchParams ? await searchParams : undefined;
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -28,7 +30,7 @@ export default async function SignInPage({ searchParams }: SignInPageProps) {
   if (user) {
     const params = new URLSearchParams();
     for (const key of ["from", "next", "redirect"] as const) {
-      const value = searchParams?.[key];
+      const value = resolvedSearchParams?.[key];
       if (value) params.set(key, value);
     }
     const requested = getRedirectFromSearchParams(params, "");

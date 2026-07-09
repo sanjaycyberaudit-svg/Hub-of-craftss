@@ -6,9 +6,9 @@ import { notFound } from "next/navigation";
 import { CollectionForm } from "@/features/collections";
 
 type EditCollectionPageProps = {
-  params: {
+  params: Promise<{
     collectionId: string;
-  };
+  }>;
 };
 
 const updateCollectionPageQuery = gql(/* GraphQL */ `
@@ -26,8 +26,9 @@ const updateCollectionPageQuery = gql(/* GraphQL */ `
 `);
 
 async function EditCollectionPage({
-  params: { collectionId },
+  params,
 }: EditCollectionPageProps) {
+  const { collectionId } = await params;
   const { data } = await getClient().query(updateCollectionPageQuery, {
     collectionId,
   });

@@ -23,9 +23,9 @@ import { notFound } from "next/navigation";
 export const dynamic = "force-dynamic";
 
 type AdminOrderDetailPageProps = {
-  params: {
+  params: Promise<{
     orderId: string;
-  };
+  }>;
 };
 
 function buildCourierCopyText(payload: {
@@ -63,7 +63,7 @@ function buildCourierCopyText(payload: {
 }
 
 async function OrderDetailPage({ params }: AdminOrderDetailPageProps) {
-  const { orderId } = params;
+  const { orderId } = await params;
 
   const orderRows = await db
     .select({

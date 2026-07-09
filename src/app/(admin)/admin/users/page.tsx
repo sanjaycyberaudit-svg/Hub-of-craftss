@@ -10,12 +10,13 @@ import DataTable from "@/features/cms/components/DataTable";
 // TODO: CREATE New Data Table for golbaluse
 
 type AdminUsersPageProps = {
-  searchParams: {
+  searchParams: Promise<{
     [key: string]: string | string[] | undefined;
-  };
+  }>;
 };
 
 async function UsersPage({ searchParams }: AdminUsersPageProps) {
+  await searchParams;
   const currentUser = await getCurrentUser();
 
   const users = await listUsers({});

@@ -5,9 +5,10 @@ import { keytoUrl } from "@/lib/utils";
 import Image from "next/image";
 import { notFound } from "next/navigation";
 
-type Props = { params: { mediaId: string } };
+type Props = { params: Promise<{ mediaId: string }> };
 
-async function EditMediaModals({ params: { mediaId } }: Props) {
+async function EditMediaModals({ params }: Props) {
+  const { mediaId } = await params;
   // TODO: Change from server Action to GrahpQL
   const media = await getMedia(mediaId);
   if (!media) return notFound();

@@ -36,6 +36,13 @@ scripts/deleted-media-backup-*.json
 # vercel
 .vercel
 
+# opennext build output
+.open-next
+
+# cloudflare/wrangler local state + local vars
+.wrangler
+.dev.vars
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts

@@ -8,7 +8,8 @@ import { STOREFRONT_REVALIDATE_SECONDS } from "@/lib/cache/constants";
 import { getDraftProductIdsCached } from "@/lib/storefront/draft-product-ids";
 import { fetchFeaturedProductsCached } from "@/lib/storefront/product-queries";
 
-export const revalidate = STOREFRONT_REVALIDATE_SECONDS;
+export const revalidate = 120;
+export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "Featured Sarees",

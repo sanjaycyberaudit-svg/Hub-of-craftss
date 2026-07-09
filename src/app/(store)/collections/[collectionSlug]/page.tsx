@@ -16,20 +16,21 @@ import { toTitleCase, unslugify } from "@/lib/utils";
 import { notFound, redirect } from "next/navigation";
 import { Suspense } from "react";
 
-export const revalidate = STOREFRONT_REVALIDATE_SECONDS;
+export const revalidate = 120;
 
 interface CategoryPageProps {
-  params: {
+  params: Promise<{
     collectionSlug: string;
-  };
-  searchParams: {
+  }>;
+  searchParams: Promise<{
     [key: string]: string | string[] | undefined;
-  };
+  }>;
 }
 
-export function generateMetadata({ params }: CategoryPageProps) {
-  const collectionName = toTitleCase(unslugify(params.collectionSlug));
-  const path = `/collections/${params.collectionSlug}`;
+export async function generateMetadata({ params }: CategoryPageProps) {
+  const resolvedParams = await params;
+  const collectionName = toTitleCase(unslugify(resolvedParams.collectionSlug));
+  const path = `/collections/${resolvedParams.collectionSlug}`;
 
   return {
     title: `${collectionName} Sarees`,
@@ -46,7 +47,9 @@ export function generateMetadata({ params }: CategoryPageProps) {
 }
 
 async function CategoryPage({ params, searchParams }: CategoryPageProps) {
-  const requestedSlug = decodeURIComponent(params.collectionSlug).trim();
+  const resolvedParams = await params;
+  const resolvedSearchParams = await searchParams;
+  const requestedSlug = decodeURIComponent(resolvedParams.collectionSlug).trim();
   const data = await getCollectionPageCached(requestedSlug);
   const collection = data?.collectionsCollection?.edges?.[0]?.node;
 
@@ -56,7 +59,7 @@ async function CategoryPage({ params, searchParams }: CategoryPageProps) {
     redirect(`/collections/${encodeURIComponent(collection.slug)}`);
   }
 
-  const variables = buildShopSearchVariables(searchParams, collection.id);
+  const variables = buildShopSearchVariables(resolvedSearchParams, collection.id);
   const [initialSearchResult, initialDraftIds] = await Promise.all([
     fetchProductSearchCached(variables),
     getDraftProductIdsCached(),

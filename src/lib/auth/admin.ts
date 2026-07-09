@@ -7,7 +7,7 @@ import { cache } from "react";
 /** Read session in Server Components / layouts (not a server action). */
 export const getSessionUser = cache(async (): Promise<User | null> => {
   try {
-    const cookieStore = cookies();
+    const cookieStore = await cookies();
     const supabase = createServerClient({ cookieStore });
     const { data, error } = await supabase.auth.getUser();
     if (error) {

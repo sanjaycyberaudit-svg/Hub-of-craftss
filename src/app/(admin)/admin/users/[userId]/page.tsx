@@ -1,12 +1,11 @@
-"use server";
-
 import AdminShell from "@/components/admin/AdminShell";
 import { getUser, UpdateUserForm } from "@/features/users";
 import { notFound } from "next/navigation";
 
-type UpdateUserPageProps = { params: { userId: string } };
+type UpdateUserPageProps = { params: Promise<{ userId: string }> };
 
-async function UpdateUserPage({ params: { userId } }: UpdateUserPageProps) {
+async function UpdateUserPage({ params }: UpdateUserPageProps) {
+  const { userId } = await params;
   const { user } = await getUser({ userId });
   if (!user) return notFound();
 
