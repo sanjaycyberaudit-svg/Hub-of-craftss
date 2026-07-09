@@ -1,0 +1,684 @@
+import { invalidateStorefrontCache } from "@/lib/cache/invalidate-storefront";
+import { mergePaymentMeta, readPaymentMeta } from "@/lib/orders/payment-meta";
+import {
+  getProductSizeConfigKey,
+  normalizeProductSizeConfig,
+  type ProductSizeConfig,
+} from "@/lib/products/sizeConfig";
+import db from "@/lib/supabase/db";
+import {
+  apiSettings,
+  orderLines,
+  orders,
+  products,
+  type SelectOrders,
+} from "@/lib/supabase/schema";
+import { and, eq, gte, sql } from "drizzle-orm";
+import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
+import type * as schema from "@/lib/supabase/schema";
+
+import {
+  PAYMENT_SESSION_HOLD_MINUTES,
+  STOCK_HOLD_PRE_PAYMENT_MINUTES,
+  stockHoldMinutesAfterPaymentSessionOpened,
+} from "@/lib/orders/stock-reservation-policy";
+import {
+  buildReservationExpiryIso,
+  canReleaseOrphanUnpaidHold,
+  hasActiveStockReservation,
+  isReservationExpired,
+  readReservationLines,
+  shouldReserveStockAtCheckout,
+  STOCK_RESERVATION_TTL_MINUTES,
+  type StockReservationLine,
+} from "@/lib/orders/stock-reservation-helpers";
+
+export {
+  buildReservationExpiryIso,
+  canReleaseOrphanUnpaidHold,
+  hasActiveStockReservation,
+  isReservationExpired,
+  readReservationLines,
+  shouldReserveStockAtCheckout,
+  STOCK_RESERVATION_TTL_MINUTES,
+  type StockReservationLine,
+};
+
+export class StockReservationError extends Error {
+  readonly productId: string;
+  readonly productName?: string;
+
+  constructor(message: string, productId: string, productName?: string) {
+    super(message);
+    this.name = "StockReservationError";
+    this.productId = productId;
+    this.productName = productName;
+  }
+}
+
+type DbTx = PostgresJsDatabase<typeof schema>;
+
+type ReserveInput = {
+  lines: StockReservationLine[];
+  selectedSizes: Record<string, string>;
+  sizeConfigs: Map<string, ProductSizeConfig>;
+  productNames: Map<string, string>;
+};
+
+function findSizeOption(config: ProductSizeConfig, selectedSize: string) {
+  const normalized = selectedSize.trim().toUpperCase();
+  if (!normalized) {
+    return (
+      config.options.find((option) => !String(option.size ?? "").trim()) ?? null
+    );
+  }
+  return (
+    config.options.find(
+      (option) =>
+        String(option.size ?? "")
+          .trim()
+          .toUpperCase() === normalized,
+    ) ?? null
+  );
+}
+
+async function lockAndDecrementProductStock(
+  tx: DbTx,
+  productId: string,
+  quantity: number,
+) {
+  const [updated] = await tx
+    .update(products)
+    .set({
+      stock: sql`${products.stock} - ${quantity}`,
+    })
+    .where(and(eq(products.id, productId), gte(products.stock, quantity)))
+    .returning({ id: products.id });
+
+  return Boolean(updated);
+}
+
+async function lockAndDecrementSizeStock(
+  tx: DbTx,
+  productId: string,
+  selectedSize: string,
+  quantity: number,
+) {
+  const key = getProductSizeConfigKey(productId);
+  const locked = await tx.execute(
+    sql`SELECT id, value FROM api_settings WHERE key = ${key} FOR UPDATE`,
+  );
+
+  const row = locked.at(0) as { id?: string; value?: unknown } | undefined;
+  if (!row) {
+    return false;
+  }
+
+  const config = normalizeProductSizeConfig(row.value);
+  if (!config.enabled || config.options.length === 0) {
+    return true;
+  }
+
+  const option = findSizeOption(config, selectedSize);
+  if (!option) {
+    return false;
+  }
+
+  if (Number(option.qty ?? 0) < quantity) {
+    return false;
+  }
+
+  const nextOptions = config.options.map((item) => {
+    const optionSize = String(item.size ?? "")
+      .trim()
+      .toUpperCase();
+    const targetSize = String(option.size ?? "")
+      .trim()
+      .toUpperCase();
+    if (optionSize !== targetSize) return item;
+    return {
+      ...item,
+      qty: Math.max(0, Number(item.qty ?? 0) - quantity),
+    };
+  });
+
+  const normalized = normalizeProductSizeConfig({
+    enabled: config.enabled,
+    options: nextOptions,
+  });
+
+  await tx
+    .insert(apiSettings)
+    .values({
+      key,
+      value: normalized,
+      isEnabled: normalized.enabled,
+      updatedAt: new Date().toISOString(),
+    })
+    .onConflictDoUpdate({
+      target: apiSettings.key,
+      set: {
+        value: normalized,
+        isEnabled: normalized.enabled,
+        updatedAt: new Date().toISOString(),
+      },
+    });
+
+  return true;
+}
+
+async function incrementProductStock(
+  tx: DbTx,
+  productId: string,
+  quantity: number,
+) {
+  await tx
+    .update(products)
+    .set({
+      stock: sql`${products.stock} + ${quantity}`,
+    })
+    .where(eq(products.id, productId));
+}
+
+async function incrementSizeStock(
+  tx: DbTx,
+  productId: string,
+  selectedSize: string,
+  quantity: number,
+) {
+  const key = getProductSizeConfigKey(productId);
+  const locked = await tx.execute(
+    sql`SELECT id, value FROM api_settings WHERE key = ${key} FOR UPDATE`,
+  );
+  const row = locked.at(0) as { id?: string; value?: unknown } | undefined;
+  const config = normalizeProductSizeConfig(row?.value);
+  if (!config.enabled || config.options.length === 0) {
+    return;
+  }
+
+  const option = findSizeOption(config, selectedSize);
+  if (!option) return;
+
+  const nextOptions = config.options.map((item) => {
+    const optionSize = String(item.size ?? "")
+      .trim()
+      .toUpperCase();
+    const targetSize = String(option.size ?? "")
+      .trim()
+      .toUpperCase();
+    if (optionSize !== targetSize) return item;
+    return {
+      ...item,
+      qty: Math.max(0, Number(item.qty ?? 0) + quantity),
+    };
+  });
+
+  const normalized = normalizeProductSizeConfig({
+    enabled: config.enabled,
+    options: nextOptions,
+  });
+
+  await tx
+    .insert(apiSettings)
+    .values({
+      key,
+      value: normalized,
+      isEnabled: normalized.enabled,
+      updatedAt: new Date().toISOString(),
+    })
+    .onConflictDoUpdate({
+      target: apiSettings.key,
+      set: {
+        value: normalized,
+        isEnabled: normalized.enabled,
+        updatedAt: new Date().toISOString(),
+      },
+    });
+}
+
+export async function reserveStockInTransaction(
+  tx: DbTx,
+  input: ReserveInput,
+): Promise<Record<string, unknown>> {
+  const reservedAt = new Date().toISOString();
+  const paymentSessionTtlMinutes = stockHoldMinutesAfterPaymentSessionOpened();
+  const expiresAt = buildReservationExpiryIso(
+    Date.now(),
+    STOCK_HOLD_PRE_PAYMENT_MINUTES,
+  );
+  const reservationLines: StockReservationLine[] = [];
+
+  const sortedLines = [...input.lines].sort((a, b) =>
+    a.productId.localeCompare(b.productId),
+  );
+
+  for (const line of sortedLines) {
+    const productName = input.productNames.get(line.productId);
+    const selectedSize = line.size ?? input.selectedSizes[line.productId] ?? "";
+
+    const productReserved = await lockAndDecrementProductStock(
+      tx,
+      line.productId,
+      line.quantity,
+    );
+
+    if (!productReserved) {
+      throw new StockReservationError(
+        productName
+          ? `${productName} just sold out. Please refresh and try again.`
+          : "An item in your cart just sold out. Please refresh and try again.",
+        line.productId,
+        productName,
+      );
+    }
+
+    const sizeConfig = input.sizeConfigs.get(line.productId);
+    const hasConfiguredSizes =
+      Boolean(sizeConfig?.enabled) &&
+      (sizeConfig?.options.some((option) => Number(option.qty ?? 0) > 0) ??
+        false);
+
+    if (hasConfiguredSizes) {
+      const sizeReserved = await lockAndDecrementSizeStock(
+        tx,
+        line.productId,
+        selectedSize,
+        line.quantity,
+      );
+
+      if (!sizeReserved) {
+        throw new StockReservationError(
+          productName
+            ? `${productName}${selectedSize ? ` (${selectedSize})` : ""} is no longer available in that size.`
+            : "Selected size is no longer available.",
+          line.productId,
+          productName,
+        );
+      }
+    }
+
+    reservationLines.push({
+      productId: line.productId,
+      quantity: line.quantity,
+      ...(selectedSize ? { size: selectedSize } : {}),
+    });
+  }
+
+  return {
+    stockReserved: true,
+    stockReservedAt: reservedAt,
+    stockReservationExpiresAt: expiresAt,
+    stockReservationLines: reservationLines,
+    stockReservationTtlMinutes: paymentSessionTtlMinutes,
+    paymentSessionHoldMinutes: PAYMENT_SESSION_HOLD_MINUTES,
+    stockReservationPhase: "pre_payment",
+  };
+}
+
+export async function extendStockReservationExpiry(orderId: string) {
+  const order = await db.query.orders.findFirst({
+    where: eq(orders.id, orderId),
+  });
+  if (!order) return;
+
+  const meta = readPaymentMeta(order.payment_meta);
+  if (!hasActiveStockReservation(meta)) return;
+
+  const paymentSessionTtlMinutes = stockHoldMinutesAfterPaymentSessionOpened();
+  const openedAt = new Date().toISOString();
+
+  await db
+    .update(orders)
+    .set({
+      payment_meta: mergePaymentMeta(meta, {
+        stockReservationExpiresAt: buildReservationExpiryIso(
+          Date.now(),
+          paymentSessionTtlMinutes,
+        ),
+        stockReservationTtlMinutes: paymentSessionTtlMinutes,
+        paymentSessionHoldMinutes: PAYMENT_SESSION_HOLD_MINUTES,
+        stockReservationPhase: "payment_session",
+        paymentSessionOpenedAt: openedAt,
+      }),
+    })
+    .where(eq(orders.id, orderId));
+}
+
+type DeductLine = StockReservationLine;
+
+function readSelectedSizesFromMeta(meta: Record<string, unknown>) {
+  const raw = meta.sizes;
+  if (!raw || typeof raw !== "object") return {} as Record<string, string>;
+
+  return Object.fromEntries(
+    Object.entries(raw as Record<string, unknown>).map(([productId, size]) => [
+      productId,
+      String(size ?? "")
+        .trim()
+        .toUpperCase(),
+    ]),
+  );
+}
+
+async function loadOrderLinesForRelease(
+  tx: DbTx,
+  orderId: string,
+  meta: Record<string, unknown>,
+): Promise<StockReservationLine[]> {
+  const reserved = readReservationLines(meta);
+  if (reserved.length > 0) return reserved;
+
+  const selectedSizes = readSelectedSizesFromMeta(meta);
+  const lines = await tx
+    .select({
+      productId: orderLines.productId,
+      quantity: orderLines.quantity,
+    })
+    .from(orderLines)
+    .where(eq(orderLines.orderId, orderId));
+
+  return lines.map((line) => ({
+    productId: line.productId,
+    quantity: line.quantity,
+    ...(selectedSizes[line.productId]
+      ? { size: selectedSizes[line.productId] }
+      : {}),
+  }));
+}
+
+export async function deductPaidOrderStockAtomic(
+  lines: DeductLine[],
+): Promise<{ ok: boolean; failedProductId?: string }> {
+  try {
+    await db.transaction(async (tx) => {
+      const sortedLines = [...lines].sort((a, b) =>
+        a.productId.localeCompare(b.productId),
+      );
+
+      for (const line of sortedLines) {
+        const productOk = await lockAndDecrementProductStock(
+          tx,
+          line.productId,
+          line.quantity,
+        );
+        if (!productOk) {
+          throw new StockReservationError(
+            "Insufficient stock after payment",
+            line.productId,
+          );
+        }
+
+        if (line.size) {
+          const sizeOk = await lockAndDecrementSizeStock(
+            tx,
+            line.productId,
+            line.size,
+            line.quantity,
+          );
+          if (!sizeOk) {
+            throw new StockReservationError(
+              "Insufficient size stock after payment",
+              line.productId,
+            );
+          }
+        }
+      }
+    });
+    return { ok: true };
+  } catch (error) {
+    if (error instanceof StockReservationError) {
+      return { ok: false, failedProductId: error.productId };
+    }
+    throw error;
+  }
+}
+
+export async function confirmStockReservation(
+  orderId: string,
+): Promise<{ confirmed: boolean; skippedReason?: string }> {
+  const order = await db.query.orders.findFirst({
+    where: eq(orders.id, orderId),
+  });
+
+  if (!order) {
+    return { confirmed: false, skippedReason: "order_not_found" };
+  }
+
+  const meta = readPaymentMeta(order.payment_meta);
+  if (meta.inventoryFulfilled === true) {
+    return { confirmed: true, skippedReason: "already_fulfilled" };
+  }
+
+  if (!hasActiveStockReservation(meta)) {
+    return { confirmed: false, skippedReason: "no_active_reservation" };
+  }
+
+  await db
+    .update(orders)
+    .set({
+      payment_meta: mergePaymentMeta(meta, {
+        inventoryFulfilled: true,
+        inventoryFulfilledAt: new Date().toISOString(),
+        stockReservationConsumed: true,
+        stockReservationConfirmedAt: new Date().toISOString(),
+      }),
+    })
+    .where(eq(orders.id, orderId));
+
+  await invalidateStorefrontCache();
+  return { confirmed: true };
+}
+
+export async function releaseStockReservation(
+  orderId: string,
+  reason: string,
+  options?: { allowOrphanFallback?: boolean },
+): Promise<{ released: boolean; skippedReason?: string }> {
+  let released = false;
+  let skippedReason: string | undefined;
+
+  await db.transaction(async (tx) => {
+    const locked = await tx.execute(
+      sql`SELECT id, payment_status, payment_meta, created_at FROM orders WHERE id = ${orderId} FOR UPDATE`,
+    );
+    const row = locked.at(0) as
+      | {
+          id?: string;
+          payment_status?: string;
+          payment_meta?: Record<string, unknown> | null;
+          created_at?: string;
+        }
+      | undefined;
+
+    if (!row?.id) {
+      skippedReason = "order_not_found";
+      return;
+    }
+
+    if (row.payment_status === "paid") {
+      skippedReason = "already_paid";
+      return;
+    }
+
+    const meta = readPaymentMeta(row.payment_meta);
+    if (
+      meta.inventoryFulfilled === true ||
+      meta.stockReservationConsumed === true
+    ) {
+      skippedReason = "reservation_consumed";
+      return;
+    }
+
+    if (meta.stockReleased === true) {
+      skippedReason = "already_released";
+      released = true;
+      return;
+    }
+
+    const lines = readReservationLines(meta);
+    const hasTrackedReservation =
+      meta.stockReserved === true && lines.length > 0;
+
+    if (hasTrackedReservation) {
+      const sortedLines = [...lines].sort((a, b) =>
+        a.productId.localeCompare(b.productId),
+      );
+
+      for (const line of sortedLines) {
+        await incrementProductStock(tx, line.productId, line.quantity);
+        if (line.size) {
+          await incrementSizeStock(
+            tx,
+            line.productId,
+            line.size,
+            line.quantity,
+          );
+        }
+      }
+
+      await tx
+        .update(orders)
+        .set({
+          payment_meta: mergePaymentMeta(meta, {
+            stockReleased: true,
+            stockReleasedAt: new Date().toISOString(),
+            stockReleaseReason: reason,
+          }),
+        })
+        .where(eq(orders.id, orderId));
+
+      released = true;
+      return;
+    }
+
+    if (!options?.allowOrphanFallback) {
+      skippedReason = "no_active_reservation";
+      return;
+    }
+
+    if (!canReleaseOrphanUnpaidHold(meta, row.created_at, reason)) {
+      skippedReason = "orphan_not_eligible";
+      return;
+    }
+
+    const orphanLines = await loadOrderLinesForRelease(tx, orderId, meta);
+    if (orphanLines.length === 0) {
+      skippedReason = "no_release_lines";
+      return;
+    }
+
+    const sortedOrphanLines = [...orphanLines].sort((a, b) =>
+      a.productId.localeCompare(b.productId),
+    );
+
+    for (const line of sortedOrphanLines) {
+      await incrementProductStock(tx, line.productId, line.quantity);
+      if (line.size) {
+        await incrementSizeStock(tx, line.productId, line.size, line.quantity);
+      }
+    }
+
+    await tx
+      .update(orders)
+      .set({
+        payment_meta: mergePaymentMeta(meta, {
+          stockReleased: true,
+          stockReleasedAt: new Date().toISOString(),
+          stockReleaseReason: reason,
+          stockOrphanRelease: true,
+        }),
+      })
+      .where(eq(orders.id, orderId));
+
+    released = true;
+  });
+
+  if (released) {
+    await invalidateStorefrontCache();
+  }
+
+  return {
+    released,
+    skippedReason: released ? undefined : skippedReason ?? "release_failed",
+  };
+}
+
+export async function releaseExpiredStockReservations(options?: {
+  lookbackHours?: number;
+  limit?: number;
+}) {
+  const lookbackHours = options?.lookbackHours ?? 24;
+  const limit = options?.limit ?? 100;
+  const lookbackDate = new Date(Date.now() - lookbackHours * 60 * 60 * 1000);
+
+  const candidates = await db
+    .select()
+    .from(orders)
+    .where(
+      and(
+        eq(orders.payment_status, "unpaid"),
+        gte(orders.createdAt, lookbackDate),
+      ),
+    )
+    .orderBy(orders.createdAt)
+    .limit(limit);
+
+  let released = 0;
+
+  for (const order of candidates) {
+    const meta = readPaymentMeta(order.payment_meta);
+    const shouldReleaseTracked =
+      hasActiveStockReservation(meta) && isReservationExpired(meta);
+    const shouldReleaseOrphan = canReleaseOrphanUnpaidHold(
+      meta,
+      order.createdAt,
+      "reservation_expired",
+    );
+
+    if (!shouldReleaseTracked && !shouldReleaseOrphan) continue;
+
+    const result = await releaseStockReservation(
+      order.id,
+      "reservation_expired",
+      { allowOrphanFallback: true },
+    );
+    if (result.released) released += 1;
+  }
+
+  return { scanned: candidates.length, released };
+}
+
+export async function loadOrderReservationLines(
+  order: SelectOrders,
+): Promise<StockReservationLine[]> {
+  const meta = readPaymentMeta(order.payment_meta);
+  const reserved = readReservationLines(meta);
+  if (reserved.length > 0) return reserved;
+
+  const lines = await db
+    .select({
+      productId: orderLines.productId,
+      quantity: orderLines.quantity,
+    })
+    .from(orderLines)
+    .where(eq(orderLines.orderId, order.id));
+
+  const selectedSizes = Object.fromEntries(
+    Object.entries(
+      (meta.sizes as Record<string, unknown> | undefined) ?? {},
+    ).map(([productId, size]) => [
+      productId,
+      String(size ?? "")
+        .trim()
+        .toUpperCase(),
+    ]),
+  );
+
+  return lines.map((line) => ({
+    productId: line.productId,
+    quantity: line.quantity,
+    ...(selectedSizes[line.productId]
+      ? { size: selectedSizes[line.productId] }
+      : {}),
+  }));
+}

@@ -1,0 +1,2565 @@
+"""A high precision floating point value represented as a string"""
+scalar BigFloat
+
+"""
+Boolean expression comparing fields on type "BigFloat"
+"""
+input BigFloatFilter {
+  eq: BigFloat
+  gt: BigFloat
+  gte: BigFloat
+  in: [BigFloat!]
+  is: FilterIs
+  lt: BigFloat
+  lte: BigFloat
+  neq: BigFloat
+}
+
+"""
+Boolean expression comparing fields on type "BigFloatList"
+"""
+input BigFloatListFilter {
+  containedBy: [BigFloat!]
+  contains: [BigFloat!]
+  eq: [BigFloat!]
+  is: FilterIs
+  overlaps: [BigFloat!]
+}
+
+"""An arbitrary size integer represented as a string"""
+scalar BigInt
+
+"""
+Boolean expression comparing fields on type "BigInt"
+"""
+input BigIntFilter {
+  eq: BigInt
+  gt: BigInt
+  gte: BigInt
+  in: [BigInt!]
+  is: FilterIs
+  lt: BigInt
+  lte: BigInt
+  neq: BigInt
+}
+
+"""
+Boolean expression comparing fields on type "BigIntList"
+"""
+input BigIntListFilter {
+  containedBy: [BigInt!]
+  contains: [BigInt!]
+  eq: [BigInt!]
+  is: FilterIs
+  overlaps: [BigInt!]
+}
+
+"""
+Boolean expression comparing fields on type "Boolean"
+"""
+input BooleanFilter {
+  eq: Boolean
+  is: FilterIs
+}
+
+"""
+Boolean expression comparing fields on type "BooleanList"
+"""
+input BooleanListFilter {
+  containedBy: [Boolean!]
+  contains: [Boolean!]
+  eq: [Boolean!]
+  is: FilterIs
+  overlaps: [Boolean!]
+}
+
+"""
+An opaque string using for tracking a position in results during pagination
+"""
+scalar Cursor
+
+"""A date without time information"""
+scalar Date
+
+"""
+Boolean expression comparing fields on type "Date"
+"""
+input DateFilter {
+  eq: Date
+  gt: Date
+  gte: Date
+  in: [Date!]
+  is: FilterIs
+  lt: Date
+  lte: Date
+  neq: Date
+}
+
+"""
+Boolean expression comparing fields on type "DateList"
+"""
+input DateListFilter {
+  containedBy: [Date!]
+  contains: [Date!]
+  eq: [Date!]
+  is: FilterIs
+  overlaps: [Date!]
+}
+
+"""A date and time"""
+scalar Datetime
+
+"""
+Boolean expression comparing fields on type "Datetime"
+"""
+input DatetimeFilter {
+  eq: Datetime
+  gt: Datetime
+  gte: Datetime
+  in: [Datetime!]
+  is: FilterIs
+  lt: Datetime
+  lte: Datetime
+  neq: Datetime
+}
+
+"""
+Boolean expression comparing fields on type "DatetimeList"
+"""
+input DatetimeListFilter {
+  containedBy: [Datetime!]
+  contains: [Datetime!]
+  eq: [Datetime!]
+  is: FilterIs
+  overlaps: [Datetime!]
+}
+
+enum FilterIs {
+  NULL
+  NOT_NULL
+}
+
+"""
+Boolean expression comparing fields on type "Float"
+"""
+input FloatFilter {
+  eq: Float
+  gt: Float
+  gte: Float
+  in: [Float!]
+  is: FilterIs
+  lt: Float
+  lte: Float
+  neq: Float
+}
+
+"""
+Boolean expression comparing fields on type "FloatList"
+"""
+input FloatListFilter {
+  containedBy: [Float!]
+  contains: [Float!]
+  eq: [Float!]
+  is: FilterIs
+  overlaps: [Float!]
+}
+
+"""
+Boolean expression comparing fields on type "ID"
+"""
+input IDFilter {
+  eq: ID
+}
+
+"""
+Boolean expression comparing fields on type "Int"
+"""
+input IntFilter {
+  eq: Int
+  gt: Int
+  gte: Int
+  in: [Int!]
+  is: FilterIs
+  lt: Int
+  lte: Int
+  neq: Int
+}
+
+"""
+Boolean expression comparing fields on type "IntList"
+"""
+input IntListFilter {
+  containedBy: [Int!]
+  contains: [Int!]
+  eq: [Int!]
+  is: FilterIs
+  overlaps: [Int!]
+}
+
+"""A Javascript Object Notation value serialized as a string"""
+scalar JSON
+
+"""The root type for creating and mutating data"""
+type Mutation {
+  """Deletes zero or more records from the `address` collection"""
+  deleteFromaddressCollection(
+    """Restricts the mutation's impact to records matching the criteria"""
+    filter: addressFilter
+
+    """
+    The maximum number of records in the collection permitted to be affected
+    """
+    atMost: Int! = 1
+  ): addressDeleteResponse!
+
+  """Deletes zero or more records from the `carts` collection"""
+  deleteFromcartsCollection(
+    """Restricts the mutation's impact to records matching the criteria"""
+    filter: cartsFilter
+
+    """
+    The maximum number of records in the collection permitted to be affected
+    """
+    atMost: Int! = 1
+  ): cartsDeleteResponse!
+
+  """Deletes zero or more records from the `collections` collection"""
+  deleteFromcollectionsCollection(
+    """Restricts the mutation's impact to records matching the criteria"""
+    filter: collectionsFilter
+
+    """
+    The maximum number of records in the collection permitted to be affected
+    """
+    atMost: Int! = 1
+  ): collectionsDeleteResponse!
+
+  """Deletes zero or more records from the `comments` collection"""
+  deleteFromcommentsCollection(
+    """Restricts the mutation's impact to records matching the criteria"""
+    filter: commentsFilter
+
+    """
+    The maximum number of records in the collection permitted to be affected
+    """
+    atMost: Int! = 1
+  ): commentsDeleteResponse!
+
+  """Deletes zero or more records from the `medias` collection"""
+  deleteFrommediasCollection(
+    """Restricts the mutation's impact to records matching the criteria"""
+    filter: mediasFilter
+
+    """
+    The maximum number of records in the collection permitted to be affected
+    """
+    atMost: Int! = 1
+  ): mediasDeleteResponse!
+
+  """Deletes zero or more records from the `order_lines` collection"""
+  deleteFromorder_linesCollection(
+    """Restricts the mutation's impact to records matching the criteria"""
+    filter: order_linesFilter
+
+    """
+    The maximum number of records in the collection permitted to be affected
+    """
+    atMost: Int! = 1
+  ): order_linesDeleteResponse!
+
+  """Deletes zero or more records from the `orders` collection"""
+  deleteFromordersCollection(
+    """Restricts the mutation's impact to records matching the criteria"""
+    filter: ordersFilter
+
+    """
+    The maximum number of records in the collection permitted to be affected
+    """
+    atMost: Int! = 1
+  ): ordersDeleteResponse!
+
+  """Deletes zero or more records from the `product_medias` collection"""
+  deleteFromproduct_mediasCollection(
+    """Restricts the mutation's impact to records matching the criteria"""
+    filter: product_mediasFilter
+
+    """
+    The maximum number of records in the collection permitted to be affected
+    """
+    atMost: Int! = 1
+  ): product_mediasDeleteResponse!
+
+  """Deletes zero or more records from the `products` collection"""
+  deleteFromproductsCollection(
+    """Restricts the mutation's impact to records matching the criteria"""
+    filter: productsFilter
+
+    """
+    The maximum number of records in the collection permitted to be affected
+    """
+    atMost: Int! = 1
+  ): productsDeleteResponse!
+
+  """Deletes zero or more records from the `profiles` collection"""
+  deleteFromprofilesCollection(
+    """Restricts the mutation's impact to records matching the criteria"""
+    filter: profilesFilter
+
+    """
+    The maximum number of records in the collection permitted to be affected
+    """
+    atMost: Int! = 1
+  ): profilesDeleteResponse!
+
+  """Deletes zero or more records from the `testimonials` collection"""
+  deleteFromtestimonialsCollection(
+    """Restricts the mutation's impact to records matching the criteria"""
+    filter: testimonialsFilter
+
+    """
+    The maximum number of records in the collection permitted to be affected
+    """
+    atMost: Int! = 1
+  ): testimonialsDeleteResponse!
+
+  """Deletes zero or more records from the `wishlist` collection"""
+  deleteFromwishlistCollection(
+    """Restricts the mutation's impact to records matching the criteria"""
+    filter: wishlistFilter
+
+    """
+    The maximum number of records in the collection permitted to be affected
+    """
+    atMost: Int! = 1
+  ): wishlistDeleteResponse!
+
+  """Adds one or more `address` records to the collection"""
+  insertIntoaddressCollection(objects: [addressInsertInput!]!): addressInsertResponse
+
+  """Adds one or more `carts` records to the collection"""
+  insertIntocartsCollection(objects: [cartsInsertInput!]!): cartsInsertResponse
+
+  """Adds one or more `collections` records to the collection"""
+  insertIntocollectionsCollection(objects: [collectionsInsertInput!]!): collectionsInsertResponse
+
+  """Adds one or more `comments` records to the collection"""
+  insertIntocommentsCollection(objects: [commentsInsertInput!]!): commentsInsertResponse
+
+  """Adds one or more `medias` records to the collection"""
+  insertIntomediasCollection(objects: [mediasInsertInput!]!): mediasInsertResponse
+
+  """Adds one or more `order_lines` records to the collection"""
+  insertIntoorder_linesCollection(objects: [order_linesInsertInput!]!): order_linesInsertResponse
+
+  """Adds one or more `orders` records to the collection"""
+  insertIntoordersCollection(objects: [ordersInsertInput!]!): ordersInsertResponse
+
+  """Adds one or more `product_medias` records to the collection"""
+  insertIntoproduct_mediasCollection(objects: [product_mediasInsertInput!]!): product_mediasInsertResponse
+
+  """Adds one or more `products` records to the collection"""
+  insertIntoproductsCollection(objects: [productsInsertInput!]!): productsInsertResponse
+
+  """Adds one or more `profiles` records to the collection"""
+  insertIntoprofilesCollection(objects: [profilesInsertInput!]!): profilesInsertResponse
+
+  """Adds one or more `testimonials` records to the collection"""
+  insertIntotestimonialsCollection(objects: [testimonialsInsertInput!]!): testimonialsInsertResponse
+
+  """Adds one or more `wishlist` records to the collection"""
+  insertIntowishlistCollection(objects: [wishlistInsertInput!]!): wishlistInsertResponse
+
+  """Updates zero or more records in the `address` collection"""
+  updateaddressCollection(
+    """
+    Fields that are set will be updated for all records matching the `filter`
+    """
+    set: addressUpdateInput!
+
+    """Restricts the mutation's impact to records matching the criteria"""
+    filter: addressFilter
+
+    """
+    The maximum number of records in the collection permitted to be affected
+    """
+    atMost: Int! = 1
+  ): addressUpdateResponse!
+
+  """Updates zero or more records in the `carts` collection"""
+  updatecartsCollection(
+    """
+    Fields that are set will be updated for all records matching the `filter`
+    """
+    set: cartsUpdateInput!
+
+    """Restricts the mutation's impact to records matching the criteria"""
+    filter: cartsFilter
+
+    """
+    The maximum number of records in the collection permitted to be affected
+    """
+    atMost: Int! = 1
+  ): cartsUpdateResponse!
+
+  """Updates zero or more records in the `collections` collection"""
+  updatecollectionsCollection(
+    """
+    Fields that are set will be updated for all records matching the `filter`
+    """
+    set: collectionsUpdateInput!
+
+    """Restricts the mutation's impact to records matching the criteria"""
+    filter: collectionsFilter
+
+    """
+    The maximum number of records in the collection permitted to be affected
+    """
+    atMost: Int! = 1
+  ): collectionsUpdateResponse!
+
+  """Updates zero or more records in the `comments` collection"""
+  updatecommentsCollection(
+    """
+    Fields that are set will be updated for all records matching the `filter`
+    """
+    set: commentsUpdateInput!
+
+    """Restricts the mutation's impact to records matching the criteria"""
+    filter: commentsFilter
+
+    """
+    The maximum number of records in the collection permitted to be affected
+    """
+    atMost: Int! = 1
+  ): commentsUpdateResponse!
+
+  """Updates zero or more records in the `medias` collection"""
+  updatemediasCollection(
+    """
+    Fields that are set will be updated for all records matching the `filter`
+    """
+    set: mediasUpdateInput!
+
+    """Restricts the mutation's impact to records matching the criteria"""
+    filter: mediasFilter
+
+    """
+    The maximum number of records in the collection permitted to be affected
+    """
+    atMost: Int! = 1
+  ): mediasUpdateResponse!
+
+  """Updates zero or more records in the `order_lines` collection"""
+  updateorder_linesCollection(
+    """
+    Fields that are set will be updated for all records matching the `filter`
+    """
+    set: order_linesUpdateInput!
+
+    """Restricts the mutation's impact to records matching the criteria"""
+    filter: order_linesFilter
+
+    """
+    The maximum number of records in the collection permitted to be affected
+    """
+    atMost: Int! = 1
+  ): order_linesUpdateResponse!
+
+  """Updates zero or more records in the `orders` collection"""
+  updateordersCollection(
+    """
+    Fields that are set will be updated for all records matching the `filter`
+    """
+    set: ordersUpdateInput!
+
+    """Restricts the mutation's impact to records matching the criteria"""
+    filter: ordersFilter
+
+    """
+    The maximum number of records in the collection permitted to be affected
+    """
+    atMost: Int! = 1
+  ): ordersUpdateResponse!
+
+  """Updates zero or more records in the `product_medias` collection"""
+  updateproduct_mediasCollection(
+    """
+    Fields that are set will be updated for all records matching the `filter`
+    """
+    set: product_mediasUpdateInput!
+
+    """Restricts the mutation's impact to records matching the criteria"""
+    filter: product_mediasFilter
+
+    """
+    The maximum number of records in the collection permitted to be affected
+    """
+    atMost: Int! = 1
+  ): product_mediasUpdateResponse!
+
+  """Updates zero or more records in the `products` collection"""
+  updateproductsCollection(
+    """
+    Fields that are set will be updated for all records matching the `filter`
+    """
+    set: productsUpdateInput!
+
+    """Restricts the mutation's impact to records matching the criteria"""
+    filter: productsFilter
+
+    """
+    The maximum number of records in the collection permitted to be affected
+    """
+    atMost: Int! = 1
+  ): productsUpdateResponse!
+
+  """Updates zero or more records in the `profiles` collection"""
+  updateprofilesCollection(
+    """
+    Fields that are set will be updated for all records matching the `filter`
+    """
+    set: profilesUpdateInput!
+
+    """Restricts the mutation's impact to records matching the criteria"""
+    filter: profilesFilter
+
+    """
+    The maximum number of records in the collection permitted to be affected
+    """
+    atMost: Int! = 1
+  ): profilesUpdateResponse!
+
+  """Updates zero or more records in the `testimonials` collection"""
+  updatetestimonialsCollection(
+    """
+    Fields that are set will be updated for all records matching the `filter`
+    """
+    set: testimonialsUpdateInput!
+
+    """Restricts the mutation's impact to records matching the criteria"""
+    filter: testimonialsFilter
+
+    """
+    The maximum number of records in the collection permitted to be affected
+    """
+    atMost: Int! = 1
+  ): testimonialsUpdateResponse!
+
+  """Updates zero or more records in the `wishlist` collection"""
+  updatewishlistCollection(
+    """
+    Fields that are set will be updated for all records matching the `filter`
+    """
+    set: wishlistUpdateInput!
+
+    """Restricts the mutation's impact to records matching the criteria"""
+    filter: wishlistFilter
+
+    """
+    The maximum number of records in the collection permitted to be affected
+    """
+    atMost: Int! = 1
+  ): wishlistUpdateResponse!
+}
+
+interface Node {
+  """Retrieves a record by `ID`"""
+  nodeId: ID!
+}
+
+"""Any type not handled by the type system"""
+scalar Opaque
+
+"""
+Boolean expression comparing fields on type "Opaque"
+"""
+input OpaqueFilter {
+  eq: Opaque
+  is: FilterIs
+}
+
+"""Defines a per-field sorting order"""
+enum OrderByDirection {
+  """Ascending order, nulls first"""
+  AscNullsFirst
+
+  """Ascending order, nulls last"""
+  AscNullsLast
+
+  """Descending order, nulls first"""
+  DescNullsFirst
+
+  """Descending order, nulls last"""
+  DescNullsLast
+}
+
+type PageInfo {
+  endCursor: String
+  hasNextPage: Boolean!
+  hasPreviousPage: Boolean!
+  startCursor: String
+}
+
+"""The root type for querying data"""
+type Query {
+  """A pagable collection of type `address`"""
+  addressCollection(
+    """Query the first `n` records in the collection"""
+    first: Int
+
+    """Query the last `n` records in the collection"""
+    last: Int
+
+    """Query values in the collection before the provided cursor"""
+    before: Cursor
+
+    """Query values in the collection after the provided cursor"""
+    after: Cursor
+
+    """
+    Skip n values from the after cursor. Alternative to cursor pagination. Backward pagination not supported.
+    """
+    offset: Int
+
+    """Filters to apply to the results set when querying from the collection"""
+    filter: addressFilter
+
+    """Sort order to apply to the collection"""
+    orderBy: [addressOrderBy!]
+  ): addressConnection
+
+  """A pagable collection of type `carts`"""
+  cartsCollection(
+    """Query the first `n` records in the collection"""
+    first: Int
+
+    """Query the last `n` records in the collection"""
+    last: Int
+
+    """Query values in the collection before the provided cursor"""
+    before: Cursor
+
+    """Query values in the collection after the provided cursor"""
+    after: Cursor
+
+    """
+    Skip n values from the after cursor. Alternative to cursor pagination. Backward pagination not supported.
+    """
+    offset: Int
+
+    """Filters to apply to the results set when querying from the collection"""
+    filter: cartsFilter
+
+    """Sort order to apply to the collection"""
+    orderBy: [cartsOrderBy!]
+  ): cartsConnection
+
+  """A pagable collection of type `collections`"""
+  collectionsCollection(
+    """Query the first `n` records in the collection"""
+    first: Int
+
+    """Query the last `n` records in the collection"""
+    last: Int
+
+    """Query values in the collection before the provided cursor"""
+    before: Cursor
+
+    """Query values in the collection after the provided cursor"""
+    after: Cursor
+
+    """
+    Skip n values from the after cursor. Alternative to cursor pagination. Backward pagination not supported.
+    """
+    offset: Int
+
+    """Filters to apply to the results set when querying from the collection"""
+    filter: collectionsFilter
+
+    """Sort order to apply to the collection"""
+    orderBy: [collectionsOrderBy!]
+  ): collectionsConnection
+
+  """A pagable collection of type `comments`"""
+  commentsCollection(
+    """Query the first `n` records in the collection"""
+    first: Int
+
+    """Query the last `n` records in the collection"""
+    last: Int
+
+    """Query values in the collection before the provided cursor"""
+    before: Cursor
+
+    """Query values in the collection after the provided cursor"""
+    after: Cursor
+
+    """
+    Skip n values from the after cursor. Alternative to cursor pagination. Backward pagination not supported.
+    """
+    offset: Int
+
+    """Filters to apply to the results set when querying from the collection"""
+    filter: commentsFilter
+
+    """Sort order to apply to the collection"""
+    orderBy: [commentsOrderBy!]
+  ): commentsConnection
+
+  """A pagable collection of type `medias`"""
+  mediasCollection(
+    """Query the first `n` records in the collection"""
+    first: Int
+
+    """Query the last `n` records in the collection"""
+    last: Int
+
+    """Query values in the collection before the provided cursor"""
+    before: Cursor
+
+    """Query values in the collection after the provided cursor"""
+    after: Cursor
+
+    """
+    Skip n values from the after cursor. Alternative to cursor pagination. Backward pagination not supported.
+    """
+    offset: Int
+
+    """Filters to apply to the results set when querying from the collection"""
+    filter: mediasFilter
+
+    """Sort order to apply to the collection"""
+    orderBy: [mediasOrderBy!]
+  ): mediasConnection
+
+  """Retrieve a record by its `ID`"""
+  node(
+    """The record's `ID`"""
+    nodeId: ID!
+  ): Node
+
+  """A pagable collection of type `order_lines`"""
+  order_linesCollection(
+    """Query the first `n` records in the collection"""
+    first: Int
+
+    """Query the last `n` records in the collection"""
+    last: Int
+
+    """Query values in the collection before the provided cursor"""
+    before: Cursor
+
+    """Query values in the collection after the provided cursor"""
+    after: Cursor
+
+    """
+    Skip n values from the after cursor. Alternative to cursor pagination. Backward pagination not supported.
+    """
+    offset: Int
+
+    """Filters to apply to the results set when querying from the collection"""
+    filter: order_linesFilter
+
+    """Sort order to apply to the collection"""
+    orderBy: [order_linesOrderBy!]
+  ): order_linesConnection
+
+  """A pagable collection of type `orders`"""
+  ordersCollection(
+    """Query the first `n` records in the collection"""
+    first: Int
+
+    """Query the last `n` records in the collection"""
+    last: Int
+
+    """Query values in the collection before the provided cursor"""
+    before: Cursor
+
+    """Query values in the collection after the provided cursor"""
+    after: Cursor
+
+    """
+    Skip n values from the after cursor. Alternative to cursor pagination. Backward pagination not supported.
+    """
+    offset: Int
+
+    """Filters to apply to the results set when querying from the collection"""
+    filter: ordersFilter
+
+    """Sort order to apply to the collection"""
+    orderBy: [ordersOrderBy!]
+  ): ordersConnection
+
+  """A pagable collection of type `product_medias`"""
+  product_mediasCollection(
+    """Query the first `n` records in the collection"""
+    first: Int
+
+    """Query the last `n` records in the collection"""
+    last: Int
+
+    """Query values in the collection before the provided cursor"""
+    before: Cursor
+
+    """Query values in the collection after the provided cursor"""
+    after: Cursor
+
+    """
+    Skip n values from the after cursor. Alternative to cursor pagination. Backward pagination not supported.
+    """
+    offset: Int
+
+    """Filters to apply to the results set when querying from the collection"""
+    filter: product_mediasFilter
+
+    """Sort order to apply to the collection"""
+    orderBy: [product_mediasOrderBy!]
+  ): product_mediasConnection
+
+  """A pagable collection of type `products`"""
+  productsCollection(
+    """Query the first `n` records in the collection"""
+    first: Int
+
+    """Query the last `n` records in the collection"""
+    last: Int
+
+    """Query values in the collection before the provided cursor"""
+    before: Cursor
+
+    """Query values in the collection after the provided cursor"""
+    after: Cursor
+
+    """
+    Skip n values from the after cursor. Alternative to cursor pagination. Backward pagination not supported.
+    """
+    offset: Int
+
+    """Filters to apply to the results set when querying from the collection"""
+    filter: productsFilter
+
+    """Sort order to apply to the collection"""
+    orderBy: [productsOrderBy!]
+  ): productsConnection
+
+  """A pagable collection of type `profiles`"""
+  profilesCollection(
+    """Query the first `n` records in the collection"""
+    first: Int
+
+    """Query the last `n` records in the collection"""
+    last: Int
+
+    """Query values in the collection before the provided cursor"""
+    before: Cursor
+
+    """Query values in the collection after the provided cursor"""
+    after: Cursor
+
+    """
+    Skip n values from the after cursor. Alternative to cursor pagination. Backward pagination not supported.
+    """
+    offset: Int
+
+    """Filters to apply to the results set when querying from the collection"""
+    filter: profilesFilter
+
+    """Sort order to apply to the collection"""
+    orderBy: [profilesOrderBy!]
+  ): profilesConnection
+
+  """A pagable collection of type `testimonials`"""
+  testimonialsCollection(
+    """Query the first `n` records in the collection"""
+    first: Int
+
+    """Query the last `n` records in the collection"""
+    last: Int
+
+    """Query values in the collection before the provided cursor"""
+    before: Cursor
+
+    """Query values in the collection after the provided cursor"""
+    after: Cursor
+
+    """
+    Skip n values from the after cursor. Alternative to cursor pagination. Backward pagination not supported.
+    """
+    offset: Int
+
+    """Filters to apply to the results set when querying from the collection"""
+    filter: testimonialsFilter
+
+    """Sort order to apply to the collection"""
+    orderBy: [testimonialsOrderBy!]
+  ): testimonialsConnection
+
+  """A pagable collection of type `wishlist`"""
+  wishlistCollection(
+    """Query the first `n` records in the collection"""
+    first: Int
+
+    """Query the last `n` records in the collection"""
+    last: Int
+
+    """Query values in the collection before the provided cursor"""
+    before: Cursor
+
+    """Query values in the collection after the provided cursor"""
+    after: Cursor
+
+    """
+    Skip n values from the after cursor. Alternative to cursor pagination. Backward pagination not supported.
+    """
+    offset: Int
+
+    """Filters to apply to the results set when querying from the collection"""
+    filter: wishlistFilter
+
+    """Sort order to apply to the collection"""
+    orderBy: [wishlistOrderBy!]
+  ): wishlistConnection
+}
+
+"""
+Boolean expression comparing fields on type "String"
+"""
+input StringFilter {
+  eq: String
+  gt: String
+  gte: String
+  ilike: String
+  in: [String!]
+  iregex: String
+  is: FilterIs
+  like: String
+  lt: String
+  lte: String
+  neq: String
+  regex: String
+  startsWith: String
+}
+
+"""
+Boolean expression comparing fields on type "StringList"
+"""
+input StringListFilter {
+  containedBy: [String!]
+  contains: [String!]
+  eq: [String!]
+  is: FilterIs
+  overlaps: [String!]
+}
+
+"""A time without date information"""
+scalar Time
+
+"""
+Boolean expression comparing fields on type "Time"
+"""
+input TimeFilter {
+  eq: Time
+  gt: Time
+  gte: Time
+  in: [Time!]
+  is: FilterIs
+  lt: Time
+  lte: Time
+  neq: Time
+}
+
+"""
+Boolean expression comparing fields on type "TimeList"
+"""
+input TimeListFilter {
+  containedBy: [Time!]
+  contains: [Time!]
+  eq: [Time!]
+  is: FilterIs
+  overlaps: [Time!]
+}
+
+"""A universally unique identifier"""
+scalar UUID
+
+"""
+Boolean expression comparing fields on type "UUID"
+"""
+input UUIDFilter {
+  eq: UUID
+  in: [UUID!]
+  is: FilterIs
+  neq: UUID
+}
+
+"""
+Boolean expression comparing fields on type "UUIDList"
+"""
+input UUIDListFilter {
+  containedBy: [UUID!]
+  contains: [UUID!]
+  eq: [UUID!]
+  is: FilterIs
+  overlaps: [UUID!]
+}
+
+type address implements Node {
+  """Globally Unique Record Identifier"""
+  nodeId: ID!
+  id: String!
+  city: String
+  country: String
+  line1: String
+  line2: String
+  postal_code: String
+  state: String
+  userProfileId: UUID
+  userProfile: profiles
+}
+
+type addressConnection {
+  edges: [addressEdge!]!
+  pageInfo: PageInfo!
+}
+
+type addressDeleteResponse {
+  """Count of the records impacted by the mutation"""
+  affectedCount: Int!
+
+  """Array of records impacted by the mutation"""
+  records: [address!]!
+}
+
+type addressEdge {
+  cursor: String!
+  node: address!
+}
+
+input addressFilter {
+  id: StringFilter
+  city: StringFilter
+  country: StringFilter
+  line1: StringFilter
+  line2: StringFilter
+  postal_code: StringFilter
+  state: StringFilter
+  userProfileId: UUIDFilter
+  nodeId: IDFilter
+
+  """
+  Returns true only if all its inner filters are true, otherwise returns false
+  """
+  and: [addressFilter!]
+
+  """
+  Returns true if at least one of its inner filters is true, otherwise returns false
+  """
+  or: [addressFilter!]
+
+  """Negates a filter"""
+  not: addressFilter
+}
+
+input addressInsertInput {
+  id: String
+  city: String
+  country: String
+  line1: String
+  line2: String
+  postal_code: String
+  state: String
+  userProfileId: UUID
+}
+
+type addressInsertResponse {
+  """Count of the records impacted by the mutation"""
+  affectedCount: Int!
+
+  """Array of records impacted by the mutation"""
+  records: [address!]!
+}
+
+input addressOrderBy {
+  id: OrderByDirection
+  city: OrderByDirection
+  country: OrderByDirection
+  line1: OrderByDirection
+  line2: OrderByDirection
+  postal_code: OrderByDirection
+  state: OrderByDirection
+  userProfileId: OrderByDirection
+}
+
+input addressUpdateInput {
+  id: String
+  city: String
+  country: String
+  line1: String
+  line2: String
+  postal_code: String
+  state: String
+  userProfileId: UUID
+}
+
+type addressUpdateResponse {
+  """Count of the records impacted by the mutation"""
+  affectedCount: Int!
+
+  """Array of records impacted by the mutation"""
+  records: [address!]!
+}
+
+type carts implements Node {
+  """Globally Unique Record Identifier"""
+  nodeId: ID!
+  quantity: Int!
+  product_id: String!
+  user_id: UUID!
+  created_at: Datetime!
+  products: products
+}
+
+type cartsConnection {
+  edges: [cartsEdge!]!
+  pageInfo: PageInfo!
+}
+
+type cartsDeleteResponse {
+  """Count of the records impacted by the mutation"""
+  affectedCount: Int!
+
+  """Array of records impacted by the mutation"""
+  records: [carts!]!
+}
+
+type cartsEdge {
+  cursor: String!
+  node: carts!
+}
+
+input cartsFilter {
+  quantity: IntFilter
+  product_id: StringFilter
+  user_id: UUIDFilter
+  created_at: DatetimeFilter
+  nodeId: IDFilter
+
+  """
+  Returns true only if all its inner filters are true, otherwise returns false
+  """
+  and: [cartsFilter!]
+
+  """
+  Returns true if at least one of its inner filters is true, otherwise returns false
+  """
+  or: [cartsFilter!]
+
+  """Negates a filter"""
+  not: cartsFilter
+}
+
+input cartsInsertInput {
+  quantity: Int
+  product_id: String
+  user_id: UUID
+  created_at: Datetime
+}
+
+type cartsInsertResponse {
+  """Count of the records impacted by the mutation"""
+  affectedCount: Int!
+
+  """Array of records impacted by the mutation"""
+  records: [carts!]!
+}
+
+input cartsOrderBy {
+  quantity: OrderByDirection
+  product_id: OrderByDirection
+  user_id: OrderByDirection
+  created_at: OrderByDirection
+}
+
+input cartsUpdateInput {
+  quantity: Int
+  product_id: String
+  user_id: UUID
+  created_at: Datetime
+}
+
+type cartsUpdateResponse {
+  """Count of the records impacted by the mutation"""
+  affectedCount: Int!
+
+  """Array of records impacted by the mutation"""
+  records: [carts!]!
+}
+
+type collections implements Node {
+  """Globally Unique Record Identifier"""
+  nodeId: ID!
+  id: String!
+  label: String!
+  slug: String!
+  title: String!
+  description: String!
+  order: Int
+  featured_image_id: String!
+  medias: medias
+  productsCollection(
+    """Query the first `n` records in the collection"""
+    first: Int
+
+    """Query the last `n` records in the collection"""
+    last: Int
+
+    """Query values in the collection before the provided cursor"""
+    before: Cursor
+
+    """Query values in the collection after the provided cursor"""
+    after: Cursor
+
+    """
+    Skip n values from the after cursor. Alternative to cursor pagination. Backward pagination not supported.
+    """
+    offset: Int
+
+    """Filters to apply to the results set when querying from the collection"""
+    filter: productsFilter
+
+    """Sort order to apply to the collection"""
+    orderBy: [productsOrderBy!]
+  ): productsConnection
+}
+
+type collectionsConnection {
+  edges: [collectionsEdge!]!
+  pageInfo: PageInfo!
+}
+
+type collectionsDeleteResponse {
+  """Count of the records impacted by the mutation"""
+  affectedCount: Int!
+
+  """Array of records impacted by the mutation"""
+  records: [collections!]!
+}
+
+type collectionsEdge {
+  cursor: String!
+  node: collections!
+}
+
+input collectionsFilter {
+  id: StringFilter
+  label: StringFilter
+  slug: StringFilter
+  title: StringFilter
+  description: StringFilter
+  order: IntFilter
+  featured_image_id: StringFilter
+  nodeId: IDFilter
+
+  """
+  Returns true only if all its inner filters are true, otherwise returns false
+  """
+  and: [collectionsFilter!]
+
+  """
+  Returns true if at least one of its inner filters is true, otherwise returns false
+  """
+  or: [collectionsFilter!]
+
+  """Negates a filter"""
+  not: collectionsFilter
+}
+
+input collectionsInsertInput {
+  id: String
+  label: String
+  slug: String
+  title: String
+  description: String
+  order: Int
+  featured_image_id: String
+}
+
+type collectionsInsertResponse {
+  """Count of the records impacted by the mutation"""
+  affectedCount: Int!
+
+  """Array of records impacted by the mutation"""
+  records: [collections!]!
+}
+
+input collectionsOrderBy {
+  id: OrderByDirection
+  label: OrderByDirection
+  slug: OrderByDirection
+  title: OrderByDirection
+  description: OrderByDirection
+  order: OrderByDirection
+  featured_image_id: OrderByDirection
+}
+
+input collectionsUpdateInput {
+  id: String
+  label: String
+  slug: String
+  title: String
+  description: String
+  order: Int
+  featured_image_id: String
+}
+
+type collectionsUpdateResponse {
+  """Count of the records impacted by the mutation"""
+  affectedCount: Int!
+
+  """Array of records impacted by the mutation"""
+  records: [collections!]!
+}
+
+type comments implements Node {
+  """Globally Unique Record Identifier"""
+  nodeId: ID!
+  id: String!
+  productId: String!
+  profileId: UUID!
+  comment: String!
+  created_at: Datetime!
+  product: products
+  profile: profiles
+}
+
+type commentsConnection {
+  edges: [commentsEdge!]!
+  pageInfo: PageInfo!
+}
+
+type commentsDeleteResponse {
+  """Count of the records impacted by the mutation"""
+  affectedCount: Int!
+
+  """Array of records impacted by the mutation"""
+  records: [comments!]!
+}
+
+type commentsEdge {
+  cursor: String!
+  node: comments!
+}
+
+input commentsFilter {
+  id: StringFilter
+  productId: StringFilter
+  profileId: UUIDFilter
+  comment: StringFilter
+  created_at: DatetimeFilter
+  nodeId: IDFilter
+
+  """
+  Returns true only if all its inner filters are true, otherwise returns false
+  """
+  and: [commentsFilter!]
+
+  """
+  Returns true if at least one of its inner filters is true, otherwise returns false
+  """
+  or: [commentsFilter!]
+
+  """Negates a filter"""
+  not: commentsFilter
+}
+
+input commentsInsertInput {
+  id: String
+  productId: String
+  profileId: UUID
+  comment: String
+  created_at: Datetime
+}
+
+type commentsInsertResponse {
+  """Count of the records impacted by the mutation"""
+  affectedCount: Int!
+
+  """Array of records impacted by the mutation"""
+  records: [comments!]!
+}
+
+input commentsOrderBy {
+  id: OrderByDirection
+  productId: OrderByDirection
+  profileId: OrderByDirection
+  comment: OrderByDirection
+  created_at: OrderByDirection
+}
+
+input commentsUpdateInput {
+  id: String
+  productId: String
+  profileId: UUID
+  comment: String
+  created_at: Datetime
+}
+
+type commentsUpdateResponse {
+  """Count of the records impacted by the mutation"""
+  affectedCount: Int!
+
+  """Array of records impacted by the mutation"""
+  records: [comments!]!
+}
+
+type medias implements Node {
+  """Globally Unique Record Identifier"""
+  nodeId: ID!
+  id: String!
+  key: String!
+  alt: String!
+  created_at: Datetime
+  updated_at: Datetime
+  collectionsCollection(
+    """Query the first `n` records in the collection"""
+    first: Int
+
+    """Query the last `n` records in the collection"""
+    last: Int
+
+    """Query values in the collection before the provided cursor"""
+    before: Cursor
+
+    """Query values in the collection after the provided cursor"""
+    after: Cursor
+
+    """
+    Skip n values from the after cursor. Alternative to cursor pagination. Backward pagination not supported.
+    """
+    offset: Int
+
+    """Filters to apply to the results set when querying from the collection"""
+    filter: collectionsFilter
+
+    """Sort order to apply to the collection"""
+    orderBy: [collectionsOrderBy!]
+  ): collectionsConnection
+  product_mediasCollection(
+    """Query the first `n` records in the collection"""
+    first: Int
+
+    """Query the last `n` records in the collection"""
+    last: Int
+
+    """Query values in the collection before the provided cursor"""
+    before: Cursor
+
+    """Query values in the collection after the provided cursor"""
+    after: Cursor
+
+    """
+    Skip n values from the after cursor. Alternative to cursor pagination. Backward pagination not supported.
+    """
+    offset: Int
+
+    """Filters to apply to the results set when querying from the collection"""
+    filter: product_mediasFilter
+
+    """Sort order to apply to the collection"""
+    orderBy: [product_mediasOrderBy!]
+  ): product_mediasConnection
+  productsCollection(
+    """Query the first `n` records in the collection"""
+    first: Int
+
+    """Query the last `n` records in the collection"""
+    last: Int
+
+    """Query values in the collection before the provided cursor"""
+    before: Cursor
+
+    """Query values in the collection after the provided cursor"""
+    after: Cursor
+
+    """
+    Skip n values from the after cursor. Alternative to cursor pagination. Backward pagination not supported.
+    """
+    offset: Int
+
+    """Filters to apply to the results set when querying from the collection"""
+    filter: productsFilter
+
+    """Sort order to apply to the collection"""
+    orderBy: [productsOrderBy!]
+  ): productsConnection
+  testimonialsCollection(
+    """Query the first `n` records in the collection"""
+    first: Int
+
+    """Query the last `n` records in the collection"""
+    last: Int
+
+    """Query values in the collection before the provided cursor"""
+    before: Cursor
+
+    """Query values in the collection after the provided cursor"""
+    after: Cursor
+
+    """
+    Skip n values from the after cursor. Alternative to cursor pagination. Backward pagination not supported.
+    """
+    offset: Int
+
+    """Filters to apply to the results set when querying from the collection"""
+    filter: testimonialsFilter
+
+    """Sort order to apply to the collection"""
+    orderBy: [testimonialsOrderBy!]
+  ): testimonialsConnection
+}
+
+type mediasConnection {
+  edges: [mediasEdge!]!
+  pageInfo: PageInfo!
+}
+
+type mediasDeleteResponse {
+  """Count of the records impacted by the mutation"""
+  affectedCount: Int!
+
+  """Array of records impacted by the mutation"""
+  records: [medias!]!
+}
+
+type mediasEdge {
+  cursor: String!
+  node: medias!
+}
+
+input mediasFilter {
+  id: StringFilter
+  key: StringFilter
+  alt: StringFilter
+  created_at: DatetimeFilter
+  updated_at: DatetimeFilter
+  nodeId: IDFilter
+
+  """
+  Returns true only if all its inner filters are true, otherwise returns false
+  """
+  and: [mediasFilter!]
+
+  """
+  Returns true if at least one of its inner filters is true, otherwise returns false
+  """
+  or: [mediasFilter!]
+
+  """Negates a filter"""
+  not: mediasFilter
+}
+
+input mediasInsertInput {
+  id: String
+  key: String
+  alt: String
+  created_at: Datetime
+  updated_at: Datetime
+}
+
+type mediasInsertResponse {
+  """Count of the records impacted by the mutation"""
+  affectedCount: Int!
+
+  """Array of records impacted by the mutation"""
+  records: [medias!]!
+}
+
+input mediasOrderBy {
+  id: OrderByDirection
+  key: OrderByDirection
+  alt: OrderByDirection
+  created_at: OrderByDirection
+  updated_at: OrderByDirection
+}
+
+input mediasUpdateInput {
+  id: String
+  key: String
+  alt: String
+  created_at: Datetime
+  updated_at: Datetime
+}
+
+type mediasUpdateResponse {
+  """Count of the records impacted by the mutation"""
+  affectedCount: Int!
+
+  """Array of records impacted by the mutation"""
+  records: [medias!]!
+}
+
+type order_lines implements Node {
+  """Globally Unique Record Identifier"""
+  nodeId: ID!
+  id: String!
+  product_id: String!
+  orderId: String!
+  quantity: Int!
+  price: BigFloat!
+  created_at: Datetime!
+  products: products
+  order: orders
+}
+
+type order_linesConnection {
+  edges: [order_linesEdge!]!
+  pageInfo: PageInfo!
+}
+
+type order_linesDeleteResponse {
+  """Count of the records impacted by the mutation"""
+  affectedCount: Int!
+
+  """Array of records impacted by the mutation"""
+  records: [order_lines!]!
+}
+
+type order_linesEdge {
+  cursor: String!
+  node: order_lines!
+}
+
+input order_linesFilter {
+  id: StringFilter
+  product_id: StringFilter
+  orderId: StringFilter
+  quantity: IntFilter
+  price: BigFloatFilter
+  created_at: DatetimeFilter
+  nodeId: IDFilter
+
+  """
+  Returns true only if all its inner filters are true, otherwise returns false
+  """
+  and: [order_linesFilter!]
+
+  """
+  Returns true if at least one of its inner filters is true, otherwise returns false
+  """
+  or: [order_linesFilter!]
+
+  """Negates a filter"""
+  not: order_linesFilter
+}
+
+input order_linesInsertInput {
+  id: String
+  product_id: String
+  orderId: String
+  quantity: Int
+  price: BigFloat
+  created_at: Datetime
+}
+
+type order_linesInsertResponse {
+  """Count of the records impacted by the mutation"""
+  affectedCount: Int!
+
+  """Array of records impacted by the mutation"""
+  records: [order_lines!]!
+}
+
+input order_linesOrderBy {
+  id: OrderByDirection
+  product_id: OrderByDirection
+  orderId: OrderByDirection
+  quantity: OrderByDirection
+  price: OrderByDirection
+  created_at: OrderByDirection
+}
+
+input order_linesUpdateInput {
+  id: String
+  product_id: String
+  orderId: String
+  quantity: Int
+  price: BigFloat
+  created_at: Datetime
+}
+
+type order_linesUpdateResponse {
+  """Count of the records impacted by the mutation"""
+  affectedCount: Int!
+
+  """Array of records impacted by the mutation"""
+  records: [order_lines!]!
+}
+
+type orders implements Node {
+  """Globally Unique Record Identifier"""
+  nodeId: ID!
+  id: String!
+  amount: BigFloat!
+  currency: String!
+  email: String
+  name: String
+  user_id: UUID
+  order_status: String
+  addressId: String
+  stripe_payment_intent_id: String
+  payment_status: String!
+  payment_method: String
+  created_at: Datetime!
+  profiles: profiles
+  order_linesCollection(
+    """Query the first `n` records in the collection"""
+    first: Int
+
+    """Query the last `n` records in the collection"""
+    last: Int
+
+    """Query values in the collection before the provided cursor"""
+    before: Cursor
+
+    """Query values in the collection after the provided cursor"""
+    after: Cursor
+
+    """
+    Skip n values from the after cursor. Alternative to cursor pagination. Backward pagination not supported.
+    """
+    offset: Int
+
+    """Filters to apply to the results set when querying from the collection"""
+    filter: order_linesFilter
+
+    """Sort order to apply to the collection"""
+    orderBy: [order_linesOrderBy!]
+  ): order_linesConnection
+}
+
+type ordersConnection {
+  edges: [ordersEdge!]!
+  pageInfo: PageInfo!
+}
+
+type ordersDeleteResponse {
+  """Count of the records impacted by the mutation"""
+  affectedCount: Int!
+
+  """Array of records impacted by the mutation"""
+  records: [orders!]!
+}
+
+type ordersEdge {
+  cursor: String!
+  node: orders!
+}
+
+input ordersFilter {
+  id: StringFilter
+  amount: BigFloatFilter
+  currency: StringFilter
+  email: StringFilter
+  name: StringFilter
+  user_id: UUIDFilter
+  order_status: StringFilter
+  addressId: StringFilter
+  stripe_payment_intent_id: StringFilter
+  payment_status: StringFilter
+  payment_method: StringFilter
+  created_at: DatetimeFilter
+  nodeId: IDFilter
+
+  """
+  Returns true only if all its inner filters are true, otherwise returns false
+  """
+  and: [ordersFilter!]
+
+  """
+  Returns true if at least one of its inner filters is true, otherwise returns false
+  """
+  or: [ordersFilter!]
+
+  """Negates a filter"""
+  not: ordersFilter
+}
+
+input ordersInsertInput {
+  id: String
+  amount: BigFloat
+  currency: String
+  email: String
+  name: String
+  user_id: UUID
+  order_status: String
+  addressId: String
+  stripe_payment_intent_id: String
+  payment_status: String
+  payment_method: String
+  created_at: Datetime
+}
+
+type ordersInsertResponse {
+  """Count of the records impacted by the mutation"""
+  affectedCount: Int!
+
+  """Array of records impacted by the mutation"""
+  records: [orders!]!
+}
+
+input ordersOrderBy {
+  id: OrderByDirection
+  amount: OrderByDirection
+  currency: OrderByDirection
+  email: OrderByDirection
+  name: OrderByDirection
+  user_id: OrderByDirection
+  order_status: OrderByDirection
+  addressId: OrderByDirection
+  stripe_payment_intent_id: OrderByDirection
+  payment_status: OrderByDirection
+  payment_method: OrderByDirection
+  created_at: OrderByDirection
+}
+
+input ordersUpdateInput {
+  id: String
+  amount: BigFloat
+  currency: String
+  email: String
+  name: String
+  user_id: UUID
+  order_status: String
+  addressId: String
+  stripe_payment_intent_id: String
+  payment_status: String
+  payment_method: String
+  created_at: Datetime
+}
+
+type ordersUpdateResponse {
+  """Count of the records impacted by the mutation"""
+  affectedCount: Int!
+
+  """Array of records impacted by the mutation"""
+  records: [orders!]!
+}
+
+type product_medias implements Node {
+  """Globally Unique Record Identifier"""
+  nodeId: ID!
+  id: String!
+  productId: String!
+  mediaId: String!
+  priority: Int
+  product: products
+  media: medias
+}
+
+type product_mediasConnection {
+  edges: [product_mediasEdge!]!
+  pageInfo: PageInfo!
+}
+
+type product_mediasDeleteResponse {
+  """Count of the records impacted by the mutation"""
+  affectedCount: Int!
+
+  """Array of records impacted by the mutation"""
+  records: [product_medias!]!
+}
+
+type product_mediasEdge {
+  cursor: String!
+  node: product_medias!
+}
+
+input product_mediasFilter {
+  id: StringFilter
+  productId: StringFilter
+  mediaId: StringFilter
+  priority: IntFilter
+  nodeId: IDFilter
+
+  """
+  Returns true only if all its inner filters are true, otherwise returns false
+  """
+  and: [product_mediasFilter!]
+
+  """
+  Returns true if at least one of its inner filters is true, otherwise returns false
+  """
+  or: [product_mediasFilter!]
+
+  """Negates a filter"""
+  not: product_mediasFilter
+}
+
+input product_mediasInsertInput {
+  id: String
+  productId: String
+  mediaId: String
+  priority: Int
+}
+
+type product_mediasInsertResponse {
+  """Count of the records impacted by the mutation"""
+  affectedCount: Int!
+
+  """Array of records impacted by the mutation"""
+  records: [product_medias!]!
+}
+
+input product_mediasOrderBy {
+  id: OrderByDirection
+  productId: OrderByDirection
+  mediaId: OrderByDirection
+  priority: OrderByDirection
+}
+
+input product_mediasUpdateInput {
+  id: String
+  productId: String
+  mediaId: String
+  priority: Int
+}
+
+type product_mediasUpdateResponse {
+  """Count of the records impacted by the mutation"""
+  affectedCount: Int!
+
+  """Array of records impacted by the mutation"""
+  records: [product_medias!]!
+}
+
+type products implements Node {
+  """Globally Unique Record Identifier"""
+  nodeId: ID!
+  id: String!
+  name: String!
+  slug: String!
+  description: String
+  featured: Boolean
+  badge: String
+  rating: BigFloat!
+  tags: JSON!
+  images: JSON!
+  price: BigFloat!
+  discount_enabled: Boolean
+  discount_percent: Int
+  totalComments: Int!
+  created_at: Datetime!
+  stock: Int
+  collection_id: String
+  featured_image_id: String!
+  collections: collections
+  medias: medias
+  cartsCollection(
+    """Query the first `n` records in the collection"""
+    first: Int
+
+    """Query the last `n` records in the collection"""
+    last: Int
+
+    """Query values in the collection before the provided cursor"""
+    before: Cursor
+
+    """Query values in the collection after the provided cursor"""
+    after: Cursor
+
+    """
+    Skip n values from the after cursor. Alternative to cursor pagination. Backward pagination not supported.
+    """
+    offset: Int
+
+    """Filters to apply to the results set when querying from the collection"""
+    filter: cartsFilter
+
+    """Sort order to apply to the collection"""
+    orderBy: [cartsOrderBy!]
+  ): cartsConnection
+  commentsCollection(
+    """Query the first `n` records in the collection"""
+    first: Int
+
+    """Query the last `n` records in the collection"""
+    last: Int
+
+    """Query values in the collection before the provided cursor"""
+    before: Cursor
+
+    """Query values in the collection after the provided cursor"""
+    after: Cursor
+
+    """
+    Skip n values from the after cursor. Alternative to cursor pagination. Backward pagination not supported.
+    """
+    offset: Int
+
+    """Filters to apply to the results set when querying from the collection"""
+    filter: commentsFilter
+
+    """Sort order to apply to the collection"""
+    orderBy: [commentsOrderBy!]
+  ): commentsConnection
+  order_linesCollection(
+    """Query the first `n` records in the collection"""
+    first: Int
+
+    """Query the last `n` records in the collection"""
+    last: Int
+
+    """Query values in the collection before the provided cursor"""
+    before: Cursor
+
+    """Query values in the collection after the provided cursor"""
+    after: Cursor
+
+    """
+    Skip n values from the after cursor. Alternative to cursor pagination. Backward pagination not supported.
+    """
+    offset: Int
+
+    """Filters to apply to the results set when querying from the collection"""
+    filter: order_linesFilter
+
+    """Sort order to apply to the collection"""
+    orderBy: [order_linesOrderBy!]
+  ): order_linesConnection
+  product_mediasCollection(
+    """Query the first `n` records in the collection"""
+    first: Int
+
+    """Query the last `n` records in the collection"""
+    last: Int
+
+    """Query values in the collection before the provided cursor"""
+    before: Cursor
+
+    """Query values in the collection after the provided cursor"""
+    after: Cursor
+
+    """
+    Skip n values from the after cursor. Alternative to cursor pagination. Backward pagination not supported.
+    """
+    offset: Int
+
+    """Filters to apply to the results set when querying from the collection"""
+    filter: product_mediasFilter
+
+    """Sort order to apply to the collection"""
+    orderBy: [product_mediasOrderBy!]
+  ): product_mediasConnection
+  wishlistCollection(
+    """Query the first `n` records in the collection"""
+    first: Int
+
+    """Query the last `n` records in the collection"""
+    last: Int
+
+    """Query values in the collection before the provided cursor"""
+    before: Cursor
+
+    """Query values in the collection after the provided cursor"""
+    after: Cursor
+
+    """
+    Skip n values from the after cursor. Alternative to cursor pagination. Backward pagination not supported.
+    """
+    offset: Int
+
+    """Filters to apply to the results set when querying from the collection"""
+    filter: wishlistFilter
+
+    """Sort order to apply to the collection"""
+    orderBy: [wishlistOrderBy!]
+  ): wishlistConnection
+}
+
+type productsConnection {
+  edges: [productsEdge!]!
+  pageInfo: PageInfo!
+}
+
+type productsDeleteResponse {
+  """Count of the records impacted by the mutation"""
+  affectedCount: Int!
+
+  """Array of records impacted by the mutation"""
+  records: [products!]!
+}
+
+type productsEdge {
+  cursor: String!
+  node: products!
+}
+
+input productsFilter {
+  id: StringFilter
+  name: StringFilter
+  slug: StringFilter
+  description: StringFilter
+  featured: BooleanFilter
+  badge: StringFilter
+  rating: BigFloatFilter
+  price: BigFloatFilter
+  discount_enabled: BooleanFilter
+  discount_percent: IntFilter
+  totalComments: IntFilter
+  created_at: DatetimeFilter
+  stock: IntFilter
+  collection_id: StringFilter
+  featured_image_id: StringFilter
+  nodeId: IDFilter
+
+  """
+  Returns true only if all its inner filters are true, otherwise returns false
+  """
+  and: [productsFilter!]
+
+  """
+  Returns true if at least one of its inner filters is true, otherwise returns false
+  """
+  or: [productsFilter!]
+
+  """Negates a filter"""
+  not: productsFilter
+}
+
+input productsInsertInput {
+  id: String
+  name: String
+  slug: String
+  description: String
+  featured: Boolean
+  badge: String
+  rating: BigFloat
+  tags: JSON
+  images: JSON
+  price: BigFloat
+  discount_enabled: Boolean
+  discount_percent: Int
+  totalComments: Int
+  created_at: Datetime
+  stock: Int
+  collection_id: String
+  featured_image_id: String
+}
+
+type productsInsertResponse {
+  """Count of the records impacted by the mutation"""
+  affectedCount: Int!
+
+  """Array of records impacted by the mutation"""
+  records: [products!]!
+}
+
+input productsOrderBy {
+  id: OrderByDirection
+  name: OrderByDirection
+  slug: OrderByDirection
+  description: OrderByDirection
+  featured: OrderByDirection
+  badge: OrderByDirection
+  rating: OrderByDirection
+  price: OrderByDirection
+  discount_enabled: OrderByDirection
+  discount_percent: OrderByDirection
+  totalComments: OrderByDirection
+  created_at: OrderByDirection
+  stock: OrderByDirection
+  collection_id: OrderByDirection
+  featured_image_id: OrderByDirection
+}
+
+input productsUpdateInput {
+  id: String
+  name: String
+  slug: String
+  description: String
+  featured: Boolean
+  badge: String
+  rating: BigFloat
+  tags: JSON
+  images: JSON
+  price: BigFloat
+  discount_enabled: Boolean
+  discount_percent: Int
+  totalComments: Int
+  created_at: Datetime
+  stock: Int
+  collection_id: String
+  featured_image_id: String
+}
+
+type productsUpdateResponse {
+  """Count of the records impacted by the mutation"""
+  affectedCount: Int!
+
+  """Array of records impacted by the mutation"""
+  records: [products!]!
+}
+
+type profiles implements Node {
+  """Globally Unique Record Identifier"""
+  nodeId: ID!
+  id: UUID!
+  name: String
+  is_admin: Boolean
+  email: String
+  created_at: Datetime!
+  addressCollection(
+    """Query the first `n` records in the collection"""
+    first: Int
+
+    """Query the last `n` records in the collection"""
+    last: Int
+
+    """Query values in the collection before the provided cursor"""
+    before: Cursor
+
+    """Query values in the collection after the provided cursor"""
+    after: Cursor
+
+    """
+    Skip n values from the after cursor. Alternative to cursor pagination. Backward pagination not supported.
+    """
+    offset: Int
+
+    """Filters to apply to the results set when querying from the collection"""
+    filter: addressFilter
+
+    """Sort order to apply to the collection"""
+    orderBy: [addressOrderBy!]
+  ): addressConnection
+  commentsCollection(
+    """Query the first `n` records in the collection"""
+    first: Int
+
+    """Query the last `n` records in the collection"""
+    last: Int
+
+    """Query values in the collection before the provided cursor"""
+    before: Cursor
+
+    """Query values in the collection after the provided cursor"""
+    after: Cursor
+
+    """
+    Skip n values from the after cursor. Alternative to cursor pagination. Backward pagination not supported.
+    """
+    offset: Int
+
+    """Filters to apply to the results set when querying from the collection"""
+    filter: commentsFilter
+
+    """Sort order to apply to the collection"""
+    orderBy: [commentsOrderBy!]
+  ): commentsConnection
+  ordersCollection(
+    """Query the first `n` records in the collection"""
+    first: Int
+
+    """Query the last `n` records in the collection"""
+    last: Int
+
+    """Query values in the collection before the provided cursor"""
+    before: Cursor
+
+    """Query values in the collection after the provided cursor"""
+    after: Cursor
+
+    """
+    Skip n values from the after cursor. Alternative to cursor pagination. Backward pagination not supported.
+    """
+    offset: Int
+
+    """Filters to apply to the results set when querying from the collection"""
+    filter: ordersFilter
+
+    """Sort order to apply to the collection"""
+    orderBy: [ordersOrderBy!]
+  ): ordersConnection
+}
+
+type profilesConnection {
+  edges: [profilesEdge!]!
+  pageInfo: PageInfo!
+}
+
+type profilesDeleteResponse {
+  """Count of the records impacted by the mutation"""
+  affectedCount: Int!
+
+  """Array of records impacted by the mutation"""
+  records: [profiles!]!
+}
+
+type profilesEdge {
+  cursor: String!
+  node: profiles!
+}
+
+input profilesFilter {
+  id: UUIDFilter
+  name: StringFilter
+  is_admin: BooleanFilter
+  email: StringFilter
+  created_at: DatetimeFilter
+  nodeId: IDFilter
+
+  """
+  Returns true only if all its inner filters are true, otherwise returns false
+  """
+  and: [profilesFilter!]
+
+  """
+  Returns true if at least one of its inner filters is true, otherwise returns false
+  """
+  or: [profilesFilter!]
+
+  """Negates a filter"""
+  not: profilesFilter
+}
+
+input profilesInsertInput {
+  id: UUID
+  name: String
+  is_admin: Boolean
+  email: String
+  created_at: Datetime
+}
+
+type profilesInsertResponse {
+  """Count of the records impacted by the mutation"""
+  affectedCount: Int!
+
+  """Array of records impacted by the mutation"""
+  records: [profiles!]!
+}
+
+input profilesOrderBy {
+  id: OrderByDirection
+  name: OrderByDirection
+  is_admin: OrderByDirection
+  email: OrderByDirection
+  created_at: OrderByDirection
+}
+
+input profilesUpdateInput {
+  id: UUID
+  name: String
+  is_admin: Boolean
+  email: String
+  created_at: Datetime
+}
+
+type profilesUpdateResponse {
+  """Count of the records impacted by the mutation"""
+  affectedCount: Int!
+
+  """Array of records impacted by the mutation"""
+  records: [profiles!]!
+}
+
+type testimonials implements Node {
+  """Globally Unique Record Identifier"""
+  nodeId: ID!
+  id: String!
+  customer_name: String!
+  location: String
+  quote: String
+  rating: Int!
+  featured_image_id: String
+  is_published: Boolean!
+  order: Int
+  created_at: Datetime!
+  kind: String!
+  video_url: String
+  medias: medias
+}
+
+type testimonialsConnection {
+  edges: [testimonialsEdge!]!
+  pageInfo: PageInfo!
+}
+
+type testimonialsDeleteResponse {
+  """Count of the records impacted by the mutation"""
+  affectedCount: Int!
+
+  """Array of records impacted by the mutation"""
+  records: [testimonials!]!
+}
+
+type testimonialsEdge {
+  cursor: String!
+  node: testimonials!
+}
+
+input testimonialsFilter {
+  id: StringFilter
+  customer_name: StringFilter
+  location: StringFilter
+  quote: StringFilter
+  rating: IntFilter
+  featured_image_id: StringFilter
+  is_published: BooleanFilter
+  order: IntFilter
+  created_at: DatetimeFilter
+  kind: StringFilter
+  video_url: StringFilter
+  nodeId: IDFilter
+
+  """
+  Returns true only if all its inner filters are true, otherwise returns false
+  """
+  and: [testimonialsFilter!]
+
+  """
+  Returns true if at least one of its inner filters is true, otherwise returns false
+  """
+  or: [testimonialsFilter!]
+
+  """Negates a filter"""
+  not: testimonialsFilter
+}
+
+input testimonialsInsertInput {
+  id: String
+  customer_name: String
+  location: String
+  quote: String
+  rating: Int
+  featured_image_id: String
+  is_published: Boolean
+  order: Int
+  created_at: Datetime
+  kind: String
+  video_url: String
+}
+
+type testimonialsInsertResponse {
+  """Count of the records impacted by the mutation"""
+  affectedCount: Int!
+
+  """Array of records impacted by the mutation"""
+  records: [testimonials!]!
+}
+
+input testimonialsOrderBy {
+  id: OrderByDirection
+  customer_name: OrderByDirection
+  location: OrderByDirection
+  quote: OrderByDirection
+  rating: OrderByDirection
+  featured_image_id: OrderByDirection
+  is_published: OrderByDirection
+  order: OrderByDirection
+  created_at: OrderByDirection
+  kind: OrderByDirection
+  video_url: OrderByDirection
+}
+
+input testimonialsUpdateInput {
+  id: String
+  customer_name: String
+  location: String
+  quote: String
+  rating: Int
+  featured_image_id: String
+  is_published: Boolean
+  order: Int
+  created_at: Datetime
+  kind: String
+  video_url: String
+}
+
+type testimonialsUpdateResponse {
+  """Count of the records impacted by the mutation"""
+  affectedCount: Int!
+
+  """Array of records impacted by the mutation"""
+  records: [testimonials!]!
+}
+
+type wishlist implements Node {
+  """Globally Unique Record Identifier"""
+  nodeId: ID!
+  product_id: String!
+  user_id: UUID!
+  created_at: Datetime!
+  products: products
+}
+
+type wishlistConnection {
+  edges: [wishlistEdge!]!
+  pageInfo: PageInfo!
+}
+
+type wishlistDeleteResponse {
+  """Count of the records impacted by the mutation"""
+  affectedCount: Int!
+
+  """Array of records impacted by the mutation"""
+  records: [wishlist!]!
+}
+
+type wishlistEdge {
+  cursor: String!
+  node: wishlist!
+}
+
+input wishlistFilter {
+  product_id: StringFilter
+  user_id: UUIDFilter
+  created_at: DatetimeFilter
+  nodeId: IDFilter
+
+  """
+  Returns true only if all its inner filters are true, otherwise returns false
+  """
+  and: [wishlistFilter!]
+
+  """
+  Returns true if at least one of its inner filters is true, otherwise returns false
+  """
+  or: [wishlistFilter!]
+
+  """Negates a filter"""
+  not: wishlistFilter
+}
+
+input wishlistInsertInput {
+  product_id: String
+  user_id: UUID
+  created_at: Datetime
+}
+
+type wishlistInsertResponse {
+  """Count of the records impacted by the mutation"""
+  affectedCount: Int!
+
+  """Array of records impacted by the mutation"""
+  records: [wishlist!]!
+}
+
+input wishlistOrderBy {
+  product_id: OrderByDirection
+  user_id: OrderByDirection
+  created_at: OrderByDirection
+}
+
+input wishlistUpdateInput {
+  product_id: String
+  user_id: UUID
+  created_at: Datetime
+}
+
+type wishlistUpdateResponse {
+  """Count of the records impacted by the mutation"""
+  affectedCount: Int!
+
+  """Array of records impacted by the mutation"""
+  records: [wishlist!]!
+}

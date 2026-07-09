@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-label="Sakthi Textile emblem">
+  <defs>
+    <linearGradient id="gold" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#FFE79A" />
+      <stop offset="52%" stop-color="#FFD700" />
+      <stop offset="100%" stop-color="#B88900" />
+    </linearGradient>
+  </defs>
+  <rect width="256" height="256" rx="46" fill="#0F0F0F" />
+  <path
+    d="M58 64h140v34h-53v94h-34V98H58z"
+    fill="url(#gold)"
+  />
+  <path
+    d="M72 150h112c0 24-16 42-40 42H72z"
+    fill="url(#gold)"
+  />
+  <circle cx="214" cy="56" r="12" fill="#FFD700" />
+</svg>

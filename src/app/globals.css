@@ -1,0 +1,488 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* SSR Tex — regal plum purple primary with champagne gold accents */
+    --background: 320 28% 98%;
+    --foreground: 318 35% 14%;
+
+    --card: 320 28% 99%;
+    --card-foreground: 318 35% 14%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 318 35% 14%;
+
+    --primary: 318 42% 35%;
+    --primary-foreground: 42 55% 96%;
+
+    --secondary: 42 48% 93%;
+    --secondary-foreground: 318 35% 20%;
+
+    --muted: 320 22% 95%;
+    --muted-foreground: 318 12% 42%;
+
+    --accent: 42 58% 90%;
+    --accent-foreground: 318 35% 18%;
+
+    --destructive: 0 75% 47%;
+    --destructive-foreground: 42 55% 96%;
+
+    --border: 318 18% 88%;
+    --input: 318 18% 88%;
+    --ring: 318 42% 35%;
+
+    --radius: 0.1rem;
+    --mobile-nav-height: calc(
+      3.5rem + max(0.5rem, env(safe-area-inset-bottom, 0px))
+    );
+    /* Fallbacks — StoreHeaderMetrics overrides from shop-board.ts at runtime */
+    --announcement-bar-height: 2.25rem;
+    --store-nav-content-height-mobile: 3.5rem;
+    --store-nav-content-height-desktop: 4.25rem;
+    --store-nav-height-mobile: 4rem;
+    --store-nav-height-desktop: 4.625rem;
+    --store-emblem-clearance: 0.25rem;
+    --store-header-offset-mobile: calc(
+      var(--announcement-bar-height) + var(--store-nav-height-mobile) +
+        var(--store-emblem-clearance)
+    );
+    --store-header-offset-desktop: calc(
+      var(--announcement-bar-height) + var(--store-nav-height-desktop) +
+        var(--store-emblem-clearance)
+    );
+    --admin-header-height-mobile: 3.75rem;
+    --admin-header-height-desktop: 4.5rem;
+    --admin-sidebar-width: 17rem;
+  }
+
+  .dark {
+    /* Deep plum night palette with gold accents */
+    --background: 318 32% 8%;
+    --foreground: 42 38% 92%;
+
+    --card: 318 30% 11%;
+    --card-foreground: 42 38% 92%;
+
+    --popover: 318 30% 11%;
+    --popover-foreground: 42 38% 92%;
+
+    --primary: 318 38% 52%;
+    --primary-foreground: 318 35% 10%;
+
+    --secondary: 318 26% 18%;
+    --secondary-foreground: 42 38% 92%;
+
+    --muted: 318 22% 18%;
+    --muted-foreground: 318 14% 66%;
+
+    --accent: 42 35% 22%;
+    --accent-foreground: 42 65% 80%;
+
+    --destructive: 0 62% 42%;
+    --destructive-foreground: 42 38% 92%;
+
+    --border: 318 22% 20%;
+    --input: 318 22% 20%;
+    --ring: 318 38% 52%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+input::-webkit-outer-spin-button,
+input::-webkit-inner-spin-button {
+  /* display: none; <- Crashes Chrome on hover */
+  -webkit-appearance: none;
+  margin: 0; /* <-- Apparently some margin are still there even though it's hidden */
+}
+
+input[type="number"] {
+  -moz-appearance: textfield; /* Firefox */
+}
+
+::-webkit-scrollbar {
+  width: 2px;
+  height: 2px;
+}
+
+::-webkit-scrollbar-track {
+  background: hsl(var(--muted));
+}
+
+::-webkit-scrollbar-thumb {
+  background: hsl(var(--muted-foreground));
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--primary));
+}
+
+.admin-scroll {
+  scrollbar-width: auto;
+  scrollbar-color: hsl(var(--muted-foreground)) hsl(var(--muted));
+  scrollbar-gutter: stable both-edges;
+}
+
+.admin-scroll::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.admin-scroll::-webkit-scrollbar-track {
+  background: hsl(var(--muted));
+}
+
+.admin-scroll::-webkit-scrollbar-thumb {
+  background: hsl(var(--muted-foreground));
+  border-radius: 9999px;
+}
+
+.admin-scroll::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--primary));
+}
+
+@keyframes admin-page-enter {
+  from {
+    opacity: 0.72;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.admin-page-enter {
+  animation: admin-page-enter 0.18s ease-out;
+}
+
+html,
+body {
+  overflow-x: hidden;
+  max-width: 100%;
+}
+
+html {
+  scroll-padding-top: var(--store-header-offset-mobile);
+}
+
+@media (min-width: 768px) {
+  html {
+    scroll-padding-top: var(--store-header-offset-desktop);
+  }
+}
+
+@keyframes whatsapp-glow {
+  0%,
+  100% {
+    box-shadow:
+      0 4px 16px rgba(37, 211, 102, 0.35),
+      0 0 0 0 rgba(37, 211, 102, 0.45);
+  }
+  50% {
+    box-shadow:
+      0 4px 20px rgba(37, 211, 102, 0.5),
+      0 0 0 10px rgba(37, 211, 102, 0);
+  }
+}
+
+.animate-whatsapp-glow {
+  animation: whatsapp-glow 2.2s ease-in-out infinite;
+}
+
+@keyframes phone-glow {
+  0%,
+  100% {
+    box-shadow:
+      0 4px 16px rgba(107, 24, 88, 0.35),
+      0 0 0 0 rgba(107, 24, 88, 0.45);
+  }
+  50% {
+    box-shadow:
+      0 4px 20px rgba(107, 24, 88, 0.5),
+      0 0 0 10px rgba(107, 24, 88, 0);
+  }
+}
+
+.animate-phone-glow {
+  animation: phone-glow 2.2s ease-in-out infinite;
+}
+
+/* SSR Tex shop-board — gold on purple; solid text (no background-clip) for mobile/dark reliability */
+.brand-board-lockup {
+  isolation: isolate;
+  color-scheme: light;
+  forced-color-adjust: none;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: geometricPrecision;
+}
+
+.brand-board-frame {
+  filter: drop-shadow(0 1px 4px rgba(42, 6, 40, 0.22));
+}
+
+.dark .brand-board-frame {
+  filter: drop-shadow(0 2px 10px rgba(0, 0, 0, 0.55))
+    drop-shadow(0 0 1px rgba(232, 200, 114, 0.2));
+}
+
+.brand-board-emblem {
+  display: block;
+  filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.3));
+}
+
+.dark .brand-board-emblem {
+  filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.55))
+    drop-shadow(0 0 10px rgba(232, 200, 114, 0.14));
+}
+
+.brand-board-name {
+  /* Solid gold — background-clip:text + filter breaks on iOS/Android dark mode */
+  color: #f0d78c;
+  -webkit-text-fill-color: #f0d78c;
+  text-shadow:
+    0 1px 0 rgba(120, 88, 12, 0.85),
+    0 2px 4px rgba(0, 0, 0, 0.55),
+    0 0 12px rgba(232, 200, 114, 0.22);
+}
+
+.dark .brand-board-name {
+  color: #f8e098;
+  -webkit-text-fill-color: #f8e098;
+  text-shadow:
+    0 1px 0 rgba(100, 72, 8, 0.95),
+    0 2px 5px rgba(0, 0, 0, 0.75),
+    0 0 14px rgba(232, 200, 114, 0.28);
+}
+
+.brand-board-location {
+  color: #f0d78c;
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.35);
+}
+
+.dark .brand-board-location {
+  color: #f8e098;
+  text-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.65),
+    0 0 8px rgba(232, 200, 114, 0.15);
+}
+
+.brand-board-rule {
+  display: block;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    #e8c872 35%,
+    #f5d878 50%,
+    #e8c872 65%,
+    transparent 100%
+  );
+}
+
+.dark .brand-board-rule {
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    #edd080 35%,
+    #f8e098 50%,
+    #edd080 65%,
+    transparent 100%
+  );
+}
+
+@media (max-width: 639px) {
+  .brand-board-lockup--nav {
+    transform: scale(0.94);
+    transform-origin: center center;
+  }
+
+  .brand-board-panel--nav .brand-board-name {
+    font-size: 11.5px !important;
+    letter-spacing: 0.005em;
+  }
+
+  .brand-board-panel--nav .brand-board-location {
+    font-size: 7.5px !important;
+  }
+
+  .brand-board-panel--nav .brand-board-frame {
+    min-width: 0;
+  }
+}
+
+@media (min-width: 640px) {
+  .brand-board-panel--nav .brand-board-name {
+    font-size: 14px !important;
+  }
+
+  .brand-board-panel--nav .brand-board-location {
+    font-size: 9px !important;
+  }
+}
+
+/* Product grid thumbnails — portrait frame, top-aligned crop (see productThumbnail.ts) */
+.product-thumb-frame {
+  position: relative;
+  aspect-ratio: 3 / 4;
+  width: 100%;
+  overflow: hidden;
+  background: hsl(var(--muted));
+}
+
+.product-thumb-image {
+  object-fit: cover;
+  object-position: top center;
+}
+
+@keyframes announcement-scroll {
+  from {
+    transform: translate3d(0, 0, 0);
+  }
+  to {
+    transform: translate3d(-50%, 0, 0);
+  }
+}
+
+.animate-announcement-scroll {
+  animation: announcement-scroll 36s linear infinite;
+}
+
+.announcement-marquee-mask {
+  mask-image: linear-gradient(
+    to right,
+    transparent,
+    black 6%,
+    black 94%,
+    transparent
+  );
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-announcement-scroll {
+    animation: none;
+  }
+
+  .animate-whatsapp-glow,
+  .animate-phone-glow {
+    animation: none;
+  }
+
+  .announcement-marquee-track {
+    flex-wrap: wrap;
+    justify-content: center;
+    width: 100% !important;
+    padding: 0 0.75rem;
+    gap: 0.5rem;
+  }
+
+  .announcement-marquee-track .duplicate {
+    display: none;
+  }
+
+  .scroll-snap-strip__track {
+    scroll-snap-type: none;
+  }
+}
+
+/* Homepage horizontal scroll strips — Myntra/Ajio-style swipe */
+.scroll-snap-strip {
+  position: relative;
+}
+
+.scroll-snap-strip::before,
+.scroll-snap-strip::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0.5rem;
+  width: 0.75rem;
+  z-index: 2;
+  pointer-events: none;
+}
+
+@media (min-width: 640px) {
+  .scroll-snap-strip::before,
+  .scroll-snap-strip::after {
+    width: 1.25rem;
+  }
+}
+
+.scroll-snap-strip::before {
+  left: 0;
+  background: linear-gradient(to right, hsl(var(--background)), transparent);
+}
+
+.scroll-snap-strip::after {
+  right: 0;
+  background: linear-gradient(to left, hsl(var(--background)), transparent);
+}
+
+.scroll-snap-strip__track {
+  display: flex;
+  gap: 0.75rem;
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-x: contain;
+  scroll-snap-type: x mandatory;
+  scroll-padding-inline: 0.75rem;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  padding-bottom: 0.35rem;
+}
+
+@media (min-width: 640px) {
+  .scroll-snap-strip__track {
+    gap: 1rem;
+    scroll-padding-inline: 1rem;
+  }
+}
+
+.scroll-snap-strip__track::-webkit-scrollbar {
+  display: none;
+}
+
+.scroll-snap-item {
+  flex: 0 0 auto;
+  min-width: 0;
+  scroll-snap-align: start;
+  scroll-snap-stop: always;
+  align-self: stretch;
+}
+
+@supports (view-transition-name: none) {
+  ::view-transition-old(root),
+  ::view-transition-new(root) {
+    animation-duration: 0.32s;
+    animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  ::view-transition-group(*),
+  ::view-transition-image-pair(*) {
+    animation-duration: 0.42s;
+    animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+  }
+}
+
+@keyframes checkout-progress-shimmer {
+  0% {
+    transform: translateX(-120%);
+  }
+  100% {
+    transform: translateX(320%);
+  }
+}
+
+.checkout-progress-shimmer {
+  animation: checkout-progress-shimmer 1.35s ease-in-out infinite;
+}

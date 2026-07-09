@@ -1,0 +1,479 @@
+"use client";
+import { DocumentType } from "@/gql";
+import { FetchGuestCartQuery } from "../queries/cart-page-queries";
+import type { CartSizeConfigPayload } from "@/lib/storefront/cart-server";
+import {
+  calculateCourierCharge,
+  calculateGstAmount,
+} from "@/lib/courier/calculate";
+import { fetchWithTimeout } from "@/lib/network/fetchWithTimeout";
+import { useQuery } from "@urql/next";
+import { cn } from "@/lib/utils";
+import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
+import EmptyCart from "./EmptyCart";
+import CartItemCard from "./CartItemCard";
+import CheckoutButton from "./CheckoutButton";
+import BulkOrderGuardDialog from "./BulkOrderGuardDialog";
+import { CartCheckoutSummary } from "./CartCheckoutSummary";
+import { CartOrderSummaryFields } from "./CartOrderSummaryFields";
+import { CartItemsList, cartPageBottomSpacerClass } from "./CartItemsList";
+import useCartStore, {
+  CartItems,
+  calcProductCountStorage,
+} from "../useCartStore";
+import { useBulkOrderGuardConfig } from "@/providers/BulkOrderGuardProvider";
+import { useCourierChargesConfig } from "@/providers/CourierChargesProvider";
+import { useOfferCodesConfig } from "@/providers/OfferCodesProvider";
+import { useStockControlConfig } from "@/providers/StockControlProvider";
+import {
+  loadCheckoutAddressDraft,
+  saveCheckoutAddressDraft,
+} from "@/features/addresses/lib/checkoutAddressDraft";
+import { isBulkOrderQuantity } from "../constants/bulkOrder";
+import {
+  calcLiveCartSubtotal,
+  useCartLivePricing,
+} from "../hooks/useCartLivePricing";
+import { withLiveProductPricing } from "../lib/live-pricing";
+import { getSaleProductPrice } from "@/lib/products/discount";
+import { useToast } from "@/components/ui/use-toast";
+
+type CartSizeConfigOption = {
+  size: string;
+  qty: number;
+};
+
+type CartSizeConfig = CartSizeConfigPayload;
+
+type GuestCartSectionProps = {
+  initialProducts?: DocumentType<typeof FetchGuestCartQuery> | null;
+  initialSizeConfigs?: Record<string, CartSizeConfig>;
+  prefetchedProductIds?: string[];
+};
+
+function GuestCartSection({
+  initialProducts,
+  initialSizeConfigs,
+  prefetchedProductIds,
+}: GuestCartSectionProps) {
+  const { toast } = useToast();
+  const bulkOrder = useBulkOrderGuardConfig();
+  const courierConfig = useCourierChargesConfig();
+  const offerCodesConfig = useOfferCodesConfig();
+  const stockControl = useStockControlConfig();
+  const [bulkGuardOpen, setBulkGuardOpen] = useState(false);
+  const [deliveryState, setDeliveryState] = useState("");
+  const [promoInput, setPromoInput] = useState("");
+  const [appliedPromoCode, setAppliedPromoCode] = useState<string | null>(null);
+  const cartItems = useCartStore((s) => s.cart);
+  const addProductToCart = useCartStore((s) => s.addProductToCart);
+  const removeProduct = useCartStore((s) => s.removeProduct);
+  const setProductSize = useCartStore((s) => s.setProductSize);
+  const [sizeConfigsByProductId, setSizeConfigsByProductId] = useState<
+    Record<string, CartSizeConfig>
+  >(() => initialSizeConfigs ?? {});
+  const prefetchedIdsKey = prefetchedProductIds?.slice().sort().join(",") ?? "";
+  const skippedSizePrefetchRef = useRef(
+    Boolean(initialSizeConfigs && prefetchedIdsKey),
+  );
+
+  const cartProductIds = Object.keys(cartItems);
+
+  const [{ data, fetching, error }, _] = useQuery({
+    query: FetchGuestCartQuery,
+    variables: {
+      cartItems: cartProductIds,
+      first: Math.max(cartProductIds.length, 1),
+    },
+    pause: cartProductIds.length === 0,
+    requestPolicy: "network-only",
+  });
+
+  const productsData = data ?? initialProducts ?? null;
+  const { pricing: livePricing } = useCartLivePricing(cartProductIds);
+
+  const subtotal = useMemo(() => {
+    const liveTotal = calcLiveCartSubtotal(cartItems, livePricing);
+    if (Object.keys(livePricing).length > 0) {
+      return liveTotal;
+    }
+    return calcSubtotal({ prdouctsDetails: productsData, quantity: cartItems });
+  }, [cartItems, livePricing, productsData]);
+
+  const productCount = useMemo(
+    () => calcProductCountStorage(cartItems),
+    [cartItems],
+  );
+  const courierBreakdown = useMemo(() => {
+    if (!courierConfig.enabled || !deliveryState) return null;
+    return calculateCourierCharge({
+      state: deliveryState,
+      quantity: productCount,
+      config: courierConfig,
+    });
+  }, [courierConfig, deliveryState, productCount]);
+  const courierCharge = courierBreakdown?.charge ?? 0;
+  const activeOfferCodes = useMemo(() => {
+    const map = new Map<string, number>();
+    if (!offerCodesConfig.enabled) return map;
+    offerCodesConfig.codes.forEach((item) => {
+      if (!item.enabled) return;
+      map.set(item.code, item.percentage);
+    });
+    return map;
+  }, [offerCodesConfig.codes, offerCodesConfig.enabled]);
+  const promoPercentage = appliedPromoCode
+    ? activeOfferCodes.get(appliedPromoCode) ?? 0
+    : 0;
+  const discountAmount = Math.round(subtotal * promoPercentage * 100) / 10000;
+  const discountedSubtotal = Math.max(0, subtotal - discountAmount);
+  const hasDeliveryStateSelected = deliveryState.trim().length > 0;
+  const courierEnabled = courierConfig.enabled;
+  const offerCodesEnabled = offerCodesConfig.enabled;
+  const checkoutTotalReady = !courierEnabled || Boolean(courierBreakdown);
+  const gstAmount = calculateGstAmount({
+    taxableAmount: discountedSubtotal + courierCharge,
+    config: courierConfig,
+  });
+  const totalAmount = discountedSubtotal + courierCharge + gstAmount;
+
+  useEffect(() => {
+    const draft = loadCheckoutAddressDraft();
+    if (draft?.state) setDeliveryState(draft.state);
+  }, []);
+
+  const onStateChange = (state: string) => {
+    setDeliveryState(state);
+    saveCheckoutAddressDraft({ state });
+  };
+
+  const onApplyPromo = () => {
+    const normalized = promoInput.toUpperCase().replace(/\s+/g, "");
+    if (!normalized) {
+      toast({
+        title: "Enter promo code",
+        description: "Please type an offer code to apply.",
+        variant: "destructive",
+      });
+      return;
+    }
+    const percentage = activeOfferCodes.get(normalized);
+    if (!percentage) {
+      toast({
+        title: "Invalid code",
+        description: "Offer code not found or disabled.",
+        variant: "destructive",
+      });
+      return;
+    }
+    setAppliedPromoCode(normalized);
+    toast({
+      title: "Offer applied",
+      description: `${normalized} gives ${percentage}% off before courier.`,
+    });
+  };
+
+  const onRemovePromo = () => {
+    setAppliedPromoCode(null);
+    setPromoInput("");
+  };
+
+  const cartLines = useMemo(
+    () =>
+      productsData?.productsCollection?.edges?.filter(
+        ({ node }) => cartItems[node.id],
+      ) ?? [],
+    [cartItems, productsData?.productsCollection?.edges],
+  );
+
+  useEffect(() => {
+    let active = true;
+    if (cartProductIds.length === 0) {
+      setSizeConfigsByProductId({});
+      return;
+    }
+
+    const currentKey = cartProductIds.slice().sort().join(",");
+    if (skippedSizePrefetchRef.current && currentKey === prefetchedIdsKey) {
+      skippedSizePrefetchRef.current = false;
+      return;
+    }
+
+    const loadSizeConfigs = async () => {
+      try {
+        const res = await fetchWithTimeout(
+          `/api/products/size-config?productIds=${encodeURIComponent(cartProductIds.join(","))}`,
+        );
+        if (!active) return;
+        if (!res.ok) {
+          setSizeConfigsByProductId({});
+          return;
+        }
+        const payload = (await res.json()) as Record<string, CartSizeConfig>;
+        const entries = cartProductIds.map(
+          (productId) =>
+            [
+              productId,
+              payload[productId] ?? { enabled: false, options: [] },
+            ] as const,
+        );
+        setSizeConfigsByProductId(Object.fromEntries(entries));
+      } catch {
+        if (!active) return;
+        setSizeConfigsByProductId({});
+      }
+    };
+
+    void loadSizeConfigs();
+    return () => {
+      active = false;
+    };
+  }, [cartProductIds]);
+
+  const missingSizeProductNames = useMemo(
+    () =>
+      cartLines
+        .filter(({ node }) => {
+          const config = sizeConfigsByProductId[node.id];
+          const hasLabeledOptions = Boolean(
+            config?.enabled &&
+              config.options.some(
+                (option) => String(option.size ?? "").trim().length > 0,
+              ),
+          );
+          const selected = String(cartItems[node.id]?.size ?? "")
+            .trim()
+            .toUpperCase();
+          return hasLabeledOptions && !selected;
+        })
+        .map(({ node }) => node.name)
+        .filter((name): name is string => Boolean(name)),
+    [cartItems, cartLines, sizeConfigsByProductId],
+  );
+  if (cartProductIds.length === 0) return <EmptyCart />;
+  if (fetching && !productsData) return LoadingCartSection();
+  if (error && !productsData) return <div>Error</div>;
+  if (!productsData?.productsCollection?.edges?.length) return <EmptyCart />;
+
+  const addOneHandler = (
+    productId: string,
+    quantity: number,
+    stock: number | null,
+  ) => {
+    if (
+      bulkOrder.enabled &&
+      isBulkOrderQuantity(quantity + 1, bulkOrder.threshold)
+    ) {
+      setBulkGuardOpen(true);
+      return;
+    }
+    if (
+      stockControl.enabled &&
+      typeof stock === "number" &&
+      quantity + 1 > stock
+    ) {
+      toast({
+        title: "Stock limit reached",
+        description: `Only ${stock} left in stock for this product.`,
+        variant: "destructive",
+      });
+      return;
+    }
+    addProductToCart(productId, 1);
+  };
+  const minusOneHandler = (productId: string, quantity: number) => {
+    if (quantity > 1) {
+      addProductToCart(productId, -1);
+    } else {
+      toast({ title: "Minimum is reached." });
+    }
+  };
+  const removeHandler = (productId: string) => {
+    removeProduct(productId);
+    toast({ title: "Product Removed." });
+  };
+
+  const summaryFields = {
+    productCount,
+    courierEnabled,
+    offerCodesEnabled,
+    deliveryState,
+    onStateChange,
+    hasDeliveryStateSelected,
+    promoInput,
+    onPromoInputChange: setPromoInput,
+    onApplyPromo,
+    appliedPromoCode,
+    promoPercentage,
+    onRemovePromo,
+    subtotal,
+    discountAmount,
+    discountedSubtotal,
+    courierBreakdown,
+    gstEnabled: courierConfig.gstEnabled,
+    gstAmount,
+    totalAmount,
+  };
+
+  const checkoutButton = (
+    <CheckoutButton
+      guest={true}
+      order={cartItems}
+      promoCode={appliedPromoCode}
+      missingSizeProductNames={missingSizeProductNames}
+      requireDeliveryStateSelection={courierEnabled}
+      hasDeliveryStateSelected={!courierEnabled || hasDeliveryStateSelected}
+    />
+  );
+
+  return (
+    <>
+      {cartLines.length > 0 ? (
+        <section
+          aria-label="Cart Section"
+          className={cn(
+            "grid grid-cols-12 gap-x-6 gap-y-5",
+            cartPageBottomSpacerClass(),
+          )}
+        >
+          <CartItemsList>
+            {cartLines.map(({ node }) =>
+              (() => {
+                const config = sizeConfigsByProductId[node.id];
+                const hasLabeledOptions = Boolean(
+                  config?.enabled &&
+                    config.options.some(
+                      (option) => String(option.size ?? "").trim().length > 0,
+                    ),
+                );
+                const sizeOptions = (config?.options ?? [])
+                  .filter((option) => Number(option.qty ?? 0) > 0)
+                  .map((option) => {
+                    const normalized = String(option.size ?? "")
+                      .trim()
+                      .toUpperCase();
+                    const label = normalized || `${option.qty}`;
+                    return { value: normalized, label };
+                  })
+                  .filter((option) => option.value.length > 0);
+
+                return (
+                  <CartItemCard
+                    key={node.id}
+                    id={node.id}
+                    product={withLiveProductPricing(node, livePricing[node.id])}
+                    quantity={cartItems[node.id]?.quantity ?? 0}
+                    selectedSize={cartItems[node.id]?.size}
+                    sizeRequired={hasLabeledOptions}
+                    sizeOptions={sizeOptions}
+                    onSizeChange={(size) => setProductSize(node.id, size)}
+                    addOneHandler={() =>
+                      addOneHandler(
+                        node.id,
+                        cartItems[node.id].quantity,
+                        node.stock ?? null,
+                      )
+                    }
+                    minusOneHandler={() =>
+                      minusOneHandler(node.id, cartItems[node.id].quantity)
+                    }
+                    removeHandler={() => removeHandler(node.id)}
+                  />
+                );
+              })(),
+            )}
+          </CartItemsList>
+
+          <Card className="col-span-12 w-full px-3 md:col-span-3">
+            <CardHeader className="px-3 pt-2 pb-0 text-md">
+              <CardTitle className="mb-0 text-lg">Summary</CardTitle>
+              <CardDescription>{`${productCount} Items`}</CardDescription>
+            </CardHeader>
+            <CardContent className="relative overflow-hidden px-3 py-2">
+              <CartOrderSummaryFields {...summaryFields} />
+            </CardContent>
+
+            <CardFooter className="flex gap-x-2 px-3 pb-3 md:gap-x-5">
+              {checkoutButton}
+            </CardFooter>
+          </Card>
+
+          <CartCheckoutSummary
+            mobileStickyOnly
+            productCount={productCount}
+            headlineAmount={checkoutTotalReady ? totalAmount : subtotal}
+            headlineLabel={checkoutTotalReady ? "Total" : "Subtotal"}
+            checkout={checkoutButton}
+          />
+        </section>
+      ) : (
+        <EmptyCart />
+      )}
+      <BulkOrderGuardDialog
+        open={bulkGuardOpen}
+        onOpenChange={setBulkGuardOpen}
+      />
+    </>
+  );
+}
+
+export default GuestCartSection;
+
+export const LoadingCartSection = () => (
+  <section
+    className="grid grid-cols-12 gap-x-6 gap-y-5"
+    aria-label="Loading Skeleton"
+  >
+    <div className="col-span-12 md:col-span-9 space-y-8">
+      {[...Array(4)].map((_, index) => (
+        <div
+          className="flex items-center justify-between gap-x-6 gap-y-8 border-b p-5"
+          key={index}
+        >
+          <Skeleton className="h-[120px] w-[120px]" />
+          <div className="space-y-3 w-full">
+            <Skeleton className="h-6 max-w-xs" />
+            <Skeleton className="h-4" />
+            <Skeleton className="h-4 w-full max-w-xl" />
+            <Skeleton className="h-4 w-full max-w-lg" />
+          </div>
+        </div>
+      ))}
+    </div>
+    <div className="w-full h-[180px] px-3 col-span-12 md:col-span-3 border p-5">
+      <div className="space-y-3 w-full">
+        <Skeleton className="h-6 max-w-xs" />
+        <Skeleton className="h-4" />
+        <Skeleton className="h-4 mb-6" />
+        <Skeleton className="h-4 mb-6 max-w-[280px]" />
+      </div>
+    </div>
+  </section>
+);
+
+const calcSubtotal = ({
+  prdouctsDetails,
+  quantity,
+}: {
+  prdouctsDetails: DocumentType<typeof FetchGuestCartQuery> | null;
+  quantity: CartItems;
+}) => {
+  const productPrices = prdouctsDetails?.productsCollection?.edges ?? [];
+
+  if (!productPrices.length) return 0;
+
+  return productPrices.reduce((acc, cur) => {
+    const item = quantity[cur.node.id];
+    if (!item) return acc;
+    return acc + item.quantity * getSaleProductPrice(cur.node);
+  }, 0);
+};
