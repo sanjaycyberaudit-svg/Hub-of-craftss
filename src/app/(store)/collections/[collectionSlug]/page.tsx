@@ -49,7 +49,9 @@ export async function generateMetadata({ params }: CategoryPageProps) {
 async function CategoryPage({ params, searchParams }: CategoryPageProps) {
   const resolvedParams = await params;
   const resolvedSearchParams = await searchParams;
-  const requestedSlug = decodeURIComponent(resolvedParams.collectionSlug).trim();
+  const requestedSlug = decodeURIComponent(
+    resolvedParams.collectionSlug,
+  ).trim();
   const data = await getCollectionPageCached(requestedSlug);
   const collection = data?.collectionsCollection?.edges?.[0]?.node;
 
@@ -59,7 +61,10 @@ async function CategoryPage({ params, searchParams }: CategoryPageProps) {
     redirect(`/collections/${encodeURIComponent(collection.slug)}`);
   }
 
-  const variables = buildShopSearchVariables(resolvedSearchParams, collection.id);
+  const variables = buildShopSearchVariables(
+    resolvedSearchParams,
+    collection.id,
+  );
   const [initialSearchResult, initialDraftIds] = await Promise.all([
     fetchProductSearchCached(variables),
     getDraftProductIdsCached(),

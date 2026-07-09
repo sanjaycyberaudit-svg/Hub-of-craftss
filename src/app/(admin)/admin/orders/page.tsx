@@ -24,7 +24,9 @@ type AdminOrdersPageProps = {
   }>;
 };
 
-export default async function OrdersPage({ searchParams }: AdminOrdersPageProps) {
+export default async function OrdersPage({
+  searchParams,
+}: AdminOrdersPageProps) {
   const resolved = await searchParams;
   return (
     <Suspense fallback={<AdminTablePageSkeleton statCards={2} tableRows={8} />}>

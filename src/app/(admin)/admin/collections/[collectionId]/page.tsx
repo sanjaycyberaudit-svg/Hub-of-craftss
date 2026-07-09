@@ -25,9 +25,7 @@ const updateCollectionPageQuery = gql(/* GraphQL */ `
   }
 `);
 
-async function EditCollectionPage({
-  params,
-}: EditCollectionPageProps) {
+async function EditCollectionPage({ params }: EditCollectionPageProps) {
   const { collectionId } = await params;
   const { data } = await getClient().query(updateCollectionPageQuery, {
     collectionId,

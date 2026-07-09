@@ -63,10 +63,7 @@ function buildShippingAddress(details: {
   return [...lines, cityLine, details.country || "India"].filter(Boolean);
 }
 
-async function TrackOrderPage({
-  params,
-  searchParams,
-}: TrackOrderProps) {
+async function TrackOrderPage({ params, searchParams }: TrackOrderProps) {
   const { orderId } = await params;
   const resolvedSearchParams = searchParams ? await searchParams : undefined;
   const orderRows = await db

@@ -16,7 +16,9 @@ type AdminProjectsPageProps = {
   }>;
 };
 
-export default async function ProductsPage({ searchParams }: AdminProjectsPageProps) {
+export default async function ProductsPage({
+  searchParams,
+}: AdminProjectsPageProps) {
   const resolved = await searchParams;
   return (
     <Suspense fallback={<AdminTablePageSkeleton tableRows={10} />}>
