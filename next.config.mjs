@@ -84,7 +84,16 @@ const nextConfig = {
       static: 180,
     },
   },
-  serverExternalPackages: ["@aws-sdk/client-s3", "sharp"],
+  // Keep AWS SDK out of the Next server graph where possible (OpenNext/Wrangler still resolve for Workers).
+  serverExternalPackages: ["@aws-sdk/client-s3", "@aws-sdk/s3-request-presigner"],
+  webpack: (config) => {
+    config.resolve.alias = {
+      ...config.resolve.alias,
+      // Drop unused OG image WASM from the server Worker bundle.
+      "next/og": false,
+    };
+    return config;
+  },
 }
 
 export default nextConfig

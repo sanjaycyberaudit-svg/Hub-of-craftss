@@ -17,7 +17,7 @@ import {
 } from "@/lib/supabase/schema";
 import { slugify } from "@/lib/utils";
 import { and, asc, desc, eq, ilike, inArray, or, sql } from "drizzle-orm";
-import sharp from "sharp";
+import { processUploadedImageBuffer } from "@/lib/image/processUpload";
 import { z } from "zod";
 
 const IDEM_PREFIX = "velo_idempotency_";
@@ -214,18 +214,7 @@ async function uploadBase64Image(
 
   let processed;
   try {
-    const meta = await sharp(input, { animated: true }).metadata();
-    if (!meta.width) throw new Error("Invalid image.");
-    const resized = await sharp(input, { animated: true })
-      .rotate()
-      .resize({ width: 2000, withoutEnlargement: true })
-      .webp({ quality: 82 })
-      .toBuffer();
-    processed = {
-      buffer: resized,
-      contentType: "image/webp",
-      extension: "webp",
-    };
+    processed = await processUploadedImageBuffer(input, fileName || "image");
   } catch {
     throw new Error(`Could not process image: ${fileName || "image"}`);
   }

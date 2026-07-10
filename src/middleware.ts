@@ -75,7 +75,9 @@ function redirectToCanonicalHost(request: NextRequest): NextResponse | null {
     !host ||
     host === "localhost" ||
     host === "127.0.0.1" ||
-    host.endsWith(".vercel.app")
+    host.endsWith(".vercel.app") ||
+    host.endsWith(".workers.dev") ||
+    host.endsWith(".pages.dev")
   ) {
     return null;
   }
