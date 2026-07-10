@@ -13,7 +13,7 @@ export const SAREE_SHOP_MODEL_IMAGES = [
   `${SAKTHI_MEDIA_BASE}upload-jYVtTkgJ_e2FyiDDUc9Jg.webp`,
 ] as const;
 
-/** Best-fit Tamil Nadu pattu / model photo per SSR Tex category label */
+/** Best-fit Tamil Nadu pattu / model photo per HOC category label */
 const COLLECTION_IMAGE_BY_LABEL: Record<string, string> = {
   "Softie Sarees": SAREE_SHOP_MODEL_IMAGES[3],
   "Kanjivaram Wedding Sarees": SAREE_SHOP_MODEL_IMAGES[0],

@@ -1,5 +1,6 @@
 /** Canonical storefront origin(s) used for auth redirects and SEO. */
-const DEFAULT_PRODUCTION_ORIGIN = "https://www.sairaghavendratex.com";
+const DEFAULT_PRODUCTION_ORIGIN =
+  "https://hub-of-craftss.hubofcraftss.workers.dev";
 
 function normalizeOrigin(value: string): string {
   const trimmed = value.trim().replace(/\/$/, "");
@@ -34,7 +35,7 @@ export function getAuthCallbackUrls(): string[] {
     `${canonical}/auth/callback`,
     "http://localhost:3000/auth/callback",
     "http://127.0.0.1:3000/auth/callback",
-    "https://ssr-tex-shop.vercel.app/auth/callback",
+    "https://hub-of-craftss.hubofcraftss.workers.dev/auth/callback",
   ]);
 
   try {

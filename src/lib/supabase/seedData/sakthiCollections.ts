@@ -4,7 +4,7 @@ import * as schema from "../schema";
 import { slugify } from "@/lib/utils";
 import { collectionImageForLabel } from "./collectionPlaceholders";
 
-/** SSR Tex saree categories (homepage carousel + /collections/[slug]) */
+/** HOC saree categories (homepage carousel + /collections/[slug]) */
 export const SAKTHI_COLLECTION_LABELS = [
   "Softie Sarees",
   "Kanjivaram Wedding Sarees",
@@ -32,7 +32,7 @@ const DEMO_COLLECTION_SLUGS = [
 function collectionCopy(label: string) {
   return {
     title: label,
-    description: `Explore our ${label} at SRI SAI RAGHAVENDRA TEX — premium sarees for every occasion.`,
+    description: `Explore our ${label} at Hub of craftss — premium sarees for every occasion.`,
   };
 }
 
@@ -67,7 +67,7 @@ export default async function seedSakthiCollections(
     const { title, description } = collectionCopy(label);
     const order = i + 1;
     const imageKey = collectionImageForLabel(label, i);
-    const imageAlt = `${label} — Tamil Nadu saree model, SRI SAI RAGHAVENDRA TEX`;
+    const imageAlt = `${label} — Tamil Nadu saree model, Hub of craftss`;
 
     const existing = await db
       .select()

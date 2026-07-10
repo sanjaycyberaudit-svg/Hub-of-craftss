@@ -1,4 +1,4 @@
-import { heroBannerImage } from "@/lib/supabase/seedData/collectionPlaceholders";
+import { siteConfig } from "@/config/site";
 
 export type HeroSlide = {
   id: string;
@@ -10,45 +10,33 @@ export type HeroSlide = {
   imageAlt: string;
 };
 
-/** Homepage hero carousel — real Tamil saree model photography until Admin → Home Banner uploads. */
+/** Homepage hero fallback until Admin → Home Banner uploads craft photos. */
 export const heroSlides: HeroSlide[] = [
   {
-    id: "festive-silk",
-    title: "Festive Silk",
-    subtitle:
-      "Kanjivaram, soft silk, and wedding weaves — curated for every celebration",
-    href: "/collections/kanjivaram-wedding-sarees",
-    cta: "Shop now",
-    image: heroBannerImage("festiveSilk"),
-    imageAlt: "Model in Kanjivaram silk saree — SRI SAI RAGHAVENDRA TEX, Salem",
-  },
-  {
-    id: "summer-weaves",
-    title: "Summer Weaves",
-    subtitle:
-      "Light cotton, silk cotton, and soft silks for comfort and elegance",
-    href: "/collections/cotton-sarees",
-    cta: "Shop now",
-    image: heroBannerImage("summerWeaves"),
-    imageAlt: "Model in cotton saree — SRI SAI RAGHAVENDRA TEX, Tamil Nadu",
-  },
-  {
-    id: "wedding-edit",
-    title: "Wedding Edit",
-    subtitle:
-      "Traditional silks, Kubera pattu, and celebrity-inspired bridal looks",
-    href: "/collections/wedding-collections",
-    cta: "Shop now",
-    image: heroBannerImage("weddingEdit"),
-    imageAlt: "Model in wedding silk saree — SRI SAI RAGHAVENDRA TEX, Salem",
-  },
-  {
-    id: "daily-elegance",
-    title: "Daily Elegance",
-    subtitle: "Softie sarees and fancy silks — premium quality, trusted weave",
+    id: "terracotta",
+    title: "Terracotta materials",
+    subtitle: "Raw materials for jewellery and craft projects",
     href: "/shop",
     cta: "Shop now",
-    image: heroBannerImage("dailyElegance"),
-    imageAlt: "Model in soft silk saree — SRI SAI RAGHAVENDRA TEX, Tamil Nadu",
+    image: "/images/hub-of-craftss-logo.png",
+    imageAlt: `${siteConfig.name} — terracotta craft supplies`,
+  },
+  {
+    id: "art-supplies",
+    title: "Art & craft supplies",
+    subtitle: "Make · Craft · Create with quality supplies",
+    href: "/collections",
+    cta: "Explore",
+    image: "/images/hub-of-craftss-logo.png",
+    imageAlt: `${siteConfig.name} — art and craft supplies`,
+  },
+  {
+    id: "madurai-hub",
+    title: "From Madurai",
+    subtitle: "Hub of craftss by Shaaru — Sarojini Nagar",
+    href: "/about",
+    cta: "Our story",
+    image: "/images/hub-of-craftss-logo.png",
+    imageAlt: `${siteConfig.name} — Madurai craft shop`,
   },
 ];

@@ -17,7 +17,7 @@ const seedCollections = async () => {
         .insert(schema.medias)
         .values({
           key: imageKey,
-          alt: `${label} — SRI SAI RAGHAVENDRA TEX`,
+          alt: `${label} — Hub of craftss`,
         })
         .returning();
 
@@ -27,7 +27,7 @@ const seedCollections = async () => {
         label,
         slug,
         title: label,
-        description: `Explore our ${label} at SRI SAI RAGHAVENDRA TEX.`,
+        description: `Explore our ${label} at Hub of craftss.`,
         order: i + 1,
         featuredImageId: media.id,
       });

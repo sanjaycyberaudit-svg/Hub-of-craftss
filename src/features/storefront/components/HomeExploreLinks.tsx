@@ -11,10 +11,10 @@ export function HomeExploreLinks() {
         id="explore-sakthi-heading"
         className="font-[family-name:var(--font-hero-serif)] text-xl font-semibold text-foreground md:text-2xl"
       >
-        Explore SRI SAI RAGHAVENDRA TEX
+        Explore Hub of craftss
       </h2>
       <p className="mt-2 max-w-2xl text-sm text-muted-foreground md:text-base">
-        Shop premium silk and cotton sarees online, browse collections, and
+        Shop premium terracotta and craft supplies online, browse collections, and
         contact our Salem store for wholesale and retail orders.
       </p>
       <nav

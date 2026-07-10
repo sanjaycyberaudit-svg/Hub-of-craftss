@@ -7,9 +7,9 @@ import Link from "next/link";
 import { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Contact | SRI SAI RAGHAVENDRA TEX",
+  title: "Contact | Hub of craftss",
   description:
-    "Contact SRI SAI RAGHAVENDRA TEX — phone, email, WhatsApp, and store address",
+    "Contact Hub of craftss — phone, email, WhatsApp, and store address",
 };
 
 export const revalidate = 60;
@@ -23,7 +23,7 @@ export default async function ContactPage() {
   return (
     <InfoPage
       heading="Contact Us"
-      description="Reach SRI SAI RAGHAVENDRA TEX by phone, WhatsApp, email, or visit our store in Salem."
+      description="Reach Hub of craftss by Instagram, email, or visit our store in Madurai."
     >
       <section id="store" className="space-y-3">
         <h2 className="text-base font-semibold text-foreground">
@@ -54,35 +54,52 @@ export default async function ContactPage() {
 
       <section className="space-y-3">
         <h2 className="text-base font-semibold text-foreground">Phone</h2>
-        <ul className="space-y-1.5">
-          {contact.contacts.map((person) => (
-            <li key={person.phoneHref}>
-              <span className="font-medium text-foreground">{person.name}</span>
-              {" — "}
-              <Link
-                href={person.phoneHref}
-                className="text-primary hover:underline"
-              >
-                {person.phone}
-              </Link>
-            </li>
-          ))}
-        </ul>
+        {contact.contacts.some((person) => person.phone) ? (
+          <ul className="space-y-1.5">
+            {contact.contacts
+              .filter((person) => person.phone)
+              .map((person) => (
+                <li key={`${person.name}-${person.phone}`}>
+                  <span className="font-medium text-foreground">
+                    {person.name}
+                  </span>
+                  {" — "}
+                  <Link
+                    href={person.phoneHref || "#"}
+                    className="text-primary hover:underline"
+                  >
+                    {person.phone}
+                  </Link>
+                </li>
+              ))}
+          </ul>
+        ) : (
+          <p className="text-muted-foreground">
+            Phone number coming soon. Message us on Instagram for orders and
+            queries.
+          </p>
+        )}
       </section>
 
       <section className="space-y-3">
         <h2 className="text-base font-semibold text-foreground">WhatsApp</h2>
-        <p>
-          Fastest way to ask about stock, wedding orders, or delivery —{" "}
-          <Link
-            href={social.whatsapp}
-            className="text-primary hover:underline"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Chat on WhatsApp
-          </Link>
-        </p>
+        {social.whatsapp ? (
+          <p>
+            Fastest way to ask about stock or delivery —{" "}
+            <Link
+              href={social.whatsapp}
+              className="text-primary hover:underline"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Chat on WhatsApp
+            </Link>
+          </p>
+        ) : (
+          <p className="text-muted-foreground">
+            WhatsApp link coming soon. Reach us on Instagram meanwhile.
+          </p>
+        )}
       </section>
 
       {social.instagram || social.facebook || social.youtube ? (

@@ -4,34 +4,34 @@
 
 @layer base {
   :root {
-    /* SSR Tex — regal plum purple primary with champagne gold accents */
-    --background: 320 28% 98%;
-    --foreground: 318 35% 14%;
+    /* Hub of craftss — soft lavender primary with warm craft accents */
+    --background: 270 35% 98%;
+    --foreground: 265 25% 18%;
 
-    --card: 320 28% 99%;
-    --card-foreground: 318 35% 14%;
+    --card: 270 40% 99%;
+    --card-foreground: 265 25% 18%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 318 35% 14%;
+    --popover-foreground: 265 25% 18%;
 
-    --primary: 318 42% 35%;
-    --primary-foreground: 42 55% 96%;
+    --primary: 258 28% 48%;
+    --primary-foreground: 0 0% 100%;
 
-    --secondary: 42 48% 93%;
-    --secondary-foreground: 318 35% 20%;
+    --secondary: 35 70% 94%;
+    --secondary-foreground: 265 25% 22%;
 
-    --muted: 320 22% 95%;
-    --muted-foreground: 318 12% 42%;
+    --muted: 270 20% 95%;
+    --muted-foreground: 265 10% 42%;
 
-    --accent: 42 58% 90%;
-    --accent-foreground: 318 35% 18%;
+    --accent: 340 55% 94%;
+    --accent-foreground: 265 25% 20%;
 
     --destructive: 0 75% 47%;
-    --destructive-foreground: 42 55% 96%;
+    --destructive-foreground: 0 0% 100%;
 
-    --border: 318 18% 88%;
-    --input: 318 18% 88%;
-    --ring: 318 42% 35%;
+    --border: 270 15% 88%;
+    --input: 270 15% 88%;
+    --ring: 258 28% 48%;
 
     --radius: 0.1rem;
     --mobile-nav-height: calc(

@@ -19,16 +19,16 @@ import type { Metadata } from "next";
 export const revalidate = 300;
 
 export const metadata: Metadata = {
-  title: "SRI SAI RAGHAVENDRA TEX | Premium Silk & Cotton Sarees Online",
+  title: "Hub of craftss | Make · Craft · Create",
   description:
-    "Shop authentic silk and cotton sarees at SRI SAI RAGHAVENDRA TEX. Explore featured sarees, wedding collections, Kanjivaram styles, and wholesale sarees from Salem.",
+    "Shop terracotta raw materials and art & craft supplies at Hub of craftss by Shaaru in Madurai. Make · Craft · Create.",
   alternates: {
     canonical: "/",
   },
   openGraph: {
-    title: "SRI SAI RAGHAVENDRA TEX | Premium Silk & Cotton Sarees Online",
+    title: "Hub of craftss | Make · Craft · Create",
     description:
-      "Shop authentic silk and cotton sarees at SRI SAI RAGHAVENDRA TEX. Explore featured sarees, wedding collections, and wholesale sarees from Salem.",
+      "Shop terracotta raw materials and art & craft supplies at Hub of craftss by Shaaru in Madurai.",
     url: "/",
   },
 };

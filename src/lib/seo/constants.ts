@@ -70,24 +70,24 @@ export const SEO_STATIC_PAGES = [
 /** Primary nav targets surfaced for crawlers and internal linking. */
 export const SEO_PRIMARY_NAV = [
   {
-    name: "Shop all sarees",
+    name: "Shop all products",
     href: "/shop",
-    description: "Browse silk, cotton and festive sarees online.",
+    description: "Browse terracotta and art & craft supplies online.",
   },
   {
-    name: "Featured sarees",
+    name: "Featured products",
     href: "/featured",
-    description: "Handpicked premium sarees for weddings and festivals.",
+    description: "Handpicked craft supplies and materials.",
   },
   {
     name: "All collections",
     href: "/collections",
-    description: "Explore Kanjivaram, wedding, cotton and silk collections.",
+    description: "Explore craft collections and categories.",
   },
   {
     name: "Contact us",
     href: "/contact",
-    description: "Visit our Salem store or call for orders and enquiries.",
+    description: "Visit our Madurai store or message us for orders.",
   },
   {
     name: "Terms & Conditions",

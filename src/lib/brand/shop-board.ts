@@ -1,4 +1,4 @@
-/** SSR Tex shop-board — SVG panel with forward-slanted right edge */
+/** HOC shop-board — SVG panel with forward-slanted right edge */
 export type ShopBoardBrandSize = "nav" | "md" | "footer";
 
 type SizeConfig = {

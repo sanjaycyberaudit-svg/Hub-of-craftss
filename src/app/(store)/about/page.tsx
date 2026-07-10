@@ -1,32 +1,39 @@
 import InfoPage from "@/components/layouts/InfoPage";
 import Link from "next/link";
 import { Metadata } from "next";
-import { STOREFRONT_STATIC_REVALIDATE_SECONDS } from "@/lib/cache/constants";
+import { siteConfig } from "@/config/site";
 
 export const revalidate = 3600;
 
 export const metadata: Metadata = {
-  title: "Our Story | SRI SAI RAGHAVENDRA TEX",
-  description:
-    "About SRI SAI RAGHAVENDRA TEX — authentic sarees from Salem, Tamil Nadu",
+  title: `Our Story | ${siteConfig.name}`,
+  description: `About ${siteConfig.name} — terracotta raw materials and art & craft supplies from Madurai.`,
 };
 
 export default function AboutPage() {
   return (
     <InfoPage
       heading="Our Story"
-      description="SRI SAI RAGHAVENDRA TEX — trusted sarees for every occasion, from our family to yours."
+      description={`${siteConfig.name} by Shaaru — ${siteConfig.tagline}.`}
     >
       <p>
-        SRI SAI RAGHAVENDRA TEX has been serving customers across Tamil Nadu
-        with authentic silk and cotton sarees for festivals, weddings, and
-        everyday elegance. From Kanjivaram and soft silk to cotton and wedding
-        collections, we curate quality pieces for retail and wholesale buyers.
+        {siteConfig.name} is your hub for terracotta raw materials and art &amp;
+        craft supplies. We help makers, hobbyists, and wholesale buyers find
+        quality materials to make, craft, and create.
       </p>
       <p>
-        Based in Salem district, we combine the warmth of a local textile shop
-        with the convenience of online ordering. Whether you visit our showroom
-        or shop from home, our team is here to help you find the right saree.
+        Based in Madurai, Tamil Nadu ({siteConfig.address}), we combine the
+        warmth of a local craft shop with convenient online ordering. Follow us
+        on Instagram{" "}
+        <a
+          href={siteConfig.social.instagram}
+          className="text-primary hover:underline"
+          target="_blank"
+          rel="noreferrer"
+        >
+          @hub_of_craftss_by_shaaru
+        </a>{" "}
+        for new arrivals and ideas.
       </p>
       <p>
         Browse our{" "}
@@ -35,13 +42,13 @@ export default function AboutPage() {
         </Link>
         , explore{" "}
         <Link href="/featured" className="text-primary hover:underline">
-          featured sarees
+          featured products
         </Link>
         , or{" "}
         <Link href="/contact" className="text-primary hover:underline">
           get in touch
         </Link>{" "}
-        for wedding and bulk orders.
+        for orders and enquiries.
       </p>
     </InfoPage>
   );

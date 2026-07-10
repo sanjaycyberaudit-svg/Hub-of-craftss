@@ -20,16 +20,16 @@ import { Suspense } from "react";
 export const revalidate = 120;
 
 export const metadata: Metadata = {
-  title: "Shop All Sarees",
+  title: "Shop All Products",
   description:
-    "Browse all silk, cotton, wedding and festive sarees at SRI SAI RAGHAVENDRA TEX. Shop online with secure checkout and delivery across India.",
+    "Browse all silk, cotton, wedding and festive craft supplies at Hub of craftss. Shop online with secure checkout and delivery across India.",
   alternates: {
     canonical: "/shop",
   },
   openGraph: {
-    title: "Shop All Sarees | SRI SAI RAGHAVENDRA TEX",
+    title: "Shop All Products | Hub of craftss",
     description:
-      "Browse all silk, cotton, wedding and festive sarees at SRI SAI RAGHAVENDRA TEX.",
+      "Browse all silk, cotton, wedding and festive craft supplies at Hub of craftss.",
     url: "/shop",
   },
 };

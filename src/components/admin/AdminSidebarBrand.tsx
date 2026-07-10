@@ -11,11 +11,11 @@ export function AdminSidebarBrand({ className }: AdminSidebarBrandProps) {
   return (
     <Link href="/admin/dashboard" className={className}>
       <Image
-        src="/images/ssr-tex-emblem.svg"
+        src="/images/hub-of-craftss-logo.png"
         alt=""
         width={32}
         height={32}
-        className="h-8 w-8 shrink-0 rounded-md"
+        className="h-8 w-8 shrink-0 rounded-md object-contain"
         priority
       />
       <span className="min-w-0">

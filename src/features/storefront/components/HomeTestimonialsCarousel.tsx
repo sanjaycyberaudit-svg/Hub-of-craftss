@@ -104,7 +104,7 @@ function ModernTextTestimonialCard({ node }: { node: TestimonialNode }) {
         </blockquote>
       ) : (
         <p className="flex-1 text-sm text-muted-foreground">
-          Thank you for shopping with SRI SAI RAGHAVENDRA TEX.
+          Thank you for shopping with Hub of craftss.
         </p>
       )}
 

@@ -11,8 +11,8 @@ import { createClient } from "@/lib/supabase/server";
 import { cookies } from "next/headers";
 
 export const metadata: Metadata = {
-  title: "Sign In | SRI SAI RAGHAVENDRA TEX",
-  description: "Sign in to your SRI SAI RAGHAVENDRA TEX account",
+  title: "Sign In | Hub of craftss",
+  description: "Sign in to your Hub of craftss account",
 };
 
 type SignInPageProps = {
@@ -48,7 +48,7 @@ export default async function SignInPage({ searchParams }: SignInPageProps) {
             Sign in
           </h1>
           <p className="text-sm text-muted-foreground">
-            Welcome back to SRI SAI RAGHAVENDRA TEX
+            Welcome back to Hub of craftss
           </p>
         </div>
       </div>

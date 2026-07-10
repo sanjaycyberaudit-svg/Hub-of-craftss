@@ -4,7 +4,6 @@ import {
   safeAuthRedirectError,
 } from "@/lib/auth/safe-auth-errors";
 import { getPostAuthRedirectUrl } from "@/lib/auth/callback";
-import { getCanonicalSiteOrigin } from "@/lib/auth/site-urls";
 import {
   ADMIN_POST_LOGIN_PATH,
   getRedirectFromSearchParams,
@@ -73,25 +72,6 @@ function isPkceVerifierMissing(error: unknown): boolean {
 }
 
 export async function GET(request: NextRequest) {
-  const canonicalHost = new URL(getCanonicalSiteOrigin()).host;
-  const requestHost =
-    request.headers.get("x-forwarded-host") ?? request.nextUrl.host;
-
-  if (
-    process.env.NODE_ENV === "production" &&
-    requestHost === "ssr-tex-shop.vercel.app" &&
-    canonicalHost !== requestHost
-  ) {
-    const canonicalCallback = new URL(
-      request.nextUrl.pathname,
-      getCanonicalSiteOrigin(),
-    );
-    request.nextUrl.searchParams.forEach((value, key) => {
-      canonicalCallback.searchParams.set(key, value);
-    });
-    return NextResponse.redirect(canonicalCallback);
-  }
-
   const { searchParams } = request.nextUrl;
   const tokenType = searchParams.get("type");
   const isRecovery = tokenType === "recovery";

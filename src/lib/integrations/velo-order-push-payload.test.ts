@@ -13,13 +13,13 @@ describe("velo order push payload", () => {
   it("builds payload with summed quantity and trimmed shop URL", () => {
     expect(
       buildVeloOrderPushPayload({
-        shopBaseUrl: "https://www.sairaghavendratex.com/",
+        shopBaseUrl: "https://www.hub-of-craftss.hubofcraftss.workers.dev/",
         orderId: "ord_123",
         customerName: " Priya ",
         lineQuantities: [1, 2],
       }),
     ).toEqual({
-      shopBaseUrl: "https://www.sairaghavendratex.com",
+      shopBaseUrl: "https://www.hub-of-craftss.hubofcraftss.workers.dev",
       orderId: "ord_123",
       customerName: "Priya",
       quantity: 3,
@@ -29,13 +29,13 @@ describe("velo order push payload", () => {
   it("defaults customer name and minimum quantity", () => {
     expect(
       buildVeloOrderPushPayload({
-        shopBaseUrl: "https://www.sairaghavendratex.com",
+        shopBaseUrl: "https://www.hub-of-craftss.hubofcraftss.workers.dev",
         orderId: "ord_456",
         customerName: "",
         lineQuantities: [],
       }),
     ).toEqual({
-      shopBaseUrl: "https://www.sairaghavendratex.com",
+      shopBaseUrl: "https://www.hub-of-craftss.hubofcraftss.workers.dev",
       orderId: "ord_456",
       customerName: "Guest",
       quantity: 1,

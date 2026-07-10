@@ -2,93 +2,88 @@ import type { NavItemWithOptionalChildren } from "@/types";
 
 export type SiteConfig = typeof siteConfig;
 
-/** Business card — SRI SAI RAGHAVENDRA TEX (SSR Tex) */
+/** Hub of craftss — Madurai */
 const ADDRESS_LINES = [
-  "Chettiyar Street, Perumal Kovil Opp. Road",
-  "Elampillai – Kadayampatty",
-  "Elampillai, Salem – 637 502",
+  "No 162, Kasim Residency",
+  "Sarojini Nagar",
+  "Madurai – 625107, Tamil Nadu",
 ] as const;
 
-/** Proprietors / contact persons from the business card */
+/** Contacts — add phone/WhatsApp when available */
 const CONTACTS = [
   {
-    name: "J. Moulee",
-    phone: "+91 80127 15132",
-    phoneHref: "tel:+918012715132",
-  },
-  {
-    name: "J. Vimal",
-    phone: "+91 95667 84543",
-    phoneHref: "tel:+919566784543",
+    name: "Shaaru",
+    phone: "",
+    phoneHref: "",
   },
 ] as const;
 
 const PHONE = CONTACTS[0].phone;
 const PHONE_HREF = CONTACTS[0].phoneHref;
 const EMAIL = "";
-const GSTIN = "33BMCPV3652G1Z1";
+const GSTIN = "";
 
 const SOCIAL = {
-  instagram: "",
+  instagram: "https://www.instagram.com/hub_of_craftss_by_shaaru/",
   youtube: "",
   facebook: "",
-  whatsapp: "https://wa.me/918012715132",
+  whatsapp: "",
 } as const;
 
 export const siteConfig = {
   /** Title-case shop board line (navbar/footer wordmark) */
-  shopBoardName: "Sri Sai Raghavendra Tex",
-  name: "SRI SAI RAGHAVENDRA TEX®",
-  shortName: "SSR Tex",
-  tagline: "Sarees Wholesale & Retail Merchant",
+  shopBoardName: "Hub of craftss",
+  name: "Hub of craftss",
+  shortName: "HOC",
+  tagline: "Make · Craft · Create",
   /** Town shown on shop board / navbar */
-  location: "ELAMPILLAI",
-  description: "Sarees wholesale & retail merchant — silk and cotton sarees",
-  searchPlaceholder: "Search silk & cotton sarees, collections…",
-  url: "https://www.sairaghavendratex.com",
+  location: "MADURAI",
+  description:
+    "Terracotta raw materials and art & craft supplies — make, craft, create with Hub of craftss by Shaaru.",
+  searchPlaceholder: "Search craft supplies, terracotta, collections…",
+  url: "https://hub-of-craftss.hubofcraftss.workers.dev",
   addressLines: ADDRESS_LINES,
   /** Single-line address for compact UI */
   address: ADDRESS_LINES.join(", "),
   phone: PHONE,
   /** `tel:` href (digits only, with country code) */
   phoneHref: PHONE_HREF,
-  /** All proprietors / contact numbers from the business card */
+  /** All proprietors / contact numbers */
   contacts: CONTACTS,
   email: EMAIL,
   gstin: GSTIN,
   currency: "INR",
   currencySymbol: "₹",
-  /** Update with your real profile URLs */
   social: SOCIAL,
   /** Top offer ribbon — rotates on the storefront */
   announcements: [
     {
-      text: "Premium silk & cotton sarees — wholesale & retail at SRI SAI RAGHAVENDRA TEX",
+      text: "Terracotta raw materials & art craft supplies — Make · Craft · Create",
       href: "/shop",
       cta: "Shop now",
     },
     {
-      text: "Visit our store in Salem · Call for orders & enquiries",
-      href: "tel:+917708069049",
-      cta: "Call us",
+      text: "Follow @hub_of_craftss_by_shaaru for new arrivals",
+      href: "https://www.instagram.com/hub_of_craftss_by_shaaru/",
+      cta: "Instagram",
     },
     {
-      text: "Explore Kanjivaram, wedding & festive collections",
-      href: "/collections",
-      cta: "View all",
+      text: "Visit us in Madurai · Sarojini Nagar",
+      href: "/contact",
+      cta: "Contact",
     },
   ],
   mainNav: [
     {
       title: "Collections",
       href: "/collections",
-      description: "Browse saree collections.",
+      description: "Browse craft collections.",
       items: [],
     },
     {
       title: "Featured",
       href: "/featured",
-      description: "Handpicked sarees.",
+      description: "Handpicked craft supplies.",
       items: [],
     },
     {
@@ -104,42 +99,20 @@ export const siteConfig = {
     {
       title: "Shop",
       items: [
-        { title: "All sarees", href: "/shop", items: [] },
-        { title: "Featured sarees", href: "/featured", items: [] },
+        { title: "All products", href: "/shop", items: [] },
+        { title: "Featured", href: "/featured", items: [] },
         { title: "All categories", href: "/collections", items: [] },
         { title: "Wishlist", href: "/wish-list", items: [] },
         { title: "Cart", href: "/cart", items: [] },
       ],
     },
     {
-      title: "Collections",
+      title: "Explore",
       items: [
-        {
-          title: "Kanjivaram Wedding",
-          href: "/collections/kanjivaram-wedding-sarees",
-          items: [],
-        },
-        {
-          title: "Cotton Sarees",
-          href: "/collections/cotton-sarees",
-          items: [],
-        },
-        {
-          title: "Soft Silk Sarees",
-          href: "/collections/soft-silk-sarees",
-          items: [],
-        },
-        {
-          title: "Wedding Collections",
-          href: "/collections/wedding-collections",
-          items: [],
-        },
-        {
-          title: "Traditional Silk",
-          href: "/collections/traditional-silk-sarees",
-          items: [],
-        },
-        { title: "View all categories", href: "/collections", items: [] },
+        { title: "Collections", href: "/collections", items: [] },
+        { title: "Featured picks", href: "/featured", items: [] },
+        { title: "Our story", href: "/about", items: [] },
+        { title: "Contact", href: "/contact", items: [] },
       ],
     },
     {
@@ -159,12 +132,17 @@ export const siteConfig = {
       ],
     },
     {
-      title: "About SRI SAI RAGHAVENDRA TEX",
+      title: "About Hub of craftss",
       items: [
         { title: "Our Story", href: "/about", items: [] },
         { title: "Our Collections", href: "/collections", items: [] },
         { title: "Visit our store", href: "/contact#store", items: [] },
         { title: "Contact", href: "/contact", items: [] },
+        {
+          title: "Instagram",
+          href: "https://www.instagram.com/hub_of_craftss_by_shaaru/",
+          items: [],
+        },
       ],
     },
   ] satisfies NavItemWithOptionalChildren[],

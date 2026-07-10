@@ -8,9 +8,9 @@ import { Metadata } from "next";
 export const revalidate = 3600;
 
 export const metadata: Metadata = {
-  title: "Terms & Conditions | SRI SAI RAGHAVENDRA TEX",
+  title: "Terms & Conditions | Hub of craftss",
   description:
-    "Terms and Conditions and Terms of Use for shopping at SRI SAI RAGHAVENDRA TEX (SSR Tex) online saree store.",
+    "Terms and Conditions and Terms of Use for shopping at Hub of craftss (HOC) online craft store.",
   alternates: {
     canonical: "/terms-and-conditions",
   },
@@ -40,8 +40,8 @@ export default async function TermsAndConditionsPage() {
           <Link href="/" className="text-primary hover:underline">
             {siteConfig.url.replace(/^https:\/\//, "")}
           </Link>{" "}
-          operated by {businessName}, a sarees wholesale and retail merchant
-          based in Elampillai, Salem, Tamil Nadu, India (&quot;we&quot;,
+          operated by {businessName}, a terracotta and art &amp; craft supplies
+          merchant based in Madurai, Tamil Nadu, India (&quot;we&quot;,
           &quot;us&quot;, &quot;our&quot;).
         </p>
         <p>

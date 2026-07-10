@@ -5,7 +5,7 @@ import { Suspense } from "react";
 import { ResetPasswordForm } from "@/features/auth/components/ResetPasswordForm";
 
 export const metadata: Metadata = {
-  title: "Reset Password | SRI SAI RAGHAVENDRA TEX",
+  title: "Reset Password | Hub of craftss",
   description: "Choose a new password for your account",
 };
 
