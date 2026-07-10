@@ -1,10 +1,13 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  // Cloudflare Pages project (Git builds).
-  // Do NOT set assets.binding = "ASSETS" here — that name is reserved on Pages.
-  // Pages injects ASSETS automatically for `_worker.js` in the output directory.
+  // Pages Git builds: do NOT set pages_build_output_dir here.
+  // When that key is present, Cloudflare reads build config from this file and
+  // skips injecting dashboard env vars into `next build` (breaks NEXT_PUBLIC_*).
+  // Build command + output dir stay in the Pages project settings:
+  //   build: npm run pages:build
+  //   output: .open-next/pages
+  // OpenNext Workers builds use wrangler.workers.jsonc instead.
   "name": "hub-of-craftss",
-  "pages_build_output_dir": ".open-next/pages",
   "compatibility_date": "2024-12-30",
   "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"]
 }
