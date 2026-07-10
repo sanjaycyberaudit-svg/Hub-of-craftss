@@ -75,15 +75,13 @@ function isAnimatedGif(bytes: Uint8Array): boolean {
   return false;
 }
 
-const FORMAT_META: Record<
-  string,
-  { contentType: string; extension: string }
-> = {
-  jpeg: { contentType: "image/jpeg", extension: "jpg" },
-  png: { contentType: "image/png", extension: "png" },
-  webp: { contentType: "image/webp", extension: "webp" },
-  gif: { contentType: "image/gif", extension: "gif" },
-};
+const FORMAT_META: Record<string, { contentType: string; extension: string }> =
+  {
+    jpeg: { contentType: "image/jpeg", extension: "jpg" },
+    png: { contentType: "image/png", extension: "png" },
+    webp: { contentType: "image/webp", extension: "webp" },
+    gif: { contentType: "image/gif", extension: "gif" },
+  };
 
 /**
  * Normalize uploads for R2 storage on Cloudflare Workers.
