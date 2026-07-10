@@ -1,19 +1,20 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "hubofcraftss",
+  "name": "hub-of-craftss",
   "main": ".open-next/worker.js",
   "minify": true,
   "compatibility_date": "2024-12-30",
   "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+  "pages_build_output_dir": ".open-next/pages",
   "assets": {
     "directory": ".open-next/assets",
-    "binding": "ASSETS"
+    "binding": "ASSETS",
+    "run_worker_first": true
   },
   "services": [
     {
       "binding": "WORKER_SELF_REFERENCE",
-      "service": "hubofcraftss"
+      "service": "hub-of-craftss"
     }
   ]
 }
-
