@@ -21,7 +21,7 @@ import { createPhonePePayment } from "@/lib/payments/phonepe";
 import { createCashfreePayment } from "@/lib/payments/cashfree";
 import { validatePaymentSessionId } from "@/lib/payments/cashfree-standards";
 import { resolveCheckoutPaymentProvider } from "@/lib/payments/resolve-checkout-provider";
-import { stripe } from "@/lib/stripe";
+import { getStripe } from "@/lib/stripe";
 import { getProductSizeConfigsByProductIds } from "@/lib/products/sizeConfig";
 import db from "@/lib/supabase/db";
 import { address, medias, orderLines, orders } from "@/lib/supabase/schema";
@@ -490,6 +490,7 @@ export async function POST(request: Request) {
     const successUrl = new URL(`${getURL()}/orders/${order.id}`);
     successUrl.searchParams.set("token", accessToken);
 
+    const stripe = await getStripe();
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ["card"],
       billing_address_collection: "required",

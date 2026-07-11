@@ -6,6 +6,7 @@ export { UPLOAD_LIMIT_BYTES } from "./uploadLimits";
 export const MAX_IMAGE_WIDTH = 2000;
 
 export const WEBP_QUALITY = 82;
+/** Hard cap for bytes held in the Worker after staging fetch / FormData. */
 export const MAX_PROCESSED_IMAGE_BYTES = 2.75 * 1024 * 1024;
 
 export type ProcessedImage = {
@@ -83,13 +84,59 @@ const FORMAT_META: Record<string, { contentType: string; extension: string }> =
     gif: { contentType: "image/gif", extension: "gif" },
   };
 
+function toBuffer(bytes: Uint8Array): Buffer {
+  return Buffer.isBuffer(bytes) ? bytes : Buffer.from(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+}
+
+/**
+ * Validate image bytes in place (no File / arrayBuffer copies).
+ * Native `sharp` cannot run on Workers — admin uploads are compressed in-browser.
+ */
+export function processImageBytes(bytes: Uint8Array): ProcessedImage {
+  if (bytes.length === 0) {
+    throw new Error("Empty file.");
+  }
+  if (bytes.length > UPLOAD_LIMIT_BYTES) {
+    throw new Error("Each image must be 15 MB or smaller.");
+  }
+
+  const format = sniffFormat(bytes);
+  if (!format) {
+    throw new Error("Only image files are allowed.");
+  }
+  if (format === "svg") {
+    throw new Error("SVG uploads are not supported. Use JPEG or PNG.");
+  }
+
+  if (format === "gif" && isAnimatedGif(bytes)) {
+    if (bytes.length > MAX_PROCESSED_IMAGE_BYTES) {
+      throw new Error(
+        "Animated GIF is too large. Use a shorter clip or WebP under 2.75 MB.",
+      );
+    }
+    return {
+      buffer: toBuffer(bytes),
+      contentType: "image/gif",
+      extension: "gif",
+    };
+  }
+
+  if (bytes.length > MAX_PROCESSED_IMAGE_BYTES) {
+    throw new Error(
+      "Image is too large after upload. Use JPEG/WebP under 2.75 MB (admin uploads are auto-compressed in the browser).",
+    );
+  }
+
+  const meta = FORMAT_META[format];
+  return {
+    buffer: toBuffer(bytes),
+    contentType: meta.contentType,
+    extension: meta.extension,
+  };
+}
+
 /**
  * Normalize uploads for R2 storage on Cloudflare Workers.
- *
- * Native `sharp` cannot run on Workers. Admin uploads are already resized/
- * compressed in the browser (`client-image-upload`); this path validates the
- * file and stores it. Oversized raw payloads (e.g. Velo) are rejected so the
- * Worker stays within size limits without bundling WASM image codecs.
  */
 export async function processUploadedImage(
   file: File,
@@ -98,53 +145,14 @@ export async function processUploadedImage(
     throw new Error("Each image must be 15 MB or smaller.");
   }
 
-  const input = Buffer.from(await file.arrayBuffer());
-  if (input.length === 0) {
-    throw new Error("Empty file.");
-  }
-
-  const format = sniffFormat(input);
-  if (!format) {
-    throw new Error("Only image files are allowed.");
-  }
-  if (format === "svg") {
-    throw new Error("SVG uploads are not supported. Use JPEG or PNG.");
-  }
-
-  if (format === "gif" && isAnimatedGif(input)) {
-    if (input.length > MAX_PROCESSED_IMAGE_BYTES) {
-      throw new Error(
-        "Animated GIF is too large. Use a shorter clip or WebP under 2.75 MB.",
-      );
-    }
-    return {
-      buffer: input,
-      contentType: "image/gif",
-      extension: "gif",
-    };
-  }
-
-  if (input.length > MAX_PROCESSED_IMAGE_BYTES) {
-    throw new Error(
-      "Image is too large after upload. Use JPEG/WebP under 2.75 MB (admin uploads are auto-compressed in the browser).",
-    );
-  }
-
-  const meta = FORMAT_META[format];
-  return {
-    buffer: input,
-    contentType: meta.contentType,
-    extension: meta.extension,
-  };
+  const input = new Uint8Array(await file.arrayBuffer());
+  return processImageBytes(input);
 }
 
-/** Process raw bytes (e.g. Velo base64 uploads) with the same pipeline. */
+/** Process raw bytes (direct upload finalize / Velo) without File wrapping. */
 export async function processUploadedImageBuffer(
   input: Buffer,
-  fileName = "image",
+  _fileName = "image",
 ): Promise<ProcessedImage> {
-  const file = new File([new Uint8Array(input)], fileName, {
-    type: "application/octet-stream",
-  });
-  return processUploadedImage(file);
+  return processImageBytes(input);
 }

@@ -4,13 +4,13 @@ import { notifyOrderWhatsAppTargets } from "@/lib/integrations/whatsapp";
 import { fulfillPaidOrderInventory } from "@/lib/orders/inventory-fulfillment";
 import { mergePaymentMeta, readPaymentMeta } from "@/lib/orders/payment-meta";
 import { releaseStockReservation } from "@/lib/orders/stock-reservation";
-import { stripe } from "@/lib/stripe";
+import { getStripe } from "@/lib/stripe";
 import db from "@/lib/supabase/db";
 import { carts, PaymentStatus, orders } from "@/lib/supabase/schema";
 import { eq } from "drizzle-orm";
 import { headers } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
-import Stripe from "stripe";
+import type Stripe from "stripe";
 
 const relevantEvents = new Set([
   "product.created",
@@ -34,6 +34,7 @@ export async function POST(request: NextRequest) {
         status: 400,
       });
     }
+    const stripe = await getStripe();
     event = stripe.webhooks.constructEvent(body, sig, webhookSecret);
   } catch (err: unknown) {
     console.error("[stripe/webhook] signature verification failed:", err);

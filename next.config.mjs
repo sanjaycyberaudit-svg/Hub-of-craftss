@@ -103,12 +103,8 @@ const nextConfig = {
       static: 180,
     },
   },
-  // Keep AWS SDK / browser-only PDF out of the Next server graph (Workers Free 3 MiB).
-  serverExternalPackages: [
-    "@aws-sdk/client-s3",
-    "@aws-sdk/s3-request-presigner",
-    "jspdf",
-  ],
+  // Keep browser-only PDF out of the Next server graph (Workers Free 3 MiB).
+  serverExternalPackages: ["jspdf", "stripe"],
   webpack: (config, { isServer }) => {
     config.resolve.alias = {
       ...config.resolve.alias,

@@ -1,6 +1,12 @@
 import { logServerError } from "@/lib/api/public-error";
-import { UPLOAD_LIMIT_BYTES, UPLOAD_LIMIT_MB } from "@/lib/image/uploadLimits";
-import { processUploadedImageBuffer } from "@/lib/image/processUpload";
+import {
+  STAGING_UPLOAD_LIMIT_BYTES,
+  STAGING_UPLOAD_LIMIT_MB,
+} from "@/lib/image/uploadLimits";
+import {
+  MAX_PROCESSED_IMAGE_BYTES,
+  processUploadedImageBuffer,
+} from "@/lib/image/processUpload";
 import {
   createPresignedPutUrl,
   deleteObjects,
@@ -44,8 +50,10 @@ export async function createDirectUploadSession(params: {
   if (params.fileSize <= 0) {
     throw new Error("File is empty.");
   }
-  if (params.fileSize > UPLOAD_LIMIT_BYTES) {
-    throw new Error(`Each image must be ${UPLOAD_LIMIT_MB} MB or smaller.`);
+  if (params.fileSize > STAGING_UPLOAD_LIMIT_BYTES) {
+    throw new Error(
+      `Each image must be ${STAGING_UPLOAD_LIMIT_MB} MB or smaller after compression.`,
+    );
   }
   if (!params.contentType.startsWith("image/")) {
     throw new Error("Only image files are allowed.");
@@ -85,23 +93,29 @@ export async function finalizeDirectUpload(params: {
     throw new Error("Invalid staging path.");
   }
 
+  const stagingKey = params.storagePath;
   let buffer: Buffer;
   try {
-    buffer = await getObjectBuffer({ key: params.storagePath });
+    buffer = await getObjectBuffer({
+      key: stagingKey,
+      maxBytes: MAX_PROCESSED_IMAGE_BYTES,
+    });
   } catch (error) {
-    await deleteStagingFile(params.storagePath);
+    await deleteStagingFile(stagingKey);
     throw error instanceof Error
       ? error
       : new Error("Uploaded file not found. Try uploading again.");
   }
 
   if (buffer.length === 0) {
-    await deleteStagingFile(params.storagePath);
+    await deleteStagingFile(stagingKey);
     throw new Error("Empty file.");
   }
-  if (buffer.length > UPLOAD_LIMIT_BYTES) {
-    await deleteStagingFile(params.storagePath);
-    throw new Error(`Each image must be ${UPLOAD_LIMIT_MB} MB or smaller.`);
+  if (buffer.length > MAX_PROCESSED_IMAGE_BYTES) {
+    await deleteStagingFile(stagingKey);
+    throw new Error(
+      "Image is too large after upload. Compress under 2.75 MB and retry.",
+    );
   }
 
   const safeName = sanitizeUploadFileName(params.originalFileName);
@@ -111,11 +125,13 @@ export async function finalizeDirectUpload(params: {
   try {
     processed = await processUploadedImageBuffer(buffer, safeName);
   } catch (error) {
-    await deleteStagingFile(params.storagePath);
+    await deleteStagingFile(stagingKey);
     throw error instanceof Error
       ? error
       : new Error("Image processing failed.");
   }
+  // Release staging buffer reference before the final put.
+  buffer = Buffer.alloc(0);
 
   const namePrefix =
     params.purpose === "product-draft" ? "product-draft" : "upload";
@@ -129,7 +145,7 @@ export async function finalizeDirectUpload(params: {
       namePrefix,
     );
   } catch (error) {
-    await deleteStagingFile(params.storagePath);
+    await deleteStagingFile(stagingKey);
     throw error instanceof Error ? error : new Error("Storage upload failed.");
   }
 
@@ -138,7 +154,7 @@ export async function finalizeDirectUpload(params: {
     .values({ alt, key: finalKey })
     .returning({ id: medias.id });
 
-  await deleteStagingFile(params.storagePath);
+  await deleteStagingFile(stagingKey);
 
   return {
     mediaId: insertedMedia.id,
