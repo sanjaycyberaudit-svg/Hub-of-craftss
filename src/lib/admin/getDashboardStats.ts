@@ -1,10 +1,13 @@
 import { createServiceRoleClient } from "@/lib/supabase/service";
+import { resolveStockControlConfig } from "@/lib/integrations/settings";
 import {
   isPaidPaymentStatus,
   needsPaymentAttention,
   normalizeOrderStatus,
 } from "@/lib/orders/paymentStatus";
 import { cache } from "react";
+
+export { isLiveCatalogProduct } from "@/lib/admin/catalog-product-metrics";
 
 const ORDER_SUMMARY_SELECT =
   "id, amount, currency, email, name, payment_status, order_status, created_at, payment_meta";
@@ -74,10 +77,15 @@ export type DashboardStats = {
   ordersThisMonth: number;
   ordersLastMonth: number;
   ordersChangePct: number | null;
+  /** Live catalog SKU count (product rows), not stock units. */
   totalProducts: number;
   featuredProducts: number;
+  /** Count of live products with stock in [1, lowStockThreshold). */
   lowStockCount: number;
+  /** Count of live products with stock === 0. */
   outOfStockCount: number;
+  /** Threshold used for low-stock product-row counts. */
+  lowStockThreshold: number;
   totalCollections: number;
   totalCustomers: number;
   paidOrdersCount: number;
@@ -248,6 +256,7 @@ export function getEmptyDashboardStats(): DashboardStats {
     featuredProducts: 0,
     lowStockCount: 0,
     outOfStockCount: 0,
+    lowStockThreshold: 5,
     totalCollections: 0,
     totalCustomers: 0,
     paidOrdersCount: 0,
@@ -315,7 +324,13 @@ function toRecentOrderRow(
 
 export const getDashboardStats = cache(async (): Promise<DashboardStats> => {
   const supabase = createServiceRoleClient();
+  const stockControl = await resolveStockControlConfig();
+  const lowStockThreshold = Math.min(
+    99,
+    Math.max(1, Math.round(stockControl.lowStockThreshold || 5)),
+  );
 
+  // Catalog metrics count live product rows (SKUs), never sum of stock units.
   const [
     ordersRes,
     totalProductsRes,
@@ -348,7 +363,7 @@ export const getDashboardStats = cache(async (): Promise<DashboardStats> => {
       .eq("is_draft", false)
       .is("archived_at", null)
       .gte("stock", 1)
-      .lt("stock", 5),
+      .lt("stock", lowStockThreshold),
     supabase
       .from("products")
       .select("id", { count: "exact", head: true })
@@ -361,7 +376,7 @@ export const getDashboardStats = cache(async (): Promise<DashboardStats> => {
       .eq("is_draft", false)
       .is("archived_at", null)
       .gte("stock", 1)
-      .lt("stock", 5)
+      .lt("stock", lowStockThreshold)
       .order("stock", { ascending: true })
       .limit(8),
     supabase
@@ -419,6 +434,7 @@ export const getDashboardStats = cache(async (): Promise<DashboardStats> => {
     featuredProducts: featuredProductsRes.count ?? 0,
     lowStockCount: lowStockCountRes.count ?? 0,
     outOfStockCount: outOfStockCountRes.count ?? 0,
+    lowStockThreshold,
     lowStockRows: (lowStockSampleRes.data ?? []) as ProductRow[],
     outOfStockRows: (outOfStockSampleRes.data ?? []) as ProductRow[],
     collectionCount: collectionsRes.count ?? 0,
@@ -435,6 +451,7 @@ function computeStats({
   featuredProducts,
   lowStockCount,
   outOfStockCount,
+  lowStockThreshold,
   lowStockRows,
   outOfStockRows,
   collectionCount,
@@ -448,6 +465,7 @@ function computeStats({
   featuredProducts: number;
   lowStockCount: number;
   outOfStockCount: number;
+  lowStockThreshold: number;
   lowStockRows: ProductRow[];
   outOfStockRows: ProductRow[];
   collectionCount: number;
@@ -611,6 +629,7 @@ function computeStats({
     featuredProducts,
     lowStockCount,
     outOfStockCount,
+    lowStockThreshold,
     totalCollections: collectionCount,
     totalCustomers: customerCount,
     paidOrdersCount: paidOrders.length,

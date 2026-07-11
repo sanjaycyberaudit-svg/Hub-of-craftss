@@ -5,7 +5,6 @@ import {
   decimal,
   foreignKey,
   integer,
-  json,
   pgTable,
   primaryKey,
   text,
@@ -13,6 +12,11 @@ import {
   uuid,
   varchar,
 } from "drizzle-orm/pg-core";
+import {
+  jsonRecord,
+  jsonRecordNullable,
+  jsonStringArray,
+} from "@/lib/supabase/json-column";
 
 // User Trigger
 // https://supabase.com/docs/guides/auth/managing-user-data
@@ -38,7 +42,7 @@ export const apiSettings = pgTable(
   "api_settings",
   {
     key: text("key").notNull().primaryKey(),
-    value: json("value").$type<Record<string, unknown>>().notNull().default({}),
+    value: jsonRecord("value").notNull().default({}),
     isEnabled: boolean("is_enabled").notNull().default(true),
     updatedBy: uuid("updated_by").references(() => profiles.id, {
       onDelete: "set null",
@@ -226,8 +230,8 @@ export const products = pgTable(
     rating: decimal("rating", { precision: 2, scale: 1 })
       .notNull()
       .default("4"),
-    tags: json("tags").$type<string[]>().default([]).notNull(),
-    images: json("images").$type<string[]>().default([]).notNull(),
+    tags: jsonStringArray("tags").default([]).notNull(),
+    images: jsonStringArray("images").default([]).notNull(),
     price: decimal("price", { precision: 8, scale: 2 })
       .notNull()
       .default("0.00"),
@@ -319,7 +323,7 @@ export const orders = pgTable(
       withTimezone: true,
       mode: "string",
     }),
-    payment_meta: json("payment_meta").$type<Record<string, unknown>>(),
+    payment_meta: jsonRecordNullable("payment_meta"),
     createdAt: timestamp("created_at", {
       withTimezone: true,
     })

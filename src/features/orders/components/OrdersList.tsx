@@ -2,11 +2,11 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import dayjs from "dayjs";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import type { UserOrderListView } from "@/lib/orders/getUserOrdersList";
+import { formatOrderDateTimeIst } from "@/lib/datetime/india";
 import { cn, formatPrice, keytoUrl } from "@/lib/utils";
 
 type OrdersListProps = {
@@ -31,7 +31,7 @@ function OrdersList({ orders }: OrdersListProps) {
             <div>
               <p className="text-xs font-medium">Order placed</p>
               <p className="text-sm">
-                {dayjs(order.createdAt).format("MMMM DD, YYYY")}
+                {formatOrderDateTimeIst(order.createdAt)}
               </p>
             </div>
 

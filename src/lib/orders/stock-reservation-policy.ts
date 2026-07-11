@@ -34,9 +34,21 @@ export function resolveStockHoldTtlMinutes(
   return stockHoldMinutesAfterPaymentSessionOpened();
 }
 
+/**
+ * Cashfree Create Order rejects expiry at exactly 15 minutes:
+ * "Expiry time should be more than 15 min and less than 30 days".
+ * Use the post-session stock window (15 + 5 grace = 20) so PG + webhook lag fit.
+ */
+export const CASHFREE_ORDER_EXPIRY_MINUTES =
+  stockHoldMinutesAfterPaymentSessionOpened();
+
 export function buildCashfreeOrderExpiryIso(
   now = Date.now(),
-  sessionMinutes = PAYMENT_SESSION_HOLD_MINUTES,
+  sessionMinutes = CASHFREE_ORDER_EXPIRY_MINUTES,
 ): string {
-  return new Date(now + sessionMinutes * 60_000).toISOString();
+  const minutes = Math.max(16, Math.round(sessionMinutes));
+  // Cashfree examples use second precision (no ms).
+  return new Date(now + minutes * 60_000)
+    .toISOString()
+    .replace(/\.\d{3}Z$/, "Z");
 }

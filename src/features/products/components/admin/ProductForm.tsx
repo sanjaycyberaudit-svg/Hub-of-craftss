@@ -646,24 +646,12 @@ function ProductFrom({ product }: ProductsFormProps) {
         step={singleSaveStepIndex}
         totalSteps={SINGLE_SAVE_STEPS.length}
       />
-      {bulkOverlay ? (
-        <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/35 backdrop-blur-[1px]">
-          <div className="w-[320px] rounded-xl border border-[#E8A317]/40 bg-white p-5 shadow-2xl">
-            <p className="text-center text-sm font-semibold text-[#8A5A00]">
-              {bulkOverlay.message}
-            </p>
-            <p className="mt-2 text-center text-3xl font-bold text-[#8A5A00]">
-              {bulkOverlay.percent}%
-            </p>
-            <div className="mt-4 h-2 w-full overflow-hidden rounded-full bg-[#FDECC8]">
-              <div
-                className="h-full rounded-full bg-[#E8A317] transition-all"
-                style={{ width: `${bulkOverlay.percent}%` }}
-              />
-            </div>
-          </div>
-        </div>
-      ) : null}
+      <AdminSaveProgressOverlay
+        open={Boolean(bulkOverlay)}
+        title="Uploading products"
+        message={bulkOverlay?.message ?? "Working…"}
+        percent={bulkOverlay?.percent ?? 0}
+      />
       <form
         id="project-form"
         className={`gap-x-5 flex gap-y-5 flex-col px-3 ${isFormBusy ? "pointer-events-none opacity-80" : ""}`}

@@ -1,8 +1,13 @@
 import { getCanonicalSiteBaseUrl } from "@/lib/auth/site-urls";
+import {
+  formatOrderDateIst,
+  formatOrderDateTimeIst,
+} from "@/lib/datetime/india";
 import { env } from "@/env.mjs";
 import { clsx, type ClassValue } from "clsx";
-import dayjs from "dayjs";
 import { twMerge } from "tailwind-merge";
+
+export { formatOrderDateIst, formatOrderDateTimeIst };
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -94,7 +99,8 @@ export function formatInr(price: number | string) {
 }
 
 export function formatDate(date: Date | string) {
-  return dayjs(date).format("MMMM D, YYYY");
+  // Date-only labels for the shop use India time (Asia/Kolkata).
+  return formatOrderDateIst(date);
 }
 
 export function formatBytes(

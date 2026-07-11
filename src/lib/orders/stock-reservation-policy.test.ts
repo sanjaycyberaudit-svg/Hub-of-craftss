@@ -31,11 +31,10 @@ describe("stock reservation policy", () => {
     expect(resolveStockHoldTtlMinutes({})).toBe(20);
   });
 
-  it("builds cashfree order expiry at payment session length", () => {
+  it("builds cashfree order expiry above Cashfree's 15-minute minimum", () => {
     const now = Date.parse("2026-07-07T10:00:00.000Z");
     const expiry = buildCashfreeOrderExpiryIso(now);
-    expect(Date.parse(expiry)).toBe(
-      now + PAYMENT_SESSION_HOLD_MINUTES * 60_000,
-    );
+    expect(expiry).toBe("2026-07-07T10:20:00Z");
+    expect(Date.parse(expiry) - now).toBeGreaterThan(15 * 60_000);
   });
 });

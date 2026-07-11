@@ -32,7 +32,10 @@ async function sumOrderLineQuantities(orderId: string): Promise<number[]> {
 
 /** Push a newly paid order to the Velo app (reads config from Supabase api_settings). */
 export async function notifyVeloOrderPush(
-  order: Pick<SelectOrders, "id" | "payment_status" | "name" | "payment_meta">,
+  order: Pick<
+    SelectOrders,
+    "id" | "payment_status" | "name" | "payment_meta" | "createdAt"
+  >,
 ): Promise<VeloOrderPushResult> {
   const config = await resolveVeloOrderPushConfig();
   if (!config) {
@@ -53,6 +56,7 @@ export async function notifyVeloOrderPush(
     orderId: order.id,
     customerName: order.name,
     lineQuantities: await sumOrderLineQuantities(order.id),
+    createdAt: order.createdAt,
   });
 
   try {
@@ -106,7 +110,10 @@ export async function notifyVeloOrderPush(
 
 /** Best-effort Velo push — never throws (safe inside payment webhooks). */
 export async function notifyVeloOrderPushSafe(
-  order: Pick<SelectOrders, "id" | "payment_status" | "name" | "payment_meta">,
+  order: Pick<
+    SelectOrders,
+    "id" | "payment_status" | "name" | "payment_meta" | "createdAt"
+  >,
 ) {
   try {
     return await notifyVeloOrderPush(order);

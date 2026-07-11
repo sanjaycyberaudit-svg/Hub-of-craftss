@@ -8,6 +8,7 @@ import {
   resolveOrderLineProductSlug,
 } from "@/lib/orders/order-line-display";
 import { buildShippingAddressCopyText } from "@/lib/orders/shipping-address-text";
+import { formatOrderDateTimeIst } from "@/lib/datetime/india";
 import { keytoUrl } from "@/lib/utils";
 import db from "@/lib/supabase/db";
 import {
@@ -49,7 +50,7 @@ function buildCourierCopyText(payload: {
   return [
     `ORDER DISPATCH NOTE`,
     `Order ID: ${payload.orderId}`,
-    `Date: ${new Date(payload.createdAt).toLocaleString()}`,
+    `Date: ${formatOrderDateTimeIst(payload.createdAt)}`,
     `Customer: ${payload.customerName || "Customer"}`,
     `Mobile: ${payload.customerMobile || "-"}`,
     `Amount: INR ${payload.amount}`,

@@ -3,13 +3,25 @@
 import { useMemo, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { CheckSquare, Copy, PackageCheck } from "lucide-react";
+import {
+  CheckSquare,
+  Copy,
+  FileDown,
+  Loader2,
+  PackageCheck,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/components/ui/use-toast";
-import { formatDate, formatPrice } from "@/lib/utils";
+import { formatOrderDateTimeIst } from "@/lib/datetime/india";
+import { adminOrderToPdfLabel } from "@/lib/pdf/admin-order-pdf-label";
+import {
+  downloadOrderPdf,
+  PdfAddressTooLongError,
+} from "@/lib/pdf/shipping-label-pdf";
+import { formatPrice } from "@/lib/utils";
 
 type OrderItemView = {
   id: string;
@@ -81,6 +93,7 @@ export function AdminOrderDetailView({
 }: Props) {
   const { toast } = useToast();
   const [packedMap, setPackedMap] = useState<Record<string, boolean>>({});
+  const [downloadingPdf, setDownloadingPdf] = useState(false);
 
   const packedCount = useMemo(
     () => Object.values(packedMap).filter(Boolean).length,
@@ -88,6 +101,10 @@ export function AdminOrderDetailView({
   );
 
   const allPacked = items.length > 0 && packedCount === items.length;
+
+  const isPaid = ["paid", "success", "captured"].includes(
+    order.paymentStatus.trim().toLowerCase(),
+  );
 
   const copyHandler = async (text: string, label: string) => {
     try {
@@ -105,12 +122,57 @@ export function AdminOrderDetailView({
     }
   };
 
+  const downloadPdf = async () => {
+    if (downloadingPdf) return;
+    setDownloadingPdf(true);
+    try {
+      await downloadOrderPdf(
+        adminOrderToPdfLabel({
+          id: order.id,
+          copyAddressText,
+        }),
+      );
+      toast({
+        title: "PDF downloaded",
+        description: "Shipping label PDF saved to your downloads.",
+      });
+    } catch (error) {
+      const message =
+        error instanceof PdfAddressTooLongError
+          ? error.message
+          : error instanceof Error
+            ? error.message
+            : "Unknown error";
+      toast({
+        title: "Failed to generate PDF",
+        description: message,
+        variant: "destructive",
+      });
+    } finally {
+      setDownloadingPdf(false);
+    }
+  };
+
   return (
     <div className="space-y-5">
       <div className="flex flex-wrap gap-2">
         <Button asChild variant="outline">
           <Link href="/admin/orders">Back to Orders</Link>
         </Button>
+        {isPaid ? (
+          <Button
+            onClick={() => void downloadPdf()}
+            disabled={downloadingPdf}
+            title="Download shipping label PDF"
+          >
+            {downloadingPdf ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <FileDown className="mr-2 h-4 w-4" />
+            )}
+            {downloadingPdf ? "Generating…" : "PDF"}
+          </Button>
+        ) : null}
         <Button
           variant="outline"
           onClick={() => void copyHandler(copyAddressText, "Address")}
@@ -219,7 +281,7 @@ export function AdminOrderDetailView({
               </p>
               <p>
                 <span className="text-muted-foreground">Placed:</span>{" "}
-                {formatDate(order.createdAt)}
+                {formatOrderDateTimeIst(order.createdAt)}
               </p>
               <p>
                 <span className="text-muted-foreground">Amount:</span>{" "}

@@ -1,6 +1,7 @@
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import type { RecentOrderRow } from "@/lib/admin/getDashboardStats";
-import { formatDate, formatInr } from "@/lib/utils";
+import { formatOrderDateTimeIst } from "@/lib/datetime/india";
+import { formatInr } from "@/lib/utils";
 import Link from "next/link";
 
 type Props = {
@@ -48,7 +49,7 @@ export function RecentSales({
               {order.email ?? order.id}
             </p>
             <p className="text-[10px] text-muted-foreground">
-              {formatDate(order.createdAt)} · {order.payment_status}
+              {formatOrderDateTimeIst(order.createdAt)} · {order.payment_status}
             </p>
           </div>
           <div className="ml-auto shrink-0 text-right">

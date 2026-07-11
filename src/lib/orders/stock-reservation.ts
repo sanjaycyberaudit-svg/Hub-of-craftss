@@ -607,7 +607,7 @@ export async function releaseExpiredStockReservations(options?: {
   lookbackHours?: number;
   limit?: number;
 }) {
-  const lookbackHours = options?.lookbackHours ?? 24;
+  const lookbackHours = options?.lookbackHours ?? 168;
   const limit = options?.limit ?? 100;
   const lookbackDate = new Date(Date.now() - lookbackHours * 60 * 60 * 1000);
 

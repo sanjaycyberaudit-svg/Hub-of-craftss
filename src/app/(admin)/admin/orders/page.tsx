@@ -1,7 +1,10 @@
 import AdminShell from "@/components/admin/AdminShell";
-import { AdminTablePageSkeleton } from "@/components/admin/AdminPageSkeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import AdminOrdersList from "@/features/orders/components/admin/AdminOrdersList";
+import { Skeleton } from "@/components/ui/skeleton";
+import {
+  AdminOrdersSegmentTabs,
+  type OrdersSegment,
+} from "@/features/orders/components/admin/AdminOrdersSegmentTabs";
 import {
   clampAdminOrdersPageSize,
   getAdminOrdersCounts,
@@ -12,12 +15,31 @@ import { publicErrorMessage } from "@/lib/api/public-error";
 import { withDbAsync } from "@/lib/supabase/db";
 import { Suspense } from "react";
 
+function OrdersContentSkeleton() {
+  return (
+    <div className="space-y-6">
+      <div className="grid gap-4 md:grid-cols-2">
+        <Skeleton className="h-24 w-full rounded-lg" />
+        <Skeleton className="h-24 w-full rounded-lg" />
+      </div>
+      <Skeleton className="h-10 w-full max-w-xl" />
+      <div className="space-y-3">
+        {Array.from({ length: 6 }).map((_, index) => (
+          <Skeleton key={index} className="h-24 w-full rounded-lg" />
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
+export const revalidate = 0;
 
 const PAID_PAGE_PARAM = "paidPage";
 const PENDING_PAGE_PARAM = "pendingPage";
 const PAGE_SIZE_PARAM = "pageSize";
+const STATUS_PARAM = "status";
 
 type AdminOrdersPageProps = {
   searchParams: Promise<{
@@ -25,14 +47,25 @@ type AdminOrdersPageProps = {
   }>;
 };
 
+function parseOrdersSegment(
+  value: string | string[] | undefined,
+): OrdersSegment {
+  const raw = String(Array.isArray(value) ? value[0] : (value ?? ""))
+    .trim()
+    .toLowerCase();
+  return raw === "unpaid" || raw === "pending" ? "unpaid" : "paid";
+}
+
 export default async function OrdersPage({
   searchParams,
 }: AdminOrdersPageProps) {
   const resolved = await searchParams;
   return (
-    <Suspense fallback={<AdminTablePageSkeleton statCards={2} tableRows={8} />}>
-      <OrdersPageContent searchParams={resolved} />
-    </Suspense>
+    <AdminShell heading="Orders">
+      <Suspense fallback={<OrdersContentSkeleton />}>
+        <OrdersPageContent searchParams={resolved} />
+      </Suspense>
+    </AdminShell>
   );
 }
 
@@ -48,119 +81,82 @@ async function OrdersPageContent({
       10,
     ) || undefined,
   );
+  const segment = parseOrdersSegment(searchParams[STATUS_PARAM]);
   const paidPage = parseAdminOrdersPage(searchParams[PAID_PAGE_PARAM]);
   const pendingPage = parseAdminOrdersPage(searchParams[PENDING_PAGE_PARAM]);
 
-  let fetchError: string | null = null;
-  let counts = { paid: 0, pending: 0 };
-  let paid: Awaited<ReturnType<typeof getAdminOrdersList>> = {
-    rows: [],
-    totalCount: 0,
-    page: 1,
-    pageSize,
-  };
-  let pending: Awaited<ReturnType<typeof getAdminOrdersList>> = {
-    rows: [],
+  const emptyList = {
+    rows: [] as Awaited<ReturnType<typeof getAdminOrdersList>>["rows"],
     totalCount: 0,
     page: 1,
     pageSize,
   };
 
+  let fetchError: string | null = null;
+  let counts = { paid: 0, pending: 0 };
+  let paid = emptyList;
+  let unpaid = emptyList;
+
   try {
     const result = await withDbAsync(async () => {
-      const counts = await getAdminOrdersCounts();
-      const paid = await getAdminOrdersList({
-        segment: "paid",
-        page: paidPage,
-        pageSize,
-      });
-      const pending = await getAdminOrdersList({
-        segment: "pending",
-        page: pendingPage,
-        pageSize,
-      });
-      return { counts, paid, pending };
+      const countsPromise = getAdminOrdersCounts();
+      if (segment === "paid") {
+        const [nextCounts, nextPaid] = await Promise.all([
+          countsPromise,
+          getAdminOrdersList({ segment: "paid", page: paidPage, pageSize }),
+        ]);
+        return { counts: nextCounts, paid: nextPaid, unpaid: emptyList };
+      }
+
+      const [nextCounts, nextUnpaid] = await Promise.all([
+        countsPromise,
+        getAdminOrdersList({
+          // DB segment key is "pending" (unpaid / needs attention).
+          segment: "pending",
+          page: pendingPage,
+          pageSize,
+        }),
+      ]);
+      return { counts: nextCounts, paid: emptyList, unpaid: nextUnpaid };
     });
     counts = result.counts;
     paid = result.paid;
-    pending = result.pending;
+    unpaid = result.unpaid;
   } catch (error) {
-    console.error("[admin/orders] page load failed:", error);
-    fetchError = publicErrorMessage(error, "Failed to load orders.");
+    console.error(
+      `[admin/orders] page load failed (segment=${segment}):`,
+      error,
+    );
+    fetchError = publicErrorMessage(
+      error,
+      segment === "unpaid"
+        ? "Failed to load unpaid orders."
+        : "Failed to load paid orders.",
+    );
   }
 
   const resetPageParams = [PAID_PAGE_PARAM, PENDING_PAGE_PARAM];
 
   return (
-    <AdminShell heading="Orders">
-      <div className="space-y-6">
-        {fetchError ? (
-          <Alert variant="destructive">
-            <AlertTitle>Could not fully load orders</AlertTitle>
-            <AlertDescription>{fetchError}</AlertDescription>
-          </Alert>
-        ) : null}
+    <div className="space-y-6">
+      {fetchError ? (
+        <Alert variant="destructive">
+          <AlertTitle>Could not fully load orders</AlertTitle>
+          <AlertDescription>{fetchError}</AlertDescription>
+        </Alert>
+      ) : null}
 
-        <div className="grid gap-4 md:grid-cols-2">
-          <div className="rounded-lg border border-emerald-300/50 bg-emerald-50/40 p-4">
-            <p className="text-xs uppercase tracking-wide text-emerald-700">
-              Paid orders
-            </p>
-            <p className="mt-1 text-2xl font-semibold text-emerald-700">
-              {counts.paid}
-            </p>
-            <p className="mt-1 text-xs text-muted-foreground">
-              Counted in dashboard revenue and top products
-            </p>
-          </div>
-          <div className="rounded-lg border border-amber-300/50 bg-amber-50/40 p-4">
-            <p className="text-xs uppercase tracking-wide text-amber-700">
-              Pending / unpaid
-            </p>
-            <p className="mt-1 text-2xl font-semibold text-amber-700">
-              {counts.pending}
-            </p>
-            <p className="mt-1 text-xs text-muted-foreground">
-              Follow up — ask why payment was not completed
-            </p>
-          </div>
-        </div>
-
-        <section className="space-y-3">
-          <h2 className="text-lg font-semibold">Paid orders</h2>
-          <p className="text-sm text-muted-foreground">
-            Tap an order to open packing details. Copy address from the list or
-            order page.
-          </p>
-          <AdminOrdersList
-            orders={paid.rows}
-            totalCount={paid.totalCount}
-            page={paid.page}
-            pageSize={paid.pageSize}
-            pageParam={PAID_PAGE_PARAM}
-            pageSizeParam={PAGE_SIZE_PARAM}
-            resetPageParams={resetPageParams}
-            emptyMessage="No paid orders yet."
-          />
-        </section>
-
-        <section className="space-y-3">
-          <h2 className="text-lg font-semibold">Pending / unpaid orders</h2>
-          <p className="text-sm text-muted-foreground">
-            Contact these customers — not included in sales analytics.
-          </p>
-          <AdminOrdersList
-            orders={pending.rows}
-            totalCount={pending.totalCount}
-            page={pending.page}
-            pageSize={pending.pageSize}
-            pageParam={PENDING_PAGE_PARAM}
-            pageSizeParam={PAGE_SIZE_PARAM}
-            resetPageParams={resetPageParams}
-            emptyMessage="No pending or unpaid orders."
-          />
-        </section>
-      </div>
-    </AdminShell>
+      <AdminOrdersSegmentTabs
+        key={segment}
+        segment={segment}
+        counts={counts}
+        paid={paid}
+        unpaid={unpaid}
+        paidPageParam={PAID_PAGE_PARAM}
+        unpaidPageParam={PENDING_PAGE_PARAM}
+        pageSizeParam={PAGE_SIZE_PARAM}
+        resetPageParams={resetPageParams}
+      />
+    </div>
   );
 }

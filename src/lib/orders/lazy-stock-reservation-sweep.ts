@@ -55,7 +55,7 @@ export async function sweepExpiredStockReservationsIfEnabled(options?: {
 
   try {
     const result = await releaseExpiredStockReservations({
-      lookbackHours: options?.lookbackHours ?? 24,
+      lookbackHours: options?.lookbackHours ?? 168,
       limit: options?.limit ?? 100,
     });
 
