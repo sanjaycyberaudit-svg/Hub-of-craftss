@@ -14,7 +14,9 @@ describe("cashfree-checkout-client", () => {
 
   it("builds client return URLs from the current origin", () => {
     expect(
-      buildClientCashfreeReturnUrl("https://www.hub-of-craftss.hubofcraftss.workers.dev"),
+      buildClientCashfreeReturnUrl(
+        "https://www.hub-of-craftss.hubofcraftss.workers.dev",
+      ),
     ).toBe(
       "https://www.hub-of-craftss.hubofcraftss.workers.dev/api/cashfree/redirect?order_id={order_id}",
     );

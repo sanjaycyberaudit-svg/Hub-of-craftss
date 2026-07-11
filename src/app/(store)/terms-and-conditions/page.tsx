@@ -60,7 +60,7 @@ export default async function TermsAndConditionsPage() {
         </h2>
         <p>
           You may use this website only for lawful purposes related to browsing
-          and purchasing sarees and related products.
+          and purchasing craft supplies and related products.
         </p>
         <ul className="list-disc space-y-1 pl-5">
           <li>
@@ -128,7 +128,7 @@ export default async function TermsAndConditionsPage() {
           5. Product information
         </h2>
         <p>
-          We photograph sarees carefully, but colours may vary slightly due to
+          We photograph products carefully, but colours may vary slightly due to
           screen settings, lighting, and fabric batches. Contact us before
           purchase if you need additional photos or clarification.
         </p>

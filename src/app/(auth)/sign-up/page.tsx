@@ -1,29 +1,21 @@
 import { type Metadata } from "next";
 import Link from "next/link";
-import { redirect } from "next/navigation";
-import { Suspense } from "react";
 
 import { AuthOrDivider } from "@/features/auth/components/AuthOrDivider";
 import OAuthLoginButtons from "@/features/auth/components/OAuthLoginButtons";
 import { SignupForm } from "@/features/auth";
-import { createClient } from "@/lib/supabase/server";
-import { cookies } from "next/headers";
 
 export const metadata: Metadata = {
   title: "Sign Up | Hub of craftss",
   description: "Create your Hub of craftss account",
 };
 
-export default async function SignUpPage() {
-  const cookieStore = await cookies();
-  const supabase = createClient({ cookieStore });
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+type SignUpPageProps = {
+  searchParams?: Promise<{ email?: string; from?: string }>;
+};
 
-  if (user) {
-    redirect("/");
-  }
+export default async function SignUpPage({ searchParams }: SignUpPageProps) {
+  const params = searchParams ? await searchParams : {};
 
   return (
     <section className="space-y-6">
@@ -38,23 +30,11 @@ export default async function SignUpPage() {
         </div>
       </div>
 
-      <Suspense
-        fallback={
-          <div className="h-[7.5rem] w-full animate-pulse rounded-xl bg-muted" />
-        }
-      >
-        <OAuthLoginButtons />
-      </Suspense>
+      <OAuthLoginButtons nextPath={params.from} />
 
       <AuthOrDivider />
 
-      <Suspense
-        fallback={
-          <div className="h-48 w-full animate-pulse rounded-lg bg-muted" />
-        }
-      >
-        <SignupForm />
-      </Suspense>
+      <SignupForm initialEmail={params.email} from={params.from} />
 
       <div className="flex flex-col gap-3 border-t border-primary/10 pt-4 text-sm">
         <p className="text-muted-foreground">

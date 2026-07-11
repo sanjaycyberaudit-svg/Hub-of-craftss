@@ -10,12 +10,24 @@ if (!connectionString) {
   console.log("🔴 no database URL");
 }
 
-/** Serverless: small pool; admin pages run a few reads in parallel. */
+function isCloudflareWorkerRuntime() {
+  return (
+    typeof navigator !== "undefined" &&
+    typeof navigator.userAgent === "string" &&
+    navigator.userAgent.includes("Cloudflare-Workers")
+  );
+}
+
+/** Serverless / Workers: tiny pool + short lifetime to avoid stale-socket hangs (Error 1101). */
 const client = postgres(connectionString, {
   prepare: false,
-  max: 3,
-  idle_timeout: 20,
-  connect_timeout: 15,
+  max: 1,
+  idle_timeout: isCloudflareWorkerRuntime() ? 1 : 20,
+  connect_timeout: 8,
+  max_lifetime: isCloudflareWorkerRuntime() ? 20 : 60 * 5,
+  connection: {
+    statement_timeout: 8000,
+  },
 });
 
 const db = drizzle(client, { schema });

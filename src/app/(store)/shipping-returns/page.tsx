@@ -11,7 +11,7 @@ export const revalidate = 3600;
 
 export const metadata: Metadata = {
   title: "Shipping & Returns | Hub of craftss",
-  description: "Delivery and return policy for Hub of craftss sarees",
+  description: "Delivery and return policy for Hub of craftss craft supplies",
 };
 
 export default async function ShippingReturnsPage() {
@@ -23,15 +23,15 @@ export default async function ShippingReturnsPage() {
   return (
     <InfoPage
       heading="Shipping & Returns"
-      description="How we deliver across Tamil Nadu and India, and our exchange policy for sarees."
+      description="How we deliver across Tamil Nadu and India, and our exchange policy for craft supplies."
     >
       <section className="space-y-3">
         <h2 className="text-base font-semibold text-foreground">Shipping</h2>
         <p>
-          We ship sarees across Tamil Nadu and throughout India. Delivery time
-          is typically 3–7 business days depending on your location. For bulk or
-          wedding orders, please contact us on WhatsApp for a custom quote and
-          timeline.
+          We ship craft supplies across Tamil Nadu and throughout India.
+          Delivery time is typically 3–7 business days depending on your
+          location. For bulk orders, please contact us on WhatsApp for a custom
+          quote and timeline.
         </p>
         <p>
           Free delivery may apply on selected orders — message us on{" "}
@@ -48,11 +48,11 @@ export default async function ShippingReturnsPage() {
         </h2>
         <p>
           Returns or exchanges may be accepted within <strong>7 days</strong> of
-          delivery for unused sarees with original tags and packaging intact.
+          delivery for unused items with original packaging intact.
         </p>
         <ul className="list-disc space-y-1 pl-5">
           <li>Please call or WhatsApp us before sending any item back.</li>
-          <li>Customised, altered, or worn sarees cannot be returned.</li>
+          <li>Customised, opened, or used craft kits cannot be returned.</li>
           <li>
             Shipping charges for returns may apply unless the item is faulty.
           </li>

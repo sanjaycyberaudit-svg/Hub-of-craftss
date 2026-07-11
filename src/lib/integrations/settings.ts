@@ -588,26 +588,59 @@ export type StorefrontRuntimeBundle = {
 };
 
 /** One DB round-trip for all storefront providers (avoids serverless connection storms). */
+export function getDefaultStorefrontRuntimeBundle(): StorefrontRuntimeBundle {
+  return {
+    contact: defaultShopContact(),
+    social: defaultSocial(),
+    announcements: {
+      enabled: true,
+      items: getDefaultAnnouncementLines(),
+    },
+    bulkOrderGuard: {
+      enabled: true,
+      threshold: DEFAULT_BULK_ORDER_THRESHOLD,
+    },
+    stockControl: {
+      enabled: false,
+      lowStockThreshold: DEFAULT_STOCK_LOW_THRESHOLD,
+    },
+    courierCharges: {
+      enabled: true,
+      ...DEFAULT_COURIER_CONFIG,
+    },
+    offerCodes: DEFAULT_OFFER_CODES_CONFIG,
+  };
+}
+
 export const resolveStorefrontRuntimeBundle = cache(
   async (): Promise<StorefrontRuntimeBundle> => {
-    const map = await loadStorefrontSettingsMap();
-    return {
-      contact: parseContactFromRow(map.get(INTEGRATION_KEYS.storefrontContact)),
-      social: parseSocialFromRow(map.get(INTEGRATION_KEYS.storefrontSocial)),
-      announcements: parseAnnouncementsFromRow(
-        map.get(INTEGRATION_KEYS.announcementBar),
-      ),
-      bulkOrderGuard: parseBulkOrderFromRow(
-        map.get(INTEGRATION_KEYS.bulkOrderGuard),
-      ),
-      stockControl: parseStockControlFromRow(
-        map.get(INTEGRATION_KEYS.stockControl),
-      ),
-      courierCharges: parseCourierFromRow(
-        map.get(INTEGRATION_KEYS.courierCharges),
-      ),
-      offerCodes: parseOfferCodesFromRow(map.get(INTEGRATION_KEYS.offerCodes)),
-    };
+    try {
+      const map = await loadStorefrontSettingsMap();
+      return {
+        contact: parseContactFromRow(
+          map.get(INTEGRATION_KEYS.storefrontContact),
+        ),
+        social: parseSocialFromRow(map.get(INTEGRATION_KEYS.storefrontSocial)),
+        announcements: parseAnnouncementsFromRow(
+          map.get(INTEGRATION_KEYS.announcementBar),
+        ),
+        bulkOrderGuard: parseBulkOrderFromRow(
+          map.get(INTEGRATION_KEYS.bulkOrderGuard),
+        ),
+        stockControl: parseStockControlFromRow(
+          map.get(INTEGRATION_KEYS.stockControl),
+        ),
+        courierCharges: parseCourierFromRow(
+          map.get(INTEGRATION_KEYS.courierCharges),
+        ),
+        offerCodes: parseOfferCodesFromRow(
+          map.get(INTEGRATION_KEYS.offerCodes),
+        ),
+      };
+    } catch (error) {
+      console.error("[settings] resolveStorefrontRuntimeBundle failed:", error);
+      return getDefaultStorefrontRuntimeBundle();
+    }
   },
 );
 

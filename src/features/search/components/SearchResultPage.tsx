@@ -90,11 +90,11 @@ const SearchResultPage = ({
 
           {!hasAnyMatches && !searchTerm && priceRangeLabel ? (
             <p className="py-6 text-center text-sm text-muted-foreground">
-              No sarees found in{" "}
+              No products found in{" "}
               <span className="font-semibold text-foreground">
                 {priceRangeLabel}
               </span>
-              . Try another price range or browse all sarees.
+              . Try another price range or browse all products.
             </p>
           ) : null}
 

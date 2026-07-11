@@ -62,7 +62,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
   return {
     title: "Hub of craftss | Art & Craft Supplies",
-    description: "Authentic terracotta and craft supplies — wholesale and retail",
+    description:
+      "Authentic terracotta and craft supplies — wholesale and retail",
   };
 }
 
@@ -194,8 +195,8 @@ async function ProductDetailPage({ params }: Props) {
                 <AccordionContent>
                   Shipping across Tamil Nadu and India. Free delivery on
                   selected orders — contact us on WhatsApp for details. Returns
-                  or exchanges may be accepted within 7 days for unused sarees
-                  with tags; please call before returning.
+                  or exchanges may be accepted within 7 days for unused items
+                  with packaging; please call before returning.
                 </AccordionContent>
               </AccordionItem>
             </Accordion>

@@ -11,7 +11,8 @@ jest.mock("../utils", () => ({
 }));
 
 jest.mock("../auth/site-urls", () => ({
-  getCanonicalSiteOrigin: () => "https://www.hub-of-craftss.hubofcraftss.workers.dev",
+  getCanonicalSiteOrigin: () =>
+    "https://www.hub-of-craftss.hubofcraftss.workers.dev",
 }));
 
 import { getCashfreeConfig } from "../integrations/settings";

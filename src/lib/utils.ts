@@ -48,6 +48,11 @@ export const keytoUrl = (key?: string) => {
     return key;
   }
 
+  // Local public assets (e.g. /images/hub-of-craftss-logo.png)
+  if (key.startsWith("/")) {
+    return key;
+  }
+
   if (key.startsWith("sakthi/")) {
     return supabaseStoragePublicUrl(key);
   }

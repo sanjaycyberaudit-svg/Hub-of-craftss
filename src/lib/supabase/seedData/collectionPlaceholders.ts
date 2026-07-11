@@ -43,7 +43,7 @@ export function collectionImageForLabel(label: string, index = 0): string {
   return COLLECTION_IMAGE_BY_LABEL[label] ?? collectionPlaceholderImage(index);
 }
 
-export const DEFAULT_SAREE_PLACEHOLDER = COLLECTION_PLACEHOLDER_IMAGES[0];
+export const DEFAULT_SAREE_PLACEHOLDER = "/images/hub-of-craftss-logo.png";
 
 /** Default hero banner images — one real model photo per slide theme */
 export const HERO_BANNER_IMAGES = {

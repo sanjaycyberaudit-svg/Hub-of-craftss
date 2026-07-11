@@ -9,14 +9,14 @@ export const revalidate = 300;
 export const metadata: Metadata = {
   title: "All Collections",
   description:
-    "Browse all saree collections at Hub of craftss — Kanjivaram wedding sarees, cotton sarees, soft silk, traditional silk and festive collections.",
+    "Browse craft collections at Hub of craftss — terracotta materials, art supplies, and creative kits.",
   alternates: {
     canonical: "/collections",
   },
   openGraph: {
     title: "All Collections | Hub of craftss",
     description:
-      "Browse Kanjivaram, cotton, soft silk, wedding and festive saree collections at Hub of craftss.",
+      "Browse terracotta and art & craft collections at Hub of craftss.",
     url: "/collections",
   },
 };
@@ -29,7 +29,7 @@ export default async function AllCollectionsPage() {
     <Shell>
       <Header
         heading="Product Categories"
-        description="Browse sarees by collection — Kanjivaram, silk, cotton & more"
+        description="Browse craft supplies by collection"
       />
 
       {collections.length === 0 ? (

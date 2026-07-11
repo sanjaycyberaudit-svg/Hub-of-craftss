@@ -22,7 +22,6 @@ export const makeClient = (access_token?: string) => {
 
       return {
         headers,
-        next: { revalidate: 120 },
       };
     },
     requestPolicy: "cache-first",

@@ -23,7 +23,7 @@ type Props = {
 function PriceCircleCard({ bucket }: { bucket: ShopByPriceBucket }) {
   const imageSrc = bucket.imageKey ? keytoUrl(bucket.imageKey) : null;
   const productLabel =
-    bucket.productCount === 1 ? "1 saree" : `${bucket.productCount} sarees`;
+    bucket.productCount === 1 ? "1 item" : `${bucket.productCount} items`;
 
   return (
     <ViewTransitionLink

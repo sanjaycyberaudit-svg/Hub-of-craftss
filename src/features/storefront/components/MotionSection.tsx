@@ -31,13 +31,13 @@ export function MotionSection({
     return <section className={className}>{children}</section>;
   }
 
+  // Animate on mount (not whileInView) so SSR/hydration never leaves sections at opacity 0.
   return (
     <motion.section
       className={className}
-      initial={{ opacity: 0, y: 24 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true, margin: "-6% 0px" }}
-      transition={{ duration: 0.5, ease, delay }}
+      initial={{ opacity: 0, y: 16 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.45, ease, delay }}
     >
       {children}
     </motion.section>
@@ -59,13 +59,12 @@ export function MotionRevealItem({
   return (
     <motion.div
       className={cn(className)}
-      initial={{ opacity: 0, y: 18 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true, margin: "0px 0px -5% 0px" }}
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
       transition={{
-        duration: 0.45,
+        duration: 0.4,
         ease,
-        delay: Math.min(index * 0.06, 0.3),
+        delay: Math.min(index * 0.05, 0.25),
       }}
     >
       {children}

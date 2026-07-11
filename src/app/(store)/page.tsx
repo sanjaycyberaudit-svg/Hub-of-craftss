@@ -16,7 +16,9 @@ import { getShopByPriceBucketsCached } from "@/lib/storefront/shop-by-price";
 import { resolveStorefrontContact } from "@/lib/integrations/settings";
 import type { Metadata } from "next";
 
-export const revalidate = 300;
+/** Avoid ISR + unstable_cache hangs on Cloudflare Workers (Error 1101). */
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 export const metadata: Metadata = {
   title: "Hub of craftss | Make · Craft · Create",
@@ -33,14 +35,49 @@ export const metadata: Metadata = {
   },
 };
 
+async function withTimeout<T>(
+  promise: Promise<T>,
+  ms: number,
+  fallback: T,
+  label: string,
+): Promise<T> {
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      promise,
+      new Promise<T>((resolve) => {
+        timeoutId = setTimeout(() => {
+          console.error(`[home] ${label} timed out after ${ms}ms`);
+          resolve(fallback);
+        }, ms);
+      }),
+    ]);
+  } finally {
+    if (timeoutId) clearTimeout(timeoutId);
+  }
+}
+
 export default async function Home() {
   const [homeBannerSlides, data, draftProductIds, contact, priceBuckets] =
     await Promise.all([
-      getHomeBannerSlides(),
-      getLandingPageDataCached(),
-      getDraftProductIdsCached(),
-      resolveStorefrontContact(),
-      getShopByPriceBucketsCached(),
+      withTimeout(getHomeBannerSlides(), 8000, null, "homeBanner"),
+      withTimeout(getLandingPageDataCached(), 8000, null, "landing"),
+      withTimeout(getDraftProductIdsCached(), 8000, [], "drafts"),
+      withTimeout(
+        resolveStorefrontContact(),
+        8000,
+        {
+          addressLines: [],
+          address: "",
+          gstin: "",
+          email: "",
+          contacts: [],
+          phone: "",
+          phoneHref: "",
+        },
+        "contact",
+      ),
+      withTimeout(getShopByPriceBucketsCached(), 8000, [], "priceBuckets"),
     ]);
 
   const draftIds = new Set(draftProductIds);

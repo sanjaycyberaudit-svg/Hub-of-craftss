@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
@@ -30,9 +30,18 @@ import { PasswordInput } from "./PasswordInput";
 
 type FormData = z.infer<typeof authSchema>;
 
-export function SignInForm() {
+type SignInFormProps = {
+  initialEmail?: string;
+  nextPath?: string;
+  error?: string;
+};
+
+export function SignInForm({
+  initialEmail = "",
+  nextPath,
+  error,
+}: SignInFormProps) {
   const router = useRouter();
-  const searchParams = useSearchParams();
   const { toast } = useToast();
   const supabase = createClient();
   const [isPending, startTransition] = React.useTransition();
@@ -40,13 +49,12 @@ export function SignInForm() {
   const form = useForm<FormData>({
     resolver: zodResolver(authSchema),
     defaultValues: {
-      email: "",
+      email: initialEmail || "",
       password: "",
     },
   });
 
   React.useEffect(() => {
-    const error = searchParams.get("error");
     if (error) {
       toast({
         title: "Error",
@@ -56,27 +64,29 @@ export function SignInForm() {
         ),
       });
     }
-  }, [searchParams, toast]);
+  }, [error, toast]);
 
   function onSubmit({ email, password }: FormData) {
     startTransition(async () => {
-      const { error } = await supabase.auth.signInWithPassword({
+      const { error: signInError } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
 
-      if (error) {
+      if (signInError) {
         toast({
           title: "Error",
           description: safeAuthErrorMessage(
-            error,
+            signInError,
             "Sign-in failed. Check your email and password.",
           ),
         });
       } else {
         toast({ title: "Login Sucess" });
         router.refresh();
-        router.push(getRedirectFromSearchParams(searchParams));
+        const params = new URLSearchParams();
+        if (nextPath) params.set("from", nextPath);
+        router.push(getRedirectFromSearchParams(params));
       }
     });
   }

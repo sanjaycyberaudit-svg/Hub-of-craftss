@@ -83,7 +83,7 @@ export function HomeShoppableReels({ products }: Props) {
         href="/featured"
         viewMoreLabel="Shop featured"
       />
-      <HomeScrollSnapStrip ariaLabel="Watch and shop featured sarees">
+      <HomeScrollSnapStrip ariaLabel="Watch and shop featured crafts">
         {items.map((product, index) => (
           <ScrollSnapItem key={product.id} className={scrollSnapReelItemClass}>
             <MotionRevealItem index={index} instant className="w-full">

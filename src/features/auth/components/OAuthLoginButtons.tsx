@@ -1,9 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { buildOAuthCallbackUrl } from "@/lib/auth/callback";
-import { getRedirectFromSearchParams } from "@/lib/auth/redirect";
 import { getCanonicalSiteOrigin } from "@/lib/auth/site-urls";
 
 import { Icons } from "@/components/layouts/icons";
@@ -12,21 +11,23 @@ import { Spinner } from "@/components/ui/spinner";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 
-function OAuthLoginButtons() {
+type OAuthLoginButtonsProps = {
+  nextPath?: string;
+};
+
+function OAuthLoginButtons({ nextPath }: OAuthLoginButtonsProps) {
   const [isLoading, setIsLoading] = useState(false);
   const supabase = createClient();
   const router = useRouter();
-  const searchParams = useSearchParams();
 
   const signWithGoogle = async () => {
     setIsLoading(true);
 
-    const next = getRedirectFromSearchParams(searchParams);
     const origin =
       process.env.NODE_ENV === "development"
         ? window.location.origin
         : getCanonicalSiteOrigin();
-    const redirectTo = buildOAuthCallbackUrl(origin, next);
+    const redirectTo = buildOAuthCallbackUrl(origin, nextPath || "/");
 
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider: "google",

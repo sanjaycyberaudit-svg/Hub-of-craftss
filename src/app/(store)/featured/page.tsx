@@ -39,7 +39,7 @@ async function FeaturedProductsPage() {
     <Shell>
       <Header
         heading="Featured Products"
-        description="Our handpicked sarees — premium styles for festivals and weddings"
+        description="Our handpicked craft supplies — materials for make, craft, create"
       />
 
       <Suspense fallback={<SearchProductsGridSkeleton />}>

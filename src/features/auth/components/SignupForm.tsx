@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { useSearchParams, useRouter } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { createClient } from "@/lib/supabase/client";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -25,9 +25,13 @@ import { signupSchema } from "../validations";
 
 type FormData = z.infer<typeof signupSchema>;
 
-export function SignUpForm() {
+type SignupFormProps = {
+  initialEmail?: string;
+  from?: string;
+};
+
+export function SignUpForm({ initialEmail = "", from }: SignupFormProps) {
   const router = useRouter();
-  const searchParams = useSearchParams();
   const { toast } = useToast();
   const supabase = createClient();
   const [isLoading, setIsLoading] = React.useState(false);
@@ -36,31 +40,13 @@ export function SignUpForm() {
     resolver: zodResolver(signupSchema),
     defaultValues: {
       name: "",
-      email: searchParams.get("email") || "",
+      email: initialEmail || "",
       password: "",
     },
   });
 
-  React.useEffect(() => {
-    const sensitiveParams = ["password", "name"] as const;
-    const url = new URL(window.location.href);
-    let changed = false;
-
-    for (const key of sensitiveParams) {
-      if (url.searchParams.has(key)) {
-        url.searchParams.delete(key);
-        changed = true;
-      }
-    }
-
-    if (changed) {
-      window.history.replaceState({}, "", `${url.pathname}${url.search}`);
-    }
-  }, [searchParams]);
-
   async function onSubmit({ email, password, name }: FormData) {
     setIsLoading(true);
-    const from = searchParams?.get("from");
     const unknownError = "Something went wrong, please try again.";
 
     try {

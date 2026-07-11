@@ -73,6 +73,12 @@ const nextConfig = {
         protocol: "https",
         hostname: "vumbnail.com",
       },
+      // Temporary Workers host (until custom domain) — seeded/local absolute image URLs
+      {
+        protocol: "https",
+        hostname: "hub-of-craftss.hubofcraftss.workers.dev",
+        pathname: "/**",
+      },
     ],
   },
   experimental: {

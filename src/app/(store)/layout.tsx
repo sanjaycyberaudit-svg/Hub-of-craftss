@@ -8,7 +8,10 @@ import { StoreHeaderMetrics } from "@/components/layouts/StoreHeaderMetrics";
 import { StoreFloatingActions } from "@/components/layouts/StoreFloatingActions";
 import { MobileBottomNav } from "@/components/layouts/MobileBottomNav";
 import { JsonLd } from "@/components/seo/JsonLd";
-import { resolveStorefrontRuntimeBundle } from "@/lib/integrations/settings";
+import {
+  getDefaultStorefrontRuntimeBundle,
+  resolveStorefrontRuntimeBundle,
+} from "@/lib/integrations/settings";
 import { sweepExpiredStockReservationsIfEnabled } from "@/lib/orders/lazy-stock-reservation-sweep";
 import {
   buildOrganizationJsonLd,
@@ -27,7 +30,30 @@ import { ReactNode } from "react";
 
 type Props = { children: ReactNode };
 
-export const revalidate = 60;
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
+async function withTimeout<T>(
+  promise: Promise<T>,
+  ms: number,
+  fallback: T,
+  label: string,
+): Promise<T> {
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      promise,
+      new Promise<T>((resolve) => {
+        timeoutId = setTimeout(() => {
+          console.error(`[store-layout] ${label} timed out after ${ms}ms`);
+          resolve(fallback);
+        }, ms);
+      }),
+    ]);
+  } finally {
+    if (timeoutId) clearTimeout(timeoutId);
+  }
+}
 
 async function StoreLayout({ children }: Props) {
   const {
@@ -38,10 +64,16 @@ async function StoreLayout({ children }: Props) {
     stockControl,
     courierCharges,
     offerCodes,
-  } = await resolveStorefrontRuntimeBundle();
+  } = await withTimeout(
+    resolveStorefrontRuntimeBundle(),
+    6000,
+    getDefaultStorefrontRuntimeBundle(),
+    "runtimeBundle",
+  );
 
   if (stockControl.enabled) {
-    await sweepExpiredStockReservationsIfEnabled({
+    // Never block first paint on reservation cleanup.
+    void sweepExpiredStockReservationsIfEnabled({
       stockControlEnabled: true,
     }).catch((error) => {
       console.error("[store] stock reservation sweep failed:", error);

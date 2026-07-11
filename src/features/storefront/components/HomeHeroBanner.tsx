@@ -13,7 +13,7 @@ export function HomeHeroBanner() {
         >
           <Image
             src="/images/hero-banner.png"
-            alt="Hub of craftss — premium silk saree collection"
+            alt="Hub of craftss — terracotta and craft supplies"
             fill
             priority
             sizes="(max-width: 768px) 100vw, 1200px"
@@ -25,7 +25,7 @@ export function HomeHeroBanner() {
             href="/shop"
             className={cn(buttonVariants({ size: "lg" }), "rounded-full px-10")}
           >
-            Shop sarees
+            Shop crafts
           </Link>
         </div>
       </div>
