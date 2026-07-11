@@ -26,7 +26,12 @@ describe("buildUniqueProductSlug", () => {
     };
 
     await expect(
-      buildUniqueProductSlug(executor, "Silk Saree", "ST000001"),
+      buildUniqueProductSlug(
+        // Minimal query stub for unit tests (not a full Drizzle client).
+        executor as unknown as Parameters<typeof buildUniqueProductSlug>[0],
+        "Silk Saree",
+        "ST000001",
+      ),
     ).resolves.toBe("silk-saree");
   });
 });

@@ -32,6 +32,7 @@ const baseConfig = {
   baseUrl: "https://api.cashfree.com/pg",
   apiVersion: "2023-08-01",
   environment: "production" as const,
+  enabled: true,
 };
 
 function jsonResponse(body: unknown, status = 200) {
