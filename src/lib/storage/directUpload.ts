@@ -51,9 +51,7 @@ export async function createDirectUploadSession(params: {
     throw new Error("Only image files are allowed.");
   }
 
-  const storagePath = buildStagingPath(
-    sanitizeUploadFileName(params.fileName),
-  );
+  const storagePath = buildStagingPath(sanitizeUploadFileName(params.fileName));
 
   let signedUrl: string | null = null;
   let error: unknown = null;

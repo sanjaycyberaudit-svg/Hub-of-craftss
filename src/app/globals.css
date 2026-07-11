@@ -279,8 +279,7 @@ html {
 
 /* Soft blush · gold · cream atmosphere */
 .storefront-atmosphere {
-  background:
-    radial-gradient(
+  background: radial-gradient(
       120% 80% at 0% 0%,
       hsl(var(--brand-rose) / 0.1),
       transparent 55%

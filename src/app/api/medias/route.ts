@@ -52,9 +52,7 @@ export async function POST(request: NextRequest) {
       uploadedPaths.push(fileName);
     } catch (err) {
       console.error("[medias] upload failed:", err);
-      errors.push(
-        `${fileName}: ${publicErrorMessage(err, "Upload failed.")}`,
-      );
+      errors.push(`${fileName}: ${publicErrorMessage(err, "Upload failed.")}`);
     }
   }
 
