@@ -50,7 +50,7 @@ type AdminOrdersPageProps = {
 function parseOrdersSegment(
   value: string | string[] | undefined,
 ): OrdersSegment {
-  const raw = String(Array.isArray(value) ? value[0] : (value ?? ""))
+  const raw = String(Array.isArray(value) ? value[0] : value ?? "")
     .trim()
     .toLowerCase();
   return raw === "unpaid" || raw === "pending" ? "unpaid" : "paid";
