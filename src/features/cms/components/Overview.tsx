@@ -22,7 +22,10 @@ export function Overview({ data }: Props) {
   return (
     <div className="flex h-[350px] items-end gap-1.5 px-1 pb-6 pt-4 sm:gap-2">
       {data.map((point) => {
-        const heightPct = Math.max((point.total / max) * 100, point.total > 0 ? 4 : 0);
+        const heightPct = Math.max(
+          (point.total / max) * 100,
+          point.total > 0 ? 4 : 0,
+        );
         return (
           <div
             key={point.name}

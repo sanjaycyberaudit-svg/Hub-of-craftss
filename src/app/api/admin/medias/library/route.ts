@@ -66,152 +66,153 @@ export async function GET(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   return withDbAsync(async () => {
-  const user = await ensureAdmin();
-  if (!user) {
-    return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-  }
-
-  const payload = await request.json().catch(() => null);
-  const parsed = DELETE_SCHEMA.safeParse(payload);
-  if (!parsed.success) {
-    const parseError = parsed as z.SafeParseError<
-      z.infer<typeof DELETE_SCHEMA>
-    >;
-    return NextResponse.json(
-      publicValidationPayload("Invalid delete request", parseError.error),
-      { status: 400 },
-    );
-  }
-
-  const mediaIds = [...new Set(parsed.data.mediaIds)];
-  const section = parsed.data.section;
-  const { usageByMedia, bannerSetting } =
-    await loadMediaUsageForDelete(mediaIds);
-
-  const productIdsForOrderCheck = new Set<string>();
-  for (const mediaId of mediaIds) {
-    const usage = usageByMedia.get(mediaId);
-    if (!usage) continue;
-    if (section === "product" && usage.productIds.length === 1) {
-      productIdsForOrderCheck.add(usage.productIds[0]);
-    }
-  }
-
-  const orderLineRows =
-    productIdsForOrderCheck.size > 0
-      ? [...(await getProductIdsWithPaidOrders([...productIdsForOrderCheck]))]
-      : [];
-  const hasPaidOrderHistoryByProduct = new Set(orderLineRows);
-
-  const deletedMediaIds: string[] = [];
-  const deletedProductIds: string[] = [];
-  const blocked: { mediaId: string; reason: string }[] = [];
-
-  for (const mediaId of mediaIds) {
-    const usage = usageByMedia.get(mediaId);
-    if (!usage) {
-      blocked.push({ mediaId, reason: "Media not found." });
-      continue;
+    const user = await ensureAdmin();
+    if (!user) {
+      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     }
 
-    if (usage.section !== section) {
-      blocked.push({
-        mediaId,
-        reason: `Media belongs to ${usage.section} section.`,
-      });
-      continue;
+    const payload = await request.json().catch(() => null);
+    const parsed = DELETE_SCHEMA.safeParse(payload);
+    if (!parsed.success) {
+      const parseError = parsed as z.SafeParseError<
+        z.infer<typeof DELETE_SCHEMA>
+      >;
+      return NextResponse.json(
+        publicValidationPayload("Invalid delete request", parseError.error),
+        { status: 400 },
+      );
     }
 
-    if (usage.collectionCount > 0 || usage.testimonialCount > 0) {
-      blocked.push({
-        mediaId,
-        reason:
-          "Media is used by collections/testimonials. Remove those references first.",
-      });
-      continue;
+    const mediaIds = [...new Set(parsed.data.mediaIds)];
+    const section = parsed.data.section;
+    const { usageByMedia, bannerSetting } =
+      await loadMediaUsageForDelete(mediaIds);
+
+    const productIdsForOrderCheck = new Set<string>();
+    for (const mediaId of mediaIds) {
+      const usage = usageByMedia.get(mediaId);
+      if (!usage) continue;
+      if (section === "product" && usage.productIds.length === 1) {
+        productIdsForOrderCheck.add(usage.productIds[0]);
+      }
     }
 
-    if (section === "banner") {
-      if (usage.productCount > 0) {
+    const orderLineRows =
+      productIdsForOrderCheck.size > 0
+        ? [...(await getProductIdsWithPaidOrders([...productIdsForOrderCheck]))]
+        : [];
+    const hasPaidOrderHistoryByProduct = new Set(orderLineRows);
+
+    const deletedMediaIds: string[] = [];
+    const deletedProductIds: string[] = [];
+    const blocked: { mediaId: string; reason: string }[] = [];
+
+    for (const mediaId of mediaIds) {
+      const usage = usageByMedia.get(mediaId);
+      if (!usage) {
+        blocked.push({ mediaId, reason: "Media not found." });
+        continue;
+      }
+
+      if (usage.section !== section) {
         blocked.push({
           mediaId,
-          reason: "Media is linked to product(s), cannot treat as banner-only.",
+          reason: `Media belongs to ${usage.section} section.`,
         });
         continue;
       }
 
+      if (usage.collectionCount > 0 || usage.testimonialCount > 0) {
+        blocked.push({
+          mediaId,
+          reason:
+            "Media is used by collections/testimonials. Remove those references first.",
+        });
+        continue;
+      }
+
+      if (section === "banner") {
+        if (usage.productCount > 0) {
+          blocked.push({
+            mediaId,
+            reason:
+              "Media is linked to product(s), cannot treat as banner-only.",
+          });
+          continue;
+        }
+
+        await db.delete(medias).where(eq(medias.id, mediaId));
+        deletedMediaIds.push(mediaId);
+        continue;
+      }
+
+      if (usage.bannerSlideCount > 0) {
+        blocked.push({
+          mediaId,
+          reason: "Media is linked to home banner slides.",
+        });
+        continue;
+      }
+
+      if (usage.productCount === 0) {
+        await db.delete(medias).where(eq(medias.id, mediaId));
+        deletedMediaIds.push(mediaId);
+        continue;
+      }
+
+      if (usage.productCount > 1) {
+        blocked.push({
+          mediaId,
+          reason:
+            "Media is used by multiple products; cannot auto-delete safely.",
+        });
+        continue;
+      }
+
+      const productId = usage.productIds[0];
+      if (hasPaidOrderHistoryByProduct.has(productId)) {
+        blocked.push({
+          mediaId,
+          reason:
+            "Product has paid order history; it is archived instead of deleted.",
+        });
+        continue;
+      }
+
+      await db.delete(products).where(eq(products.id, productId));
       await db.delete(medias).where(eq(medias.id, mediaId));
+      deletedProductIds.push(productId);
       deletedMediaIds.push(mediaId);
-      continue;
     }
 
-    if (usage.bannerSlideCount > 0) {
-      blocked.push({
-        mediaId,
-        reason: "Media is linked to home banner slides.",
+    if (section === "banner" && deletedMediaIds.length > 0 && bannerSetting) {
+      const value = (bannerSetting.value ?? {}) as Record<string, unknown>;
+      const slides = Array.isArray(value.slides) ? value.slides : [];
+      const filteredSlides = slides.filter((slide) => {
+        const imageMediaId = String(
+          (slide as Record<string, unknown>).imageMediaId ?? "",
+        ).trim();
+        return !deletedMediaIds.includes(imageMediaId);
       });
-      continue;
+
+      await db
+        .update(apiSettings)
+        .set({
+          value: { ...value, slides: filteredSlides },
+          updatedAt: new Date().toISOString(),
+          updatedBy: user.id,
+        })
+        .where(eq(apiSettings.key, "home_banner_slides"));
     }
 
-    if (usage.productCount === 0) {
-      await db.delete(medias).where(eq(medias.id, mediaId));
-      deletedMediaIds.push(mediaId);
-      continue;
-    }
+    invalidateAdminMediaCache();
+    revalidatePath("/admin/medias");
+    revalidatePath("/", "layout");
 
-    if (usage.productCount > 1) {
-      blocked.push({
-        mediaId,
-        reason:
-          "Media is used by multiple products; cannot auto-delete safely.",
-      });
-      continue;
-    }
-
-    const productId = usage.productIds[0];
-    if (hasPaidOrderHistoryByProduct.has(productId)) {
-      blocked.push({
-        mediaId,
-        reason:
-          "Product has paid order history; it is archived instead of deleted.",
-      });
-      continue;
-    }
-
-    await db.delete(products).where(eq(products.id, productId));
-    await db.delete(medias).where(eq(medias.id, mediaId));
-    deletedProductIds.push(productId);
-    deletedMediaIds.push(mediaId);
-  }
-
-  if (section === "banner" && deletedMediaIds.length > 0 && bannerSetting) {
-    const value = (bannerSetting.value ?? {}) as Record<string, unknown>;
-    const slides = Array.isArray(value.slides) ? value.slides : [];
-    const filteredSlides = slides.filter((slide) => {
-      const imageMediaId = String(
-        (slide as Record<string, unknown>).imageMediaId ?? "",
-      ).trim();
-      return !deletedMediaIds.includes(imageMediaId);
+    return NextResponse.json({
+      deletedMediaIds,
+      deletedProductIds,
+      blocked,
     });
-
-    await db
-      .update(apiSettings)
-      .set({
-        value: { ...value, slides: filteredSlides },
-        updatedAt: new Date().toISOString(),
-        updatedBy: user.id,
-      })
-      .where(eq(apiSettings.key, "home_banner_slides"));
-  }
-
-  invalidateAdminMediaCache();
-  revalidatePath("/admin/medias");
-  revalidatePath("/", "layout");
-
-  return NextResponse.json({
-    deletedMediaIds,
-    deletedProductIds,
-    blocked,
-  });
   });
 }
