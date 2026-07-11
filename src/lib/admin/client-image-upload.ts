@@ -120,7 +120,11 @@ export function validateImageFiles(files: File[]): {
   for (const file of files) {
     const reason = validateImageFile(file);
     if (reason) {
-      rejected.push({ fileName: file.name, reason, file });
+      rejected.push({
+        fileName: sanitizeUploadFileName(file.name),
+        reason: `${sanitizeUploadFileName(file.name)}: ${reason}`,
+        file,
+      });
     } else {
       valid.push(file);
     }
@@ -254,7 +258,7 @@ export async function prepareImageFiles(
   return { prepared, rejected };
 }
 
-/** Validate only — originals up to 15 MB go straight to Supabase (Phase 2). */
+/** Validate + compress for Cloudflare Workers (no server-side sharp). */
 export async function prepareImageFilesForDirect(
   files: File[],
   onProgress?: (current: number, total: number, fileName: string) => void,
@@ -262,16 +266,10 @@ export async function prepareImageFilesForDirect(
   prepared: PreparedUploadItem[];
   rejected: FileValidationError[];
 }> {
-  const { valid, rejected } = validateImageFiles(files);
-  const prepared: PreparedUploadItem[] = [];
-
-  valid.forEach((file, index) => {
-    onProgress?.(index + 1, valid.length, file.name);
-    const { file: safeFile, fileName } = withSafeUploadFile(file);
-    prepared.push({ sourceName: fileName, file: safeFile });
-  });
-
-  return { prepared, rejected };
+  // Direct R2 staging still finalizes on the Worker, which rejects payloads
+  // over ~2.75 MB. Always compress/rename here so banner & media uploads work
+  // with large Instagram / phone camera originals.
+  return prepareImageFiles(files, onProgress);
 }
 
 function buildProgress(
@@ -321,6 +319,14 @@ async function uploadViaDirectStorage(
   mediaId?: string;
   reason?: string;
 }> {
+  const safeDisplayName = sanitizeUploadFileName(displayName || file.name);
+  const safeFile =
+    file.name === safeDisplayName
+      ? file
+      : new File([file], safeDisplayName, {
+          type: file.type,
+          lastModified: file.lastModified,
+        });
   let lastError = "Direct upload failed.";
 
   for (let attempt = 0; attempt < MAX_UPLOAD_RETRIES; attempt += 1) {
@@ -332,9 +338,9 @@ async function uploadViaDirectStorage(
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            fileName: displayName,
-            contentType: file.type || "application/octet-stream",
-            fileSize: file.size,
+            fileName: safeDisplayName,
+            contentType: safeFile.type || "application/octet-stream",
+            fileSize: safeFile.size,
             purpose,
           }),
           timeoutMs: UPLOAD_REQUEST_TIMEOUT_MS,
@@ -359,9 +365,9 @@ async function uploadViaDirectStorage(
       // eslint-disable-next-line no-await-in-loop
       const putRes = await fetch(init.signedUrl, {
         method: "PUT",
-        body: file,
+        body: safeFile,
         headers: {
-          "Content-Type": file.type || "application/octet-stream",
+          "Content-Type": safeFile.type || "application/octet-stream",
         },
       });
 
@@ -379,7 +385,7 @@ async function uploadViaDirectStorage(
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             storagePath: init.storagePath,
-            fileName: displayName,
+            fileName: safeDisplayName,
             purpose,
           }),
           timeoutMs: DIRECT_UPLOAD_COMPLETE_TIMEOUT_MS,
@@ -417,7 +423,7 @@ async function uploadViaDirectStorage(
     }
   }
 
-  return { ok: false, reason: `${displayName}: ${lastError}` };
+  return { ok: false, reason: `${safeDisplayName}: ${lastError}` };
 }
 
 async function postMediaOnce(file: File): Promise<MediaApiResponse> {

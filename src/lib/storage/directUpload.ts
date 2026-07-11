@@ -1,6 +1,6 @@
 import { logServerError } from "@/lib/api/public-error";
 import { UPLOAD_LIMIT_BYTES, UPLOAD_LIMIT_MB } from "@/lib/image/uploadLimits";
-import { processUploadedImage } from "@/lib/image/processUpload";
+import { processUploadedImageBuffer } from "@/lib/image/processUpload";
 import {
   createPresignedPutUrl,
   deleteObjects,
@@ -106,14 +106,10 @@ export async function finalizeDirectUpload(params: {
 
   const safeName = sanitizeUploadFileName(params.originalFileName);
   const alt = toMediaAltText(params.originalFileName);
-  const contentType = "application/octet-stream";
-  const uploadFile = new File([buffer], safeName, {
-    type: contentType,
-  });
 
   let processed;
   try {
-    processed = await processUploadedImage(uploadFile);
+    processed = await processUploadedImageBuffer(buffer, safeName);
   } catch (error) {
     await deleteStagingFile(params.storagePath);
     throw error instanceof Error
