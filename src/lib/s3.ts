@@ -2,14 +2,17 @@ import { requireAdminActionUser } from "@/lib/auth/require-admin";
 import { env } from "@/env.mjs";
 import { AwsClient } from "aws4fetch";
 
-/** Lightweight R2/S3 client — avoids bundling @aws-sdk on Workers Free. */
+/**
+ * Lightweight R2 S3 client (aws4fetch) — keeps Workers Free under 3 MiB.
+ * @see https://developers.cloudflare.com/r2/examples/aws/aws4fetch/
+ */
 function getAwsClient() {
   return new AwsClient({
     accessKeyId: env.S3_ACCESS_KEY_ID,
     secretAccessKey: env.S3_SECRET_ACCESS_KEY,
     service: "s3",
-    // Cloudflare R2 S3 API uses "auto" as the signing region.
-    region: env.NEXT_PUBLIC_S3_REGION || "auto",
+    // R2 requires region "auto" (do not use bucket location strings).
+    region: "auto",
   });
 }
 
@@ -26,7 +29,7 @@ function objectUrl(key: string) {
 export type PutObjectParams = {
   Bucket: string;
   Key: string;
-  Body: Buffer | Uint8Array | string;
+  Body: Buffer | Uint8Array | string | ArrayBuffer;
   ContentType?: string;
   CacheControl?: string;
 };
@@ -38,20 +41,17 @@ export async function createPresignedPutUrl(params: {
 }) {
   await requireAdminActionUser();
   const expires = params.expiresInSeconds ?? 60 * 10;
-  const url = new URL(objectUrl(params.key));
-  url.searchParams.set("X-Amz-Expires", String(expires));
+  // Intentionally omit Content-Type from the signature. Signing it causes
+  // browser PUTs to 403 (header normalization / charset mismatches).
+  // @see https://ishan.page/blog/cloudflare-r2-workers-presigned/
+  const url = `${objectUrl(params.key)}?X-Amz-Expires=${expires}`;
 
-  const signed = await getAwsClient().sign(
-    new Request(url.toString(), {
-      method: "PUT",
-      headers: {
-        "Content-Type": params.contentType || "application/octet-stream",
-      },
-    }),
-    { aws: { signQuery: true } },
-  );
+  const signed = await getAwsClient().sign(url, {
+    method: "PUT",
+    aws: { signQuery: true },
+  });
 
-  return signed.url;
+  return String(signed.url);
 }
 
 export async function putObject(params: PutObjectParams) {
@@ -60,20 +60,12 @@ export async function putObject(params: PutObjectParams) {
   if (params.ContentType) headers["Content-Type"] = params.ContentType;
   if (params.CacheControl) headers["Cache-Control"] = params.CacheControl;
 
-  const body =
-    typeof params.Body === "string"
-      ? params.Body
-      : params.Body instanceof Uint8Array
-        ? params.Body
-        : new Uint8Array(params.Body);
-
-  const signed = await getAwsClient().sign(objectUrl(params.Key), {
+  const res = await getAwsClient().fetch(objectUrl(params.Key), {
     method: "PUT",
     headers,
-    body,
+    body: params.Body as BodyInit,
   });
 
-  const res = await fetch(signed);
   if (!res.ok) {
     const text = await res.text().catch(() => "");
     throw new Error(
@@ -90,10 +82,10 @@ export async function getObjectBuffer(params: {
   maxBytes?: number;
 }) {
   await requireAdminActionUser();
-  const signed = await getAwsClient().sign(objectUrl(params.key), {
+  const res = await getAwsClient().fetch(objectUrl(params.key), {
     method: "GET",
   });
-  const res = await fetch(signed);
+
   if (!res.ok) {
     throw new Error(`R2 get failed (${res.status}).`);
   }
@@ -105,7 +97,6 @@ export async function getObjectBuffer(params: {
     declared > 0 &&
     declared > params.maxBytes
   ) {
-    // Cancel body without buffering oversized objects into Worker memory.
     try {
       await res.body?.cancel();
     } catch {
@@ -127,11 +118,9 @@ export async function deleteObjects(params: { keys: string[] }) {
   if (keys.length === 0) return;
 
   const client = getAwsClient();
-  // Individual deletes keep the Worker free of AWS SDK XML marshalling.
   await Promise.all(
     keys.map(async (key) => {
-      const signed = await client.sign(objectUrl(key), { method: "DELETE" });
-      const res = await fetch(signed);
+      const res = await client.fetch(objectUrl(key), { method: "DELETE" });
       if (!res.ok && res.status !== 404) {
         const text = await res.text().catch(() => "");
         throw new Error(

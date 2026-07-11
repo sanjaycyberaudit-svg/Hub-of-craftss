@@ -1,11 +1,17 @@
-import { UPLOAD_LIMIT_BYTES, UPLOAD_LIMIT_MB } from "@/lib/image/uploadLimits";
+import {
+  STAGING_UPLOAD_LIMIT_BYTES,
+  STAGING_UPLOAD_LIMIT_MB,
+  UPLOAD_LIMIT_BYTES,
+  UPLOAD_LIMIT_MB,
+} from "@/lib/image/uploadLimits";
+import { MAX_PROCESSED_IMAGE_BYTES } from "@/lib/image/processUpload";
 import { fetchWithTimeout } from "@/lib/network/fetchWithTimeout";
 import {
   sanitizeUploadFileName,
   withSafeUploadFile,
 } from "@/lib/storage/safeUploadFileName";
 
-/** Vercel request body limit — one file per request must stay under this. */
+/** Soft ceiling for FormData fallback through the Worker. */
 export const VERCEL_SAFE_REQUEST_BYTES = 3.5 * 1024 * 1024;
 
 export const CLIENT_PREPROCESS_MAX_EDGE = 2400;
@@ -217,8 +223,11 @@ function postCompressRejectReason(
   if (file.size > UPLOAD_LIMIT_BYTES) {
     return `${sourceName}: still ${formatFileSize(file.size)} after compression. Resize to 2000px and under ${UPLOAD_LIMIT_MB} MB on your computer.`;
   }
-  if (file.size > VERCEL_SAFE_REQUEST_BYTES) {
-    return `${sourceName}: ${formatFileSize(file.size)} is too large to upload (${formatFileSize(VERCEL_SAFE_REQUEST_BYTES)} limit per request). Compress on your computer and retry.`;
+  if (file.size > MAX_PROCESSED_IMAGE_BYTES) {
+    return `${sourceName}: ${formatFileSize(file.size)} is still too large after compression (max ${formatFileSize(MAX_PROCESSED_IMAGE_BYTES)}). Resize on your computer and retry.`;
+  }
+  if (file.size > STAGING_UPLOAD_LIMIT_BYTES) {
+    return `${sourceName}: ${formatFileSize(file.size)} exceeds the ${STAGING_UPLOAD_LIMIT_MB} MB upload limit. Compress and retry.`;
   }
   return null;
 }
@@ -366,9 +375,7 @@ async function uploadViaDirectStorage(
       const putRes = await fetch(init.signedUrl, {
         method: "PUT",
         body: safeFile,
-        headers: {
-          "Content-Type": safeFile.type || "application/octet-stream",
-        },
+        // Do not set Content-Type: presigned URL is signed without it (R2 browser PUT).
       });
 
       if (!putRes.ok) {

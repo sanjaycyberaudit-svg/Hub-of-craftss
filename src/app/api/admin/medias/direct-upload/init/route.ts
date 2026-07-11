@@ -52,11 +52,10 @@ export async function POST(request: NextRequest) {
     );
   } catch (error) {
     console.error("[direct-upload/init] failed:", error);
-    return NextResponse.json(
-      {
-        message: publicErrorMessage(error, "Could not start upload."),
-      },
-      { status: 400 },
-    );
+    const detail =
+      error instanceof Error && error.message.trim()
+        ? error.message
+        : publicErrorMessage(error, "Could not start upload.");
+    return NextResponse.json({ message: detail }, { status: 400 });
   }
 }
