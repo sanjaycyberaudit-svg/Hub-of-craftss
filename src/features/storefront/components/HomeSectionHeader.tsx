@@ -24,7 +24,7 @@ export function HomeSectionHeader({
         <h2 className="min-w-0 text-lg font-bold leading-tight tracking-tight sm:text-xl md:text-2xl">
           {title}
           {titleAccent ? (
-            <span className="bg-gradient-to-r from-brand-teal to-brand-orange bg-clip-text text-transparent">
+            <span className="bg-gradient-to-r from-brand-rose to-brand-gold bg-clip-text text-transparent">
               {" "}
               {titleAccent}
             </span>
@@ -35,8 +35,8 @@ export function HomeSectionHeader({
         <Link
           href={href}
           className={cn(
-            "craft-stitch group inline-flex w-fit shrink-0 items-center gap-1.5 rounded-full bg-white/80 px-4 py-2 text-xs font-semibold text-brand-magenta sm:text-sm",
-            "transition-colors hover:border-brand-magenta hover:bg-brand-magenta hover:text-white",
+            "craft-stitch group inline-flex w-fit shrink-0 items-center gap-1.5 rounded-full bg-white/90 px-4 py-2 text-xs font-semibold text-brand-rose sm:text-sm",
+            "transition-colors hover:border-brand-gold hover:bg-brand-rose hover:text-white",
           )}
         >
           {viewMoreLabel}

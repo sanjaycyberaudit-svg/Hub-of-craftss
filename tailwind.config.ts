@@ -35,6 +35,9 @@ const config = {
         background: "hsl(var(--background))",
         foreground: "hsl(var(--foreground))",
         brand: {
+          rose: "hsl(var(--brand-rose))",
+          gold: "hsl(var(--brand-gold))",
+          cream: "hsl(var(--brand-cream))",
           teal: "hsl(var(--brand-teal))",
           magenta: "hsl(var(--brand-magenta))",
           lime: "hsl(var(--brand-lime))",

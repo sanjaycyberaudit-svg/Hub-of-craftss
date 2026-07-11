@@ -79,7 +79,7 @@ function CustomerAvatar({
   }
 
   return (
-    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-brand-teal to-brand-magenta text-sm font-bold text-white ring-2 ring-brand-teal/20 ring-offset-2 ring-offset-background">
+    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-brand-rose to-brand-gold text-sm font-bold text-white ring-2 ring-brand-gold/25 ring-offset-2 ring-offset-background">
       {initials || "ST"}
     </div>
   );

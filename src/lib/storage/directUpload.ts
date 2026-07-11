@@ -9,28 +9,18 @@ import {
 import db from "@/lib/supabase/db";
 import { medias } from "@/lib/supabase/schema";
 import { nanoid } from "nanoid";
+import {
+  sanitizeExtension,
+  sanitizeUploadFileName,
+  toMediaAltText,
+} from "./safeUploadFileName";
 import { uploadMediaToR2 } from "./uploadMedia";
 
 export type DirectUploadPurpose = "upload" | "product-draft";
 
 const STAGING_PREFIX = "uploads/staging/";
 
-const ALLOWED_EXTENSIONS = new Set([
-  "jpg",
-  "jpeg",
-  "png",
-  "webp",
-  "gif",
-  "heic",
-  "heif",
-  "avif",
-]);
-
-export function sanitizeExtension(fileName: string): string {
-  const match = fileName.match(/\.([a-zA-Z0-9]+)$/);
-  const ext = match?.[1]?.toLowerCase() ?? "jpg";
-  return ALLOWED_EXTENSIONS.has(ext) ? ext : "jpg";
-}
+export { sanitizeExtension } from "./safeUploadFileName";
 
 export function buildStagingPath(fileName: string): string {
   return `${STAGING_PREFIX}${nanoid()}.${sanitizeExtension(fileName)}`;
@@ -61,7 +51,9 @@ export async function createDirectUploadSession(params: {
     throw new Error("Only image files are allowed.");
   }
 
-  const storagePath = buildStagingPath(params.fileName);
+  const storagePath = buildStagingPath(
+    sanitizeUploadFileName(params.fileName),
+  );
 
   let signedUrl: string | null = null;
   let error: unknown = null;
@@ -114,8 +106,10 @@ export async function finalizeDirectUpload(params: {
     throw new Error(`Each image must be ${UPLOAD_LIMIT_MB} MB or smaller.`);
   }
 
+  const safeName = sanitizeUploadFileName(params.originalFileName);
+  const alt = toMediaAltText(params.originalFileName);
   const contentType = "application/octet-stream";
-  const uploadFile = new File([buffer], params.originalFileName, {
+  const uploadFile = new File([buffer], safeName, {
     type: contentType,
   });
 
@@ -147,7 +141,7 @@ export async function finalizeDirectUpload(params: {
 
   const [insertedMedia] = await db
     .insert(medias)
-    .values({ alt: params.originalFileName, key: finalKey })
+    .values({ alt, key: finalKey })
     .returning({ id: medias.id });
 
   await deleteStagingFile(params.storagePath);
@@ -155,6 +149,6 @@ export async function finalizeDirectUpload(params: {
   return {
     mediaId: insertedMedia.id,
     key: finalKey,
-    fileName: params.originalFileName,
+    fileName: alt,
   };
 }

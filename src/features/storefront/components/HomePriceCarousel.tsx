@@ -41,7 +41,7 @@ function PriceCircleCard({ bucket }: { bucket: ShopByPriceBucket }) {
             loading="lazy"
           />
         ) : (
-          <div className="absolute inset-0 bg-gradient-to-br from-brand-teal/30 via-brand-lime/15 to-brand-orange/25" />
+          <div className="absolute inset-0 bg-gradient-to-br from-brand-rose/25 via-brand-cream to-brand-gold/30" />
         )}
         <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
       </div>

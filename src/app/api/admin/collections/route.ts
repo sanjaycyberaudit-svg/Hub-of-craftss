@@ -2,7 +2,7 @@ import {
   publicErrorMessage,
   publicValidationPayload,
 } from "@/lib/api/public-error";
-import { deleteCategoryWithProducts } from "@/lib/admin/product-lifecycle";
+import { deleteCategoryProductsBatch } from "@/lib/admin/product-lifecycle";
 import { invalidateStorefrontCache } from "@/lib/cache/invalidate-storefront";
 import { getSessionUser, isAdminUser } from "@/lib/auth/admin";
 import db from "@/lib/supabase/db";
@@ -12,6 +12,9 @@ import { and, eq, ne } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
+
+/** Allow longer category-delete batches on Workers / Node. */
+export const maxDuration = 60;
 
 function collectionNameToSlug(name: string) {
   return slugify(name.trim()) || "category";
@@ -171,7 +174,12 @@ export async function DELETE(request: NextRequest) {
   }
 
   const payload = await request.json().catch(() => null);
-  const parsed = z.object({ id: z.string().trim().min(1) }).safeParse(payload);
+  const parsed = z
+    .object({
+      id: z.string().trim().min(1),
+      batchSize: z.number().int().min(1).max(10).optional(),
+    })
+    .safeParse(payload);
 
   if (!parsed.success) {
     return NextResponse.json(
@@ -181,7 +189,10 @@ export async function DELETE(request: NextRequest) {
   }
 
   try {
-    const outcome = await deleteCategoryWithProducts(parsed.data.id);
+    const outcome = await deleteCategoryProductsBatch(
+      parsed.data.id,
+      parsed.data.batchSize,
+    );
     if (!outcome) {
       return NextResponse.json(
         { message: "Category not found." },
@@ -189,7 +200,10 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    await revalidateCollectionPages();
+    if (outcome.done) {
+      await revalidateCollectionPages();
+    }
+
     return NextResponse.json({
       ok: true,
       deletedId: parsed.data.id,

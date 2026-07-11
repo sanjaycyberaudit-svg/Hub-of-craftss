@@ -53,7 +53,7 @@ function ReelProductCard({ product }: { product: ProductNode }) {
           />
           <span
             className={cn(
-              "mt-2 inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-brand-teal to-brand-magenta px-3 py-1.5 text-[11px] font-semibold text-white",
+              "mt-2 inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-brand-rose to-brand-gold px-3 py-1.5 text-[11px] font-semibold text-white",
               "transition-transform duration-300 group-hover:scale-[1.03]",
             )}
           >

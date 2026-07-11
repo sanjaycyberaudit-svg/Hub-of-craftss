@@ -21,6 +21,9 @@ type DeleteDialogProps = {
   description?: string;
   cancelLabel?: string;
   actionLabel?: string;
+  /** Disables trigger + confirm while a delete is in progress. */
+  isPending?: boolean;
+  pendingLabel?: string;
 };
 
 function DeleteDialog({
@@ -30,11 +33,15 @@ function DeleteDialog({
   triggerLabel,
   actionLabel,
   cancelLabel,
+  isPending = false,
+  pendingLabel = "Deleting…",
 }: DeleteDialogProps) {
   return (
     <AlertDialog>
       <AlertDialogTrigger asChild>
-        <Button variant="destructive">{triggerLabel || "Delete"}</Button>
+        <Button variant="destructive" disabled={isPending}>
+          {isPending ? pendingLabel : triggerLabel || "Delete"}
+        </Button>
       </AlertDialogTrigger>
       <AlertDialogContent>
         <AlertDialogHeader>
@@ -47,9 +54,20 @@ function DeleteDialog({
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel>{cancelLabel || "Cancel"}</AlertDialogCancel>
-          <AlertDialogAction onClick={onClickHandler}>
-            {actionLabel || "Delete"}
+          <AlertDialogCancel disabled={isPending}>
+            {cancelLabel || "Cancel"}
+          </AlertDialogCancel>
+          <AlertDialogAction
+            disabled={isPending}
+            onClick={(e) => {
+              if (isPending) {
+                e.preventDefault();
+                return;
+              }
+              onClickHandler(e);
+            }}
+          >
+            {isPending ? pendingLabel : actionLabel || "Delete"}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

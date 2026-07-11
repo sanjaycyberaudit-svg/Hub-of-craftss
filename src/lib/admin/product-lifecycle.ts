@@ -219,6 +219,69 @@ export async function deleteCategoryWithProducts(collectionId: string) {
   return productOutcome;
 }
 
+/** Products processed per category-delete request (keeps each call under serverless limits). */
+export const CATEGORY_DELETE_BATCH_SIZE = 3;
+
+/**
+ * Delete/archive a batch of products in a category, then remove the category
+ * when none remain. Designed for client-driven progress loops.
+ */
+export async function deleteCategoryProductsBatch(
+  collectionId: string,
+  batchSize = CATEGORY_DELETE_BATCH_SIZE,
+): Promise<{
+  deletedIds: string[];
+  archivedIds: string[];
+  blocked: { id: string; reason: string }[];
+  remaining: number;
+  done: boolean;
+  collectionDeleted: boolean;
+} | null> {
+  const [collection] = await db
+    .select({ id: collections.id })
+    .from(collections)
+    .where(eq(collections.id, collectionId))
+    .limit(1);
+
+  if (!collection) {
+    return null;
+  }
+
+  const productRows = await db
+    .select({ id: products.id })
+    .from(products)
+    .where(eq(products.collectionId, collectionId));
+
+  const batchIds = productRows
+    .slice(0, Math.max(1, batchSize))
+    .map((row) => row.id);
+
+  const productOutcome =
+    batchIds.length > 0
+      ? await deleteOrArchiveProducts(batchIds, { clearCollection: true })
+      : { deletedIds: [], archivedIds: [], blocked: [] };
+
+  const [{ remaining }] = await db
+    .select({ remaining: sql<number>`count(*)::int` })
+    .from(products)
+    .where(eq(products.collectionId, collectionId));
+
+  const remainingCount = Number(remaining ?? 0);
+  let collectionDeleted = false;
+
+  if (remainingCount === 0) {
+    await db.delete(collections).where(eq(collections.id, collectionId));
+    collectionDeleted = true;
+  }
+
+  return {
+    ...productOutcome,
+    remaining: remainingCount,
+    done: collectionDeleted,
+    collectionDeleted,
+  };
+}
+
 export async function purgeArchivedProductMedia() {
   const nowIso = new Date().toISOString();
   const dueProducts = await db

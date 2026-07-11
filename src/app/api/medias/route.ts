@@ -6,6 +6,10 @@ import { invalidateAdminMediaCache } from "@/lib/admin/media-library";
 import { requireAdminApiUser } from "@/lib/auth/require-admin";
 import { processUploadedImage } from "@/lib/image/processUpload";
 import { uploadMediaToSupabase } from "@/lib/storage/uploadMedia";
+import {
+  toMediaAltText,
+  withSafeUploadFile,
+} from "@/lib/storage/safeUploadFileName";
 import db from "@/lib/supabase/db";
 import { medias } from "@/lib/supabase/schema";
 import { mediaSchema } from "@/validations/medias";
@@ -33,20 +37,24 @@ export async function POST(request: NextRequest) {
   for (const file of Object.values(data)) {
     if (!file || !(file instanceof File)) continue;
 
+    const { file: safeFile, fileName, alt } = withSafeUploadFile(file);
+
     try {
-      const processed = await processUploadedImage(file);
+      const processed = await processUploadedImage(safeFile);
       const key = await uploadMediaToSupabase(
         processed.buffer,
         processed.contentType,
         processed.extension,
       );
 
-      await db.insert(medias).values({ alt: file.name, key }).returning();
+      await db.insert(medias).values({ alt, key }).returning();
 
-      uploadedPaths.push(file.name);
+      uploadedPaths.push(fileName);
     } catch (err) {
       console.error("[medias] upload failed:", err);
-      errors.push(`${file.name}: ${publicErrorMessage(err, "Upload failed.")}`);
+      errors.push(
+        `${fileName}: ${publicErrorMessage(err, "Upload failed.")}`,
+      );
     }
   }
 

@@ -19,8 +19,8 @@ export default function GlobalError({
         style={{
           margin: 0,
           fontFamily: "system-ui, sans-serif",
-          background: "#ffffff",
-          color: "#2e2138",
+          background: "#fdf6f7",
+          color: "#3f2430",
         }}
       >
         <main
@@ -49,7 +49,7 @@ export default function GlobalError({
               padding: "0.625rem 1rem",
               borderRadius: "0.375rem",
               border: "none",
-              background: "#2c8a96",
+              background: "#9a4558",
               color: "#fff",
               cursor: "pointer",
             }}

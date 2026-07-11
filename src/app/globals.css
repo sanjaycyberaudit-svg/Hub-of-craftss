@@ -5,50 +5,51 @@
 @layer base {
   :root {
     /*
-      Hub of craftss — white storefront + logo-locked palette
-      Sampled from public/images/hub-of-craftss-logo.png:
-      teal #48a8b4 · magenta #c03078 · lime #90b430 · orange #f09018
-      yellow #f0b418 · cyan #48b4c4 · feather purple #6c3c84
+      Hub of craftss — blush rose · cream white · soft gold
+      Pleasant craft surfaces; announcement uses deep rose for contrast.
     */
-    --background: 0 0% 100%;
-    --foreground: 280 28% 18%;
+    --background: 350 45% 98%;
+    --foreground: 345 28% 18%;
 
     --card: 0 0% 100%;
-    --card-foreground: 280 28% 18%;
+    --card-foreground: 345 28% 18%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 280 28% 18%;
+    --popover-foreground: 345 28% 18%;
 
-    /* “Hub of” oval teal */
-    --primary: 187 55% 38%;
-    --primary-foreground: 0 0% 100%;
+    /* Deep rose primary */
+    --primary: 340 42% 40%;
+    --primary-foreground: 40 40% 98%;
 
-    --secondary: 187 42% 95%;
-    --secondary-foreground: 280 28% 20%;
+    --secondary: 350 40% 94%;
+    --secondary-foreground: 345 28% 22%;
 
-    --muted: 280 18% 96%;
-    --muted-foreground: 280 12% 38%;
+    --muted: 350 30% 95%;
+    --muted-foreground: 345 14% 38%;
 
-    /* Magenta “f” / heart wash */
-    --accent: 330 55% 96%;
-    --accent-foreground: 330 60% 38%;
+    /* Soft gold wash */
+    --accent: 42 55% 93%;
+    --accent-foreground: 38 50% 28%;
 
-    --destructive: 0 75% 47%;
+    --destructive: 0 72% 46%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 187 18% 90%;
-    --input: 187 18% 90%;
-    --ring: 187 55% 38%;
+    --border: 345 22% 88%;
+    --input: 345 22% 88%;
+    --ring: 340 42% 40%;
 
-    /* Exact logo accents (Crafts letters + feather) */
-    --brand-teal: 187 43% 49%;
-    --brand-magenta: 330 60% 47%;
-    --brand-lime: 76 58% 45%;
-    --brand-orange: 33 88% 52%;
-    --brand-yellow: 43 88% 52%;
-    --brand-cyan: 188 51% 53%;
-    --brand-purple: 280 38% 38%;
-    --brand-lavender: 280 32% 78%;
+    /* Pleasant craft accents (aliases keep existing brand-* class names working) */
+    --brand-rose: 340 48% 46%;
+    --brand-gold: 40 62% 46%;
+    --brand-cream: 40 45% 96%;
+    --brand-teal: 345 22% 42%;
+    --brand-magenta: 340 48% 46%;
+    --brand-lime: 42 35% 48%;
+    --brand-orange: 38 70% 48%;
+    --brand-yellow: 43 72% 52%;
+    --brand-cyan: 350 35% 72%;
+    --brand-purple: 345 30% 32%;
+    --brand-lavender: 345 40% 86%;
 
     --radius: 0.5rem;
     --mobile-nav-height: calc(
@@ -77,43 +78,45 @@
   }
 
   .dark {
-    /* Kept for admin/system edge cases — storefront forces light */
-    --background: 280 22% 9%;
-    --foreground: 280 15% 95%;
+    --background: 345 22% 9%;
+    --foreground: 40 30% 95%;
 
-    --card: 280 18% 12%;
-    --card-foreground: 280 15% 95%;
+    --card: 345 18% 12%;
+    --card-foreground: 40 30% 95%;
 
-    --popover: 280 18% 12%;
-    --popover-foreground: 280 15% 95%;
+    --popover: 345 18% 12%;
+    --popover-foreground: 40 30% 95%;
 
-    --primary: 187 50% 52%;
-    --primary-foreground: 280 22% 9%;
+    --primary: 340 45% 62%;
+    --primary-foreground: 345 22% 10%;
 
-    --secondary: 280 16% 16%;
-    --secondary-foreground: 280 15% 95%;
+    --secondary: 345 16% 16%;
+    --secondary-foreground: 40 30% 95%;
 
-    --muted: 280 14% 16%;
-    --muted-foreground: 280 10% 70%;
+    --muted: 345 14% 16%;
+    --muted-foreground: 345 10% 70%;
 
-    --accent: 330 35% 18%;
-    --accent-foreground: 330 55% 82%;
+    --accent: 40 35% 18%;
+    --accent-foreground: 42 70% 72%;
 
     --destructive: 0 62% 42%;
-    --destructive-foreground: 280 15% 95%;
+    --destructive-foreground: 40 30% 95%;
 
-    --border: 280 14% 20%;
-    --input: 280 14% 20%;
-    --ring: 187 50% 52%;
+    --border: 345 14% 20%;
+    --input: 345 14% 20%;
+    --ring: 340 45% 62%;
 
-    --brand-teal: 187 45% 55%;
-    --brand-magenta: 330 55% 62%;
-    --brand-lime: 76 50% 55%;
-    --brand-orange: 33 85% 58%;
-    --brand-yellow: 43 85% 58%;
-    --brand-cyan: 188 48% 58%;
-    --brand-purple: 280 35% 62%;
-    --brand-lavender: 280 28% 72%;
+    --brand-rose: 340 45% 62%;
+    --brand-gold: 42 65% 58%;
+    --brand-cream: 40 20% 88%;
+    --brand-teal: 345 20% 58%;
+    --brand-magenta: 340 45% 62%;
+    --brand-lime: 42 40% 58%;
+    --brand-orange: 38 65% 58%;
+    --brand-yellow: 43 70% 58%;
+    --brand-cyan: 350 30% 70%;
+    --brand-purple: 345 28% 70%;
+    --brand-lavender: 345 28% 72%;
   }
 }
 
@@ -257,11 +260,11 @@ html {
 
 .brand-board-emblem {
   display: block;
-  filter: drop-shadow(0 1px 2px hsl(var(--brand-teal) / 0.18));
+  filter: drop-shadow(0 1px 2px hsl(var(--brand-rose) / 0.2));
 }
 
 .brand-board-frame {
-  filter: drop-shadow(0 1px 3px hsl(var(--brand-teal) / 0.14));
+  filter: drop-shadow(0 1px 3px hsl(var(--brand-gold) / 0.18));
 }
 
 .dark .brand-board-emblem {
@@ -274,27 +277,23 @@ html {
   }
 }
 
-/* Soft logo washes on white — teal · magenta · lime · lavender */
+/* Soft blush · gold · cream atmosphere */
 .storefront-atmosphere {
-  background: radial-gradient(
+  background:
+    radial-gradient(
       120% 80% at 0% 0%,
-      hsl(var(--brand-teal) / 0.14),
+      hsl(var(--brand-rose) / 0.1),
       transparent 55%
     ),
     radial-gradient(
       90% 70% at 100% 8%,
-      hsl(var(--brand-magenta) / 0.12),
+      hsl(var(--brand-gold) / 0.12),
       transparent 50%
     ),
     radial-gradient(
       70% 50% at 50% 100%,
-      hsl(var(--brand-lime) / 0.1),
+      hsl(var(--brand-lavender) / 0.35),
       transparent 45%
-    ),
-    radial-gradient(
-      50% 40% at 85% 70%,
-      hsl(var(--brand-orange) / 0.08),
-      transparent 50%
     ),
     hsl(var(--background));
 }
@@ -331,14 +330,14 @@ html {
   will-change: transform;
 }
 
-/* Craft-paper announcement — pennants via tiny SVG data-URI (no network). */
+/* High-contrast craft announcement — deep rose rail + gold accents */
 .announcement-craft {
-  --announcement-bunting-height: 0.7rem;
-  --announcement-rail-height: 2.05rem;
+  --announcement-bunting-height: 0.75rem;
+  --announcement-rail-height: 2.15rem;
   position: relative;
   overflow: hidden;
-  border-bottom: 1px solid hsl(var(--brand-teal) / 0.18);
-  background: hsl(40 33% 98%);
+  border-bottom: 1px solid hsl(var(--brand-gold) / 0.45);
+  background: hsl(340 42% 28%);
   contain: layout paint;
 }
 
@@ -346,8 +345,8 @@ html {
   height: var(--announcement-bunting-height);
   width: 100%;
   pointer-events: none;
-  /* 6 logo-matched pennants, ~72×12 tile, repeat-x only */
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='72' height='12' viewBox='0 0 72 12'%3E%3Cpath fill='%23c9c5c0' d='M0 1h72' stroke='%23c9c5c0' stroke-width='1'/%3E%3Cpath fill='%23f09018' d='M0 1.5h12L6 12z'/%3E%3Cpath fill='%23e07810' d='M0 1.5h12v1.2H0z' opacity='.35'/%3E%3Cpath fill='%23f0b418' d='M12 1.5h12l-6 10.5z'/%3E%3Cpath fill='%23d99a10' d='M12 1.5h12v1.2H12z' opacity='.35'/%3E%3Cpath fill='%2390b430' d='M24 1.5h12l-6 10.5z'/%3E%3Cpath fill='%237a9a28' d='M24 1.5h12v1.2H24z' opacity='.35'/%3E%3Cpath fill='%2348b4c4' d='M36 1.5h12l-6 10.5z'/%3E%3Cpath fill='%233a9aaa' d='M36 1.5h12v1.2H36z' opacity='.35'/%3E%3Cpath fill='%236c3c84' d='M48 1.5h12l-6 10.5z'/%3E%3Cpath fill='%23583070' d='M48 1.5h12v1.2H48z' opacity='.35'/%3E%3Cpath fill='%23c03078' d='M60 1.5h12l-6 10.5z'/%3E%3Cpath fill='%23a02864' d='M60 1.5h12v1.2H60z' opacity='.35'/%3E%3C/svg%3E");
+  /* Original colorful craft pennants (logo palette) on deep rose rail */
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='72' height='12' viewBox='0 0 72 12'%3E%3Cpath fill='%23e8d5a3' d='M0 1h72' stroke='%23e8d5a3' stroke-width='1.2'/%3E%3Cpath fill='%23f09018' d='M0 1.5h12L6 12z'/%3E%3Cpath fill='%23e07810' d='M0 1.5h12v1.2H0z' opacity='.35'/%3E%3Cpath fill='%23f0b418' d='M12 1.5h12l-6 10.5z'/%3E%3Cpath fill='%23d99a10' d='M12 1.5h12v1.2H12z' opacity='.35'/%3E%3Cpath fill='%2390b430' d='M24 1.5h12l-6 10.5z'/%3E%3Cpath fill='%237a9a28' d='M24 1.5h12v1.2H24z' opacity='.35'/%3E%3Cpath fill='%2348b4c4' d='M36 1.5h12l-6 10.5z'/%3E%3Cpath fill='%233a9aaa' d='M36 1.5h12v1.2H36z' opacity='.35'/%3E%3Cpath fill='%236c3c84' d='M48 1.5h12l-6 10.5z'/%3E%3Cpath fill='%23583070' d='M48 1.5h12v1.2H48z' opacity='.35'/%3E%3Cpath fill='%23c03078' d='M60 1.5h12l-6 10.5z'/%3E%3Cpath fill='%23a02864' d='M60 1.5h12v1.2H60z' opacity='.35'/%3E%3C/svg%3E");
   background-repeat: repeat-x;
   background-position: center top;
   background-size: auto 100%;
@@ -358,9 +357,8 @@ html {
   min-height: var(--announcement-rail-height);
   background: linear-gradient(
     180deg,
-    hsl(40 40% 96%) 0%,
-    hsl(0 0% 100%) 55%,
-    hsl(187 30% 97%) 100%
+    hsl(340 40% 34%) 0%,
+    hsl(340 45% 26%) 100%
   );
 }
 
@@ -372,8 +370,8 @@ html {
   height: 1px;
   background-image: repeating-linear-gradient(
     90deg,
-    hsl(var(--brand-teal) / 0.35) 0 4px,
-    transparent 4px 8px
+    hsl(var(--brand-gold) / 0.7) 0 5px,
+    transparent 5px 10px
   );
   pointer-events: none;
 }
@@ -388,7 +386,7 @@ html {
   );
 }
 
-/* Shared craft-paper accents — CSS only, reused sparingly on storefront. */
+/* Shared craft-paper accents — rose · gold · cream */
 .craft-washi {
   display: block;
   width: 0.55rem;
@@ -397,25 +395,24 @@ html {
   border-radius: 0.15rem;
   background: repeating-linear-gradient(
     -18deg,
-    hsl(var(--brand-teal)) 0 3px,
-    hsl(var(--brand-magenta)) 3px 6px,
-    hsl(var(--brand-lime)) 6px 9px,
-    hsl(var(--brand-orange)) 9px 12px,
-    hsl(var(--brand-yellow)) 12px 15px
+    hsl(var(--brand-rose)) 0 4px,
+    hsl(var(--brand-gold)) 4px 8px,
+    hsl(40 40% 92%) 8px 12px,
+    hsl(var(--brand-lavender)) 12px 16px
   );
-  box-shadow: 0 1px 2px hsl(var(--brand-purple) / 0.18);
+  box-shadow: 0 1px 2px hsl(var(--brand-rose) / 0.22);
 }
 
 .craft-stitch {
-  border: 1px dashed hsl(var(--brand-teal) / 0.35);
+  border: 1px dashed hsl(var(--brand-gold) / 0.55);
 }
 
 .craft-kraft {
   position: relative;
   overflow: hidden;
-  border: 1px solid hsl(28 35% 78%);
-  background: linear-gradient(180deg, hsl(40 40% 97%), hsl(36 28% 94%));
-  box-shadow: 0 10px 28px -22px hsl(var(--brand-purple) / 0.35);
+  border: 1px solid hsl(345 28% 82%);
+  background: linear-gradient(180deg, hsl(350 40% 97%), hsl(40 35% 95%));
+  box-shadow: 0 10px 28px -22px hsl(var(--brand-rose) / 0.35);
 }
 
 .craft-kraft::before {
@@ -426,7 +423,7 @@ html {
   height: 1px;
   background-image: repeating-linear-gradient(
     90deg,
-    hsl(var(--brand-magenta) / 0.45) 0 5px,
+    hsl(var(--brand-gold) / 0.55) 0 5px,
     transparent 5px 10px
   );
   pointer-events: none;
@@ -444,7 +441,7 @@ html {
   top: -1px;
   height: 10px;
   pointer-events: none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='48' height='10' viewBox='0 0 48 10' preserveAspectRatio='none'%3E%3Cpath fill='%23faf8f4' d='M0 10 V4 Q6 0 12 4 T24 4 T36 4 T48 4 V10Z'/%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='48' height='10' viewBox='0 0 48 10' preserveAspectRatio='none'%3E%3Cpath fill='%23fdf6f7' d='M0 10 V4 Q6 0 12 4 T24 4 T36 4 T48 4 V10Z'/%3E%3C/svg%3E");
   background-repeat: repeat-x;
   background-size: 48px 10px;
 }
@@ -453,16 +450,16 @@ html {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border: 2px solid hsl(var(--brand-magenta) / 0.55);
+  border: 2px solid hsl(var(--brand-gold) / 0.7);
   border-radius: 9999px;
   padding: 0.35rem 0.85rem;
-  color: hsl(var(--brand-magenta));
+  color: hsl(var(--brand-rose));
   font-size: 0.7rem;
   font-weight: 700;
   letter-spacing: 0.14em;
   text-transform: uppercase;
   transform: rotate(-6deg);
-  opacity: 0.9;
+  opacity: 0.95;
 }
 
 @media (prefers-reduced-motion: reduce) {

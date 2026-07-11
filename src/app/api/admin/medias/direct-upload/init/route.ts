@@ -4,11 +4,17 @@ import {
   createDirectUploadSession,
   type DirectUploadPurpose,
 } from "@/lib/storage/directUpload";
+import { sanitizeUploadFileName } from "@/lib/storage/safeUploadFileName";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 
 const initSchema = z.object({
-  fileName: z.string().trim().min(1).max(255),
+  fileName: z
+    .string()
+    .trim()
+    .min(1)
+    .max(500)
+    .transform((value) => sanitizeUploadFileName(value)),
   contentType: z.string().trim().min(1).max(128),
   fileSize: z.number().int().positive(),
   purpose: z.enum(["upload", "product-draft"]).default("upload"),

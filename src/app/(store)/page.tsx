@@ -135,36 +135,36 @@ function TrustFeatures({ phone }: { phone: string }) {
       Icon: Icons.package,
       title: "Affordable Shipping",
       description: "Low delivery charges for orders across India.",
-      iconClass: "text-brand-teal",
+      iconClass: "text-brand-rose",
     },
     {
       Icon: Icons.cart,
       title: "Contact Support",
       description: `Call ${phone} or email us anytime.`,
-      iconClass: "text-brand-magenta",
+      iconClass: "text-brand-gold",
     },
     {
       Icon: Icons.tag,
       title: "Easy Replacement",
       description: "Simple returns on eligible items.",
-      iconClass: "text-brand-orange",
+      iconClass: "text-brand-rose",
     },
     {
       Icon: Icons.award,
       title: "Secure Checkout",
       description: "Safe, trusted payment flow.",
-      iconClass: "text-brand-lime",
+      iconClass: "text-brand-gold",
     },
   ];
 
   return (
-    <section className="craft-stitch grid grid-cols-2 gap-6 rounded-2xl border-brand-teal/20 bg-white/70 px-3 py-10 md:grid-cols-4 md:gap-10 md:px-6 md:py-16">
+    <section className="craft-stitch grid grid-cols-2 gap-6 rounded-2xl border-brand-gold/30 bg-white/80 px-3 py-10 md:grid-cols-4 md:gap-10 md:px-6 md:py-16">
       {features.map(({ Icon, title, description, iconClass }, index) => (
         <div className="text-center px-2" key={`trust_${index}`}>
           <div className="mb-3 flex justify-center">
             <span
               className={cn(
-                "inline-flex h-12 w-12 items-center justify-center rounded-full bg-white shadow-[0_8px_24px_-12px_rgba(72,168,180,0.55)] ring-1 ring-brand-teal/15",
+                "inline-flex h-12 w-12 items-center justify-center rounded-full bg-white shadow-[0_8px_24px_-12px_rgba(154,69,88,0.35)] ring-1 ring-brand-rose/15",
               )}
             >
               <Icon className={cn("h-6 w-6", iconClass)} />

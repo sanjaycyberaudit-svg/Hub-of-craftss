@@ -11,7 +11,8 @@ import { z } from "zod";
 
 const completeSchema = z.object({
   storagePath: z.string().trim().min(1),
-  fileName: z.string().trim().min(1).max(255),
+  /** Original client filename — sanitized for alt/File inside finalize. */
+  fileName: z.string().trim().min(1).max(500),
   purpose: z.enum(["upload", "product-draft"]).default("upload"),
 });
 

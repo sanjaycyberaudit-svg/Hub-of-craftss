@@ -1,5 +1,9 @@
 import { UPLOAD_LIMIT_BYTES, UPLOAD_LIMIT_MB } from "@/lib/image/uploadLimits";
 import { fetchWithTimeout } from "@/lib/network/fetchWithTimeout";
+import {
+  sanitizeUploadFileName,
+  withSafeUploadFile,
+} from "@/lib/storage/safeUploadFileName";
 
 /** Vercel request body limit — one file per request must stay under this. */
 export const VERCEL_SAFE_REQUEST_BYTES = 3.5 * 1024 * 1024;
@@ -84,7 +88,7 @@ function delay(ms: number) {
 }
 
 function replaceExt(fileName: string, ext: string) {
-  return fileName.replace(/\.[^/.]+$/, "") + ext;
+  return sanitizeUploadFileName(fileName.replace(/\.[^/.]+$/, "") + ext);
 }
 
 export function formatFileSize(bytes: number): string {
@@ -241,7 +245,10 @@ export async function prepareImageFiles(
       continue;
     }
 
-    prepared.push({ sourceName: source.name, file: compressed });
+    prepared.push({
+      sourceName: sanitizeUploadFileName(source.name),
+      file: withSafeUploadFile(compressed).file,
+    });
   }
 
   return { prepared, rejected };
@@ -260,7 +267,8 @@ export async function prepareImageFilesForDirect(
 
   valid.forEach((file, index) => {
     onProgress?.(index + 1, valid.length, file.name);
-    prepared.push({ sourceName: file.name, file });
+    const { file: safeFile, fileName } = withSafeUploadFile(file);
+    prepared.push({ sourceName: fileName, file: safeFile });
   });
 
   return { prepared, rejected };
@@ -496,27 +504,29 @@ export async function uploadSingleMediaFile(
 }> {
   const purpose = options?.purpose ?? "upload";
   const preferDirect = options?.preferDirect ?? true;
+  const { file: safeFile, fileName: safeName } = withSafeUploadFile(file);
+  const label = sanitizeUploadFileName(displayName || safeName);
 
   if (preferDirect) {
-    const direct = await uploadViaDirectStorage(file, displayName, purpose);
+    const direct = await uploadViaDirectStorage(safeFile, label, purpose);
     if (direct.ok) return direct;
 
-    if (file.size > VERCEL_SAFE_REQUEST_BYTES) {
+    if (safeFile.size > VERCEL_SAFE_REQUEST_BYTES) {
       return {
         ok: false,
         reason:
           direct.reason ??
-          `${displayName}: file is too large for fallback upload. Compress to under ${formatFileSize(VERCEL_SAFE_REQUEST_BYTES)} and retry.`,
+          `${label}: file is too large for fallback upload. Compress to under ${formatFileSize(VERCEL_SAFE_REQUEST_BYTES)} and retry.`,
       };
     }
   }
 
-  const result = await postMediaOnce(file);
+  const result = await postMediaOnce(safeFile);
 
   if (result.isRequestTooLarge) {
     return {
       ok: false,
-      reason: `${displayName}: file is too large for upload. Compress to under ${formatFileSize(VERCEL_SAFE_REQUEST_BYTES)} and retry.`,
+      reason: `${label}: file is too large for upload. Compress to under ${formatFileSize(VERCEL_SAFE_REQUEST_BYTES)} and retry.`,
     };
   }
 
@@ -524,8 +534,11 @@ export async function uploadSingleMediaFile(
     return { ok: true, uploadedName: result.uploaded[0] };
   }
 
-  const fileError = result.errors.find((entry) =>
-    entry.startsWith(`${file.name}:`),
+  const fileError = result.errors.find(
+    (entry) =>
+      entry.startsWith(`${safeFile.name}:`) ||
+      entry.startsWith(`${label}:`) ||
+      entry.startsWith(`${file.name}:`),
   );
   return {
     ok: false,
@@ -533,7 +546,7 @@ export async function uploadSingleMediaFile(
       fileError ??
       result.errors[0] ??
       result.message ??
-      `${displayName}: upload failed.`,
+      `${label}: upload failed.`,
   };
 }
 
@@ -565,7 +578,10 @@ export async function uploadMediaFilesQueue(
   let validationErrors: FileValidationError[];
 
   if (callbacks?.skipPrepare && callbacks.preparedItems) {
-    prepared = callbacks.preparedItems;
+    prepared = callbacks.preparedItems.map((item) => {
+      const { file, fileName } = withSafeUploadFile(item.file);
+      return { sourceName: fileName, file };
+    });
     validationErrors = [];
   } else {
     callbacks?.onProgress?.(

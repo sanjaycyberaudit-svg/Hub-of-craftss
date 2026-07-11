@@ -108,16 +108,16 @@ export function HomeHeroCarousel({ slides }: Props) {
                       className="my-3 flex w-28 items-center gap-2 sm:my-4 sm:w-36"
                       aria-hidden
                     >
-                      <span className="h-px flex-1 bg-brand-yellow/90" />
-                      <span className="text-brand-orange">◆</span>
-                      <span className="h-px flex-1 bg-brand-yellow/90" />
+                      <span className="h-px flex-1 bg-brand-gold/90" />
+                      <span className="text-brand-gold">◆</span>
+                      <span className="h-px flex-1 bg-brand-gold/90" />
                     </div>
                     <p className="max-w-md text-sm leading-relaxed text-white/90 sm:max-w-xl sm:text-base md:text-lg">
                       {slide.subtitle}
                     </p>
                     <Link
                       href={slide.href}
-                      className="pointer-events-auto relative z-[3] mt-6 inline-flex min-h-[44px] items-center justify-center rounded-full bg-gradient-to-r from-brand-teal to-brand-magenta px-8 py-3 text-xs font-semibold uppercase tracking-[0.2em] text-white shadow-[0_12px_30px_-8px_rgba(72,168,180,0.65)] transition-all duration-300 hover:-translate-y-0.5 hover:from-brand-magenta hover:to-brand-orange hover:shadow-[0_16px_36px_-8px_rgba(192,48,120,0.7)] sm:mt-8 sm:px-10 sm:text-sm"
+                      className="pointer-events-auto relative z-[3] mt-6 inline-flex min-h-[44px] items-center justify-center rounded-full bg-gradient-to-r from-brand-rose to-brand-gold px-8 py-3 text-xs font-semibold uppercase tracking-[0.2em] text-white shadow-[0_12px_30px_-8px_rgba(154,69,88,0.55)] transition-all duration-300 hover:-translate-y-0.5 hover:from-brand-gold hover:to-brand-rose hover:shadow-[0_16px_36px_-8px_rgba(201,162,39,0.55)] sm:mt-8 sm:px-10 sm:text-sm"
                     >
                       {slide.cta}
                     </Link>

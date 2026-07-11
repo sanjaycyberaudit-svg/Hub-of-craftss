@@ -18,6 +18,10 @@ import {
 import { slugify } from "@/lib/utils";
 import { and, asc, desc, eq, ilike, inArray, or, sql } from "drizzle-orm";
 import { processUploadedImageBuffer } from "@/lib/image/processUpload";
+import {
+  sanitizeUploadFileName,
+  toMediaAltText,
+} from "@/lib/storage/safeUploadFileName";
 import { z } from "zod";
 
 const IDEM_PREFIX = "velo_idempotency_";
@@ -212,11 +216,14 @@ async function uploadBase64Image(
   const input = Buffer.from(raw, "base64");
   if (input.length === 0) throw new Error("Empty image data.");
 
+  const safeName = sanitizeUploadFileName(fileName || "image");
+  const alt = toMediaAltText(fileName || "velo-upload");
+
   let processed;
   try {
-    processed = await processUploadedImageBuffer(input, fileName || "image");
+    processed = await processUploadedImageBuffer(input, safeName);
   } catch {
-    throw new Error(`Could not process image: ${fileName || "image"}`);
+    throw new Error(`Could not process image: ${safeName}`);
   }
 
   const key = await uploadMediaToSupabase(
@@ -228,7 +235,7 @@ async function uploadBase64Image(
 
   const [inserted] = await db
     .insert(medias)
-    .values({ alt: fileName || "velo-upload", key })
+    .values({ alt, key })
     .returning({ id: medias.id });
 
   return inserted.id;
