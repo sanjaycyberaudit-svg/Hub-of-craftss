@@ -35,7 +35,7 @@ function MobileNavbar({ adminLayout }: Props) {
           <Branding
             size="nav"
             align="center"
-            className="min-w-0 max-w-[min(100%,19rem)]"
+            className="max-w-[min(100%,22rem)]"
           />
         )}
       </div>

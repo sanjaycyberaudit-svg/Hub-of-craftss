@@ -87,7 +87,7 @@ export function TestimonialVideoPlayer({
       onClick={onPlay}
       className={cn(
         boxClass,
-        "group overflow-hidden bg-[#55104A] text-left",
+        "group overflow-hidden bg-brand-teal text-left",
         className,
       )}
       aria-label={`Play video review from ${customerName}`}
@@ -104,7 +104,7 @@ export function TestimonialVideoPlayer({
         />
       ) : (
         <div
-          className="absolute inset-0 bg-gradient-to-br from-primary via-[#C9A227] to-[#55104A]"
+          className="absolute inset-0 bg-gradient-to-br from-brand-teal via-brand-lime to-brand-magenta"
           aria-hidden
         />
       )}

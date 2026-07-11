@@ -30,7 +30,7 @@ function PriceCircleCard({ bucket }: { bucket: ShopByPriceBucket }) {
       href={bucket.href}
       className="group flex w-full flex-col items-center gap-3 sm:gap-4"
     >
-      <div className="relative aspect-square w-full overflow-hidden rounded-full border-2 border-primary/20 bg-muted shadow-[0_14px_36px_-18px_rgba(107,24,88,0.55)] transition-[border-color,box-shadow,transform] duration-300 group-hover:border-primary/45 group-hover:shadow-[0_20px_44px_-16px_rgba(107,24,88,0.65)] group-active:scale-[0.98]">
+      <div className="relative aspect-square w-full overflow-hidden rounded-full border-2 border-brand-teal/30 bg-muted shadow-[0_14px_36px_-18px_rgba(72,168,180,0.45)] transition-[border-color,box-shadow,transform] duration-300 group-hover:border-brand-magenta/50 group-hover:shadow-[0_20px_44px_-16px_rgba(192,48,120,0.45)] group-active:scale-[0.98]">
         {imageSrc ? (
           <Image
             src={imageSrc}
@@ -41,7 +41,7 @@ function PriceCircleCard({ bucket }: { bucket: ShopByPriceBucket }) {
             loading="lazy"
           />
         ) : (
-          <div className="absolute inset-0 bg-gradient-to-br from-primary/25 via-primary/10 to-[#C9A227]/25" />
+          <div className="absolute inset-0 bg-gradient-to-br from-brand-teal/30 via-brand-lime/15 to-brand-orange/25" />
         )}
         <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
       </div>

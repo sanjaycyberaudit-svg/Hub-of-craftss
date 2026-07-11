@@ -4,7 +4,7 @@ import { SEO_PRIMARY_NAV } from "@/lib/seo/constants";
 export function HomeExploreLinks() {
   return (
     <section
-      className="border-t py-8 md:py-10"
+      className="craft-kraft craft-torn-top rounded-2xl px-4 py-8 md:px-6 md:py-10"
       aria-labelledby="explore-hoc-heading"
     >
       <h2
@@ -25,9 +25,9 @@ export function HomeExploreLinks() {
           <Link
             key={item.href}
             href={item.href}
-            className="rounded-lg border bg-card p-4 transition hover:border-primary/40 hover:bg-primary/5"
+            className="rounded-xl border border-brand-teal/20 bg-white/90 p-4 transition hover:border-brand-magenta/40 hover:bg-white"
           >
-            <h3 className="text-sm font-semibold text-primary md:text-base">
+            <h3 className="text-sm font-semibold text-brand-teal md:text-base">
               {item.name}
             </h3>
             <p className="mt-1 text-xs text-muted-foreground md:text-sm">

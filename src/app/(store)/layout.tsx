@@ -101,7 +101,7 @@ async function StoreLayout({ children }: Props) {
                       <StoreHeaderMetrics />
                       <Navbar />
                       <MobileSearchOverlay />
-                      <main className="w-full max-w-[100vw] overflow-x-hidden pt-[var(--store-header-offset-mobile)] md:pt-[var(--store-header-offset-desktop)] pb-[var(--mobile-nav-height)] md:pb-0">
+                      <main className="storefront-atmosphere w-full max-w-[100vw] overflow-x-hidden pt-[var(--store-header-offset-mobile)] md:pt-[var(--store-header-offset-desktop)] pb-[var(--mobile-nav-height)] md:pb-0">
                         {children}
                       </main>
                       <CartSheet />

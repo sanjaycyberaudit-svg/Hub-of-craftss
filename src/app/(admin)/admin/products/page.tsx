@@ -5,6 +5,7 @@ import { publicErrorMessage } from "@/lib/api/public-error";
 import { getAdminProductsList } from "@/lib/admin/getAdminProductsList";
 import type { AdminProductsStockFilter } from "@/lib/admin/getAdminProductsList";
 import { resolveStockControlConfig } from "@/lib/integrations/settings";
+import { withDbAsync } from "@/lib/supabase/db";
 import { Suspense } from "react";
 
 export const dynamic = "force-dynamic";
@@ -55,13 +56,16 @@ async function ProductsPageContent({
     const stockFilter: AdminProductsStockFilter =
       stockParam === "low" || stockParam === "out" ? stockParam : "all";
 
-    const stockControl = await resolveStockControlConfig();
-    const productsPage = await getAdminProductsList({
-      page,
-      pageSize,
-      query,
-      stockFilter,
-      lowStockThreshold: stockControl.lowStockThreshold,
+    const { stockControl, productsPage } = await withDbAsync(async () => {
+      const stockControl = await resolveStockControlConfig();
+      const productsPage = await getAdminProductsList({
+        page,
+        pageSize,
+        query,
+        stockFilter,
+        lowStockThreshold: stockControl.lowStockThreshold,
+      });
+      return { stockControl, productsPage };
     });
     productRows = productsPage.rows;
 

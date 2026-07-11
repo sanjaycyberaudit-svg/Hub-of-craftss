@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
 import { siteConfig } from "@/config/site";
@@ -7,7 +6,6 @@ import { brandSans, heroSerif } from "@/lib/fonts";
 import { getURL } from "@/lib/utils";
 import CustomProvider from "../providers/CustomProvider";
 
-const inter = Inter({ subsets: ["latin"] });
 const siteUrl = getURL();
 
 export const metadata: Metadata = {
@@ -78,7 +76,7 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <CustomProvider>
         <body
-          className={`${inter.className} ${brandSans.variable} ${heroSerif.variable}`}
+          className={`${brandSans.className} ${brandSans.variable} ${heroSerif.variable}`}
         >
           {children}
           <Toaster />

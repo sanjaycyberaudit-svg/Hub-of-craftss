@@ -95,10 +95,8 @@ export async function getAdminOrdersCounts(): Promise<{
   paid: number;
   pending: number;
 }> {
-  const [paid, pending] = await Promise.all([
-    countOrders(buildSegmentWhereClause("paid")),
-    countOrders(buildSegmentWhereClause("pending")),
-  ]);
+  const paid = await countOrders(buildSegmentWhereClause("paid"));
+  const pending = await countOrders(buildSegmentWhereClause("pending"));
   return { paid, pending };
 }
 

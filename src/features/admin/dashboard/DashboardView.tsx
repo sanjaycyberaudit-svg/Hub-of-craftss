@@ -15,7 +15,8 @@ import {
   TrendingUp,
   Wallet,
 } from "lucide-react";
-import { CalendarDateRangePicker, Overview, RecentSales } from "@/features/cms";
+import { Overview } from "@/features/cms/components/Overview";
+import { RecentSales } from "@/features/cms/components/RecentSales";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -242,7 +243,6 @@ export function DashboardView({ stats, statsError }: Props) {
           Dashboard
         </h2>
         <div className="flex flex-wrap items-center gap-2">
-          <CalendarDateRangePicker />
           <Button variant="outline" size="sm" asChild>
             <Link href="/admin/orders">View orders</Link>
           </Button>

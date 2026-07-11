@@ -1,15 +1,15 @@
-import { Montserrat, Playfair_Display } from "next/font/google";
+import { Nunito, Fraunces } from "next/font/google";
 
-/** Brand wordmark — bold caps sans-serif */
-export const brandSans = Montserrat({
-  weight: ["700", "800"],
+/** UI + brand accents — friendly rounded sans (craft / DIY feel) */
+export const brandSans = Nunito({
+  weight: ["600", "700", "800"],
   subsets: ["latin"],
   variable: "--font-brand-sans",
   display: "swap",
 });
 
-/** Hero banner titles + shop-board brand name (reference serif) */
-export const heroSerif = Playfair_Display({
+/** Hero titles — soft display serif (not competing with logo lettering) */
+export const heroSerif = Fraunces({
   weight: ["600", "700"],
   subsets: ["latin"],
   variable: "--font-hero-serif",

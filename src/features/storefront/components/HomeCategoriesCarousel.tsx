@@ -41,7 +41,7 @@ export function HomeCategoriesCarousel({ collections }: Props) {
               <MotionHoverLift className="w-full">
                 <ViewTransitionLink
                   href={`/collections/${node.slug}`}
-                  className="group block w-full overflow-hidden rounded-[1.25rem] border border-primary/15 bg-muted/30 shadow-sm transition-[border-color,box-shadow] duration-300 hover:border-primary/35 hover:shadow-[0_18px_40px_-18px_rgba(107,24,88,0.45)]"
+                  className="group block w-full overflow-hidden rounded-[1.25rem] border border-brand-teal/20 bg-muted/30 shadow-sm transition-[border-color,box-shadow] duration-300 hover:border-brand-magenta/40 hover:shadow-[0_18px_40px_-18px_rgba(192,48,120,0.35)]"
                 >
                   <CollectionCardSurface
                     label={node.label}

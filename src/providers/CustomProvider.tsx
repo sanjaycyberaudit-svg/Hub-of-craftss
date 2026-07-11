@@ -6,7 +6,13 @@ import UrqlProvider from "./UrqlProvider";
 
 export default function CustomProvider({ children }: React.PropsWithChildren) {
   return (
-    <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+    <ThemeProvider
+      attribute="class"
+      defaultTheme="light"
+      forcedTheme="light"
+      enableSystem={false}
+      disableTransitionOnChange
+    >
       <SupabaseAuthProvider>
         <UrqlProvider>{children}</UrqlProvider>
       </SupabaseAuthProvider>

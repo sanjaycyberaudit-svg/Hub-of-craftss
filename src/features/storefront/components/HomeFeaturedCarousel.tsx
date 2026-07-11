@@ -56,7 +56,7 @@ function FeaturedSlide({ product }: { product: ProductNode }) {
   const { id, name, slug, featuredImage, badge } = product;
 
   return (
-    <article className="group flex h-full flex-col overflow-hidden rounded-2xl border border-primary/12 bg-card shadow-[0_14px_36px_-22px_rgba(107,24,88,0.55)]">
+    <article className="group flex h-full flex-col overflow-hidden rounded-2xl border border-brand-teal/15 bg-card shadow-[0_14px_36px_-22px_rgba(72,168,180,0.4)]">
       <div className="relative w-full aspect-[3/4] max-h-[min(72vh,440px)] bg-muted">
         <ViewTransitionLink href={`/shop/${slug}`} className="absolute inset-0">
           <Image

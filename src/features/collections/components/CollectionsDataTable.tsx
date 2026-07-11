@@ -1,6 +1,6 @@
 "use client";
 
-import { DataTable } from "@/features/cms";
+import DataTable from "@/features/cms/components/DataTable";
 import { ADMIN_COLLECTIONS_SEARCH } from "@/lib/admin/admin-search-config";
 import { DocumentType } from "@/gql";
 import CollectionsColumns, {

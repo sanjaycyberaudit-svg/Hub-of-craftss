@@ -1,10 +1,8 @@
 import Image from "next/image";
 import { siteConfig } from "@/config/site";
+import { BRAND_LOGO, brandLogoMaxHeight } from "@/lib/brand/logo";
 import { cn } from "@/lib/utils";
-import {
-  shopBoardSizeConfig,
-  type ShopBoardBrandSize,
-} from "@/lib/brand/shop-board";
+import type { ShopBoardBrandSize } from "@/lib/brand/shop-board";
 
 export type BrandWordmarkSize = ShopBoardBrandSize;
 
@@ -14,48 +12,33 @@ type Props = {
   align?: "left" | "center";
 };
 
-const LOGO_SRC = "/images/hub-of-craftss-logo.png";
-
-const logoWidth: Record<BrandWordmarkSize, number> = {
-  nav: 148,
-  md: 180,
-  footer: 220,
-};
-
-/** Hub of craftss logo lockup — full brand mark from logo artwork. */
+/** Hub of craftss logo lockup — fixed height so header width cannot shrink it. */
 export function BrandWordmark({
   className,
   size = "md",
   align = "left",
 }: Props) {
-  const config = shopBoardSizeConfig[size];
-  const width = logoWidth[size];
-  const height = Math.round(width * 0.55);
+  const height = brandLogoMaxHeight[size];
+  const width = Math.round((BRAND_LOGO.width / BRAND_LOGO.height) * height);
 
   return (
     <span
       className={cn(
-        "brand-board-lockup inline-flex max-w-full items-center",
+        "brand-board-lockup inline-flex shrink-0 items-center",
         size === "nav" && "brand-board-lockup--nav",
         align === "center" && "mx-auto justify-center",
         className,
       )}
-      aria-label={`${siteConfig.shopBoardName}, ${siteConfig.location}`}
+      aria-label={`${siteConfig.shopBoardName} — ${siteConfig.tagline}`}
     >
       <Image
-        src={LOGO_SRC}
+        src={BRAND_LOGO.src}
         alt={siteConfig.shopBoardName}
-        width={width}
-        height={height}
-        className="brand-board-emblem relative z-[2] h-auto max-h-[var(--brand-logo-max-h,4.5rem)] w-auto max-w-full object-contain"
-        style={{
-          maxHeight:
-            size === "nav"
-              ? config.emblemPx
-              : size === "footer"
-                ? 88
-                : config.emblemPx + 12,
-        }}
+        width={BRAND_LOGO.width}
+        height={BRAND_LOGO.height}
+        className="brand-board-emblem relative z-[2] shrink-0 object-contain object-left"
+        style={{ height, width, maxWidth: "none" }}
+        sizes={`${width}px`}
         priority={size === "nav"}
       />
     </span>

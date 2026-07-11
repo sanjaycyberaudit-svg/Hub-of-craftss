@@ -47,15 +47,15 @@ export function CollectionCardSurface({
         }
       />
       <div
-        className="absolute inset-0 bg-gradient-to-t from-[#4A1048]/95 via-[#4A1048]/45 to-transparent"
+        className="absolute inset-0 bg-gradient-to-t from-brand-purple/95 via-brand-teal/40 to-transparent"
         aria-hidden
       />
       <div className="absolute inset-x-0 bottom-0 p-3 sm:p-4">
-        <div className="border-l-[3px] border-[#C5A059] pl-2.5 sm:pl-3">
+        <div className="border-l-[3px] border-brand-orange pl-2.5 sm:pl-3">
           <p className="font-[family-name:var(--font-hero-serif)] text-sm font-semibold leading-snug text-white drop-shadow-md sm:text-base lg:text-lg">
             {label}
           </p>
-          <p className="mt-1 inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-[#E8D5A3] sm:text-[11px]">
+          <p className="mt-1 inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-brand-yellow sm:text-[11px]">
             View collection
             <ArrowUpRight className="h-3 w-3 transition-transform duration-300 group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
           </p>

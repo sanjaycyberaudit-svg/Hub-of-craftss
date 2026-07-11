@@ -3,6 +3,7 @@
   // Workers / OpenNext CLI deploy (`npm run deploy` / `npm run upload`).
   "name": "hub-of-craftss",
   "main": ".open-next/worker.js",
+  // Keep minify on for Workers Free 3 MiB gzip limit. (Unminified ~3.4 MiB gzip fails.)
   "minify": true,
   "compatibility_date": "2025-05-05",
   "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],

@@ -29,9 +29,9 @@ async function MainNavbar({ adminLayout = false }: MainNavbarProps) {
           <>
             <div className="container hidden md:block">
               <div className="flex min-h-[var(--store-nav-content-height-desktop)] w-full items-center justify-between gap-x-6 py-1">
-                <div className="flex min-w-0 shrink-0 items-center gap-x-2">
+                <div className="flex shrink-0 items-center gap-x-2">
                   <SideMenu />
-                  <Branding size="md" className="min-w-0" />
+                  <Branding size="md" />
                 </div>
 
                 <nav

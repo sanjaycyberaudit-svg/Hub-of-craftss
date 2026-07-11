@@ -1,18 +1,24 @@
-/** Hub of craftss palette — from brand logo (soft lavender + craft accents) */
+/** Hub of craftss palette — sampled from logo lockup */
 export const brandColors = {
-  purple: "#6B5B95",
-  purpleDark: "#55487A",
-  purpleDeep: "#4A3F6B",
-  purpleDeepest: "#3A3255",
-  purpleHover: "#55487A",
-  purpleLight: "#8B7BB5",
-  gold: "#F4A261",
-  goldDark: "#E76F51",
-  goldBorder: "#E9C46A",
-  cream: "#F5F0FA",
+  teal: "#48a8b4",
+  tealDeep: "#2c8a96",
+  magenta: "#c03078",
+  magentaDeep: "#9a2460",
+  lime: "#90b430",
+  orange: "#f09018",
+  yellow: "#f0b418",
+  cyan: "#48b4c4",
+  purple: "#6c3c84",
+  purpleDeep: "#54306c",
+  lavender: "#ccb4d8",
+  cream: "#ffffff",
 } as const;
 
-/** RGB tuple for rgba() in shadows and glows */
+/** RGB tuples for rgba() shadows / glows */
 export const brandRgb = {
-  purple: "107, 91, 149",
+  teal: "72, 168, 180",
+  magenta: "192, 48, 120",
+  purple: "108, 60, 132",
+  orange: "240, 144, 24",
+  lime: "144, 180, 48",
 } as const;

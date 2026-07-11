@@ -23,6 +23,7 @@ import { resolveHomeBannerSlideHref } from "@/lib/admin/home-banner-links";
 import { loadProductSlugsForBannerSlides } from "@/lib/admin/home-banner-product-slugs.server";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
+import { withDbAsync } from "@/lib/supabase/db";
 
 const keySchema = z.enum([
   INTEGRATION_KEYS.cashfree,
@@ -146,48 +147,59 @@ export async function GET() {
     return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
   }
 
-  const [
-    cashfree,
-    phonepe,
-    whatsapp,
-    storefrontSocial,
-    storefrontContact,
-    homeBannerSlides,
-    announcementBar,
-    bulkOrderGuard,
-    stockControl,
-    courierCharges,
-    offerCodes,
-  ] = await Promise.all([
-    getIntegrationSetting(INTEGRATION_KEYS.cashfree),
-    getIntegrationSetting(INTEGRATION_KEYS.phonepe),
-    getIntegrationSetting(INTEGRATION_KEYS.whatsapp),
-    getIntegrationSetting(INTEGRATION_KEYS.storefrontSocial),
-    getIntegrationSetting(INTEGRATION_KEYS.storefrontContact),
-    getIntegrationSetting(INTEGRATION_KEYS.homeBannerSlides),
-    getIntegrationSetting(INTEGRATION_KEYS.announcementBar),
-    getIntegrationSetting(INTEGRATION_KEYS.bulkOrderGuard),
-    getIntegrationSetting(INTEGRATION_KEYS.stockControl),
-    getIntegrationSetting(INTEGRATION_KEYS.courierCharges),
-    getIntegrationSetting(INTEGRATION_KEYS.offerCodes),
-  ]);
+  try {
+    const [
+      cashfree,
+      phonepe,
+      whatsapp,
+      storefrontSocial,
+      storefrontContact,
+      homeBannerSlides,
+      announcementBar,
+      bulkOrderGuard,
+      stockControl,
+      courierCharges,
+      offerCodes,
+    ] = await withDbAsync(() =>
+      Promise.all([
+        getIntegrationSetting(INTEGRATION_KEYS.cashfree),
+        getIntegrationSetting(INTEGRATION_KEYS.phonepe),
+        getIntegrationSetting(INTEGRATION_KEYS.whatsapp),
+        getIntegrationSetting(INTEGRATION_KEYS.storefrontSocial),
+        getIntegrationSetting(INTEGRATION_KEYS.storefrontContact),
+        getIntegrationSetting(INTEGRATION_KEYS.homeBannerSlides),
+        getIntegrationSetting(INTEGRATION_KEYS.announcementBar),
+        getIntegrationSetting(INTEGRATION_KEYS.bulkOrderGuard),
+        getIntegrationSetting(INTEGRATION_KEYS.stockControl),
+        getIntegrationSetting(INTEGRATION_KEYS.courierCharges),
+        getIntegrationSetting(INTEGRATION_KEYS.offerCodes),
+      ]),
+    );
 
-  return NextResponse.json({
-    cashfree: cashfree ?? null,
-    phonepe: phonepe ?? null,
-    whatsapp: whatsapp ?? null,
-    storefrontSocial: storefrontSocial ?? null,
-    storefrontContact: storefrontContact ?? null,
-    homeBannerSlides: homeBannerSlides ?? null,
-    announcementBar: announcementBar ?? null,
-    bulkOrderGuard: bulkOrderGuard ?? null,
-    stockControl: stockControl ?? null,
-    courierCharges: courierCharges ?? null,
-    offerCodes: offerCodes ?? null,
-  });
+    return NextResponse.json({
+      cashfree: cashfree ?? null,
+      phonepe: phonepe ?? null,
+      whatsapp: whatsapp ?? null,
+      storefrontSocial: storefrontSocial ?? null,
+      storefrontContact: storefrontContact ?? null,
+      homeBannerSlides: homeBannerSlides ?? null,
+      announcementBar: announcementBar ?? null,
+      bulkOrderGuard: bulkOrderGuard ?? null,
+      stockControl: stockControl ?? null,
+      courierCharges: courierCharges ?? null,
+      offerCodes: offerCodes ?? null,
+    });
+  } catch (error) {
+    console.error("[admin/integrations] GET failed:", error);
+    return NextResponse.json(
+      { message: "Could not load integration settings." },
+      { status: 500 },
+    );
+  }
 }
 
 export async function POST(request: NextRequest) {
+  return withDbAsync(async () => {
   const user = await ensureAdmin();
   if (!user) {
     return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
@@ -614,4 +626,5 @@ export async function POST(request: NextRequest) {
   await invalidateStorefrontCache();
 
   return NextResponse.json({ ok: true });
+  });
 }

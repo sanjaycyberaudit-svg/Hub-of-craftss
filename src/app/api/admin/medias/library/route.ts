@@ -8,7 +8,7 @@ import {
   type MediaSection,
 } from "@/lib/admin/media-library";
 import { getSessionUser, isAdminUser } from "@/lib/auth/admin";
-import db from "@/lib/supabase/db";
+import db, { withDbAsync } from "@/lib/supabase/db";
 import { apiSettings, medias, products } from "@/lib/supabase/schema";
 import { eq, inArray } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
@@ -47,7 +47,9 @@ export async function GET(request: NextRequest) {
     searchParams.get("section") === "banner" ? "banner" : "product";
 
   try {
-    const payload = await fetchMediaLibraryPage({ page, limit, section });
+    const payload = await withDbAsync(() =>
+      fetchMediaLibraryPage({ page, limit, section }),
+    );
     return NextResponse.json(payload, {
       headers: {
         "Cache-Control": "private, max-age=30, stale-while-revalidate=60",
@@ -63,6 +65,7 @@ export async function GET(request: NextRequest) {
 }
 
 export async function DELETE(request: NextRequest) {
+  return withDbAsync(async () => {
   const user = await ensureAdmin();
   if (!user) {
     return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
@@ -209,5 +212,6 @@ export async function DELETE(request: NextRequest) {
     deletedMediaIds,
     deletedProductIds,
     blocked,
+  });
   });
 }

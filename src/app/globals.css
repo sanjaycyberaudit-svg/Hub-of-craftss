@@ -4,45 +4,64 @@
 
 @layer base {
   :root {
-    /* Hub of craftss — soft lavender primary with warm craft accents */
-    --background: 270 35% 98%;
-    --foreground: 265 25% 18%;
+    /*
+      Hub of craftss — white storefront + logo-locked palette
+      Sampled from public/images/hub-of-craftss-logo.png:
+      teal #48a8b4 · magenta #c03078 · lime #90b430 · orange #f09018
+      yellow #f0b418 · cyan #48b4c4 · feather purple #6c3c84
+    */
+    --background: 0 0% 100%;
+    --foreground: 280 28% 18%;
 
-    --card: 270 40% 99%;
-    --card-foreground: 265 25% 18%;
+    --card: 0 0% 100%;
+    --card-foreground: 280 28% 18%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 265 25% 18%;
+    --popover-foreground: 280 28% 18%;
 
-    --primary: 258 28% 48%;
+    /* “Hub of” oval teal */
+    --primary: 187 55% 38%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 35 70% 94%;
-    --secondary-foreground: 265 25% 22%;
+    --secondary: 187 42% 95%;
+    --secondary-foreground: 280 28% 20%;
 
-    --muted: 270 20% 95%;
-    --muted-foreground: 265 10% 42%;
+    --muted: 280 18% 96%;
+    --muted-foreground: 280 12% 38%;
 
-    --accent: 340 55% 94%;
-    --accent-foreground: 265 25% 20%;
+    /* Magenta “f” / heart wash */
+    --accent: 330 55% 96%;
+    --accent-foreground: 330 60% 38%;
 
     --destructive: 0 75% 47%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 270 15% 88%;
-    --input: 270 15% 88%;
-    --ring: 258 28% 48%;
+    --border: 187 18% 90%;
+    --input: 187 18% 90%;
+    --ring: 187 55% 38%;
 
-    --radius: 0.1rem;
+    /* Exact logo accents (Crafts letters + feather) */
+    --brand-teal: 187 43% 49%;
+    --brand-magenta: 330 60% 47%;
+    --brand-lime: 76 58% 45%;
+    --brand-orange: 33 88% 52%;
+    --brand-yellow: 43 88% 52%;
+    --brand-cyan: 188 51% 53%;
+    --brand-purple: 280 38% 38%;
+    --brand-lavender: 280 32% 78%;
+
+    --radius: 0.5rem;
     --mobile-nav-height: calc(
       3.5rem + max(0.5rem, env(safe-area-inset-bottom, 0px))
     );
     /* Fallbacks — StoreHeaderMetrics overrides from shop-board.ts at runtime */
-    --announcement-bar-height: 2.25rem;
-    --store-nav-content-height-mobile: 3.5rem;
-    --store-nav-content-height-desktop: 4.25rem;
-    --store-nav-height-mobile: 4rem;
-    --store-nav-height-desktop: 4.625rem;
+    --announcement-bar-height: 2.75rem;
+    --announcement-bunting-height: 0.7rem;
+    --announcement-rail-height: 2.05rem;
+    --store-nav-content-height-mobile: 4.5rem;
+    --store-nav-content-height-desktop: 5.25rem;
+    --store-nav-height-mobile: 5rem;
+    --store-nav-height-desktop: 5.625rem;
     --store-emblem-clearance: 0.25rem;
     --store-header-offset-mobile: calc(
       var(--announcement-bar-height) + var(--store-nav-height-mobile) +
@@ -58,34 +77,43 @@
   }
 
   .dark {
-    /* Deep plum night palette with gold accents */
-    --background: 318 32% 8%;
-    --foreground: 42 38% 92%;
+    /* Kept for admin/system edge cases — storefront forces light */
+    --background: 280 22% 9%;
+    --foreground: 280 15% 95%;
 
-    --card: 318 30% 11%;
-    --card-foreground: 42 38% 92%;
+    --card: 280 18% 12%;
+    --card-foreground: 280 15% 95%;
 
-    --popover: 318 30% 11%;
-    --popover-foreground: 42 38% 92%;
+    --popover: 280 18% 12%;
+    --popover-foreground: 280 15% 95%;
 
-    --primary: 318 38% 52%;
-    --primary-foreground: 318 35% 10%;
+    --primary: 187 50% 52%;
+    --primary-foreground: 280 22% 9%;
 
-    --secondary: 318 26% 18%;
-    --secondary-foreground: 42 38% 92%;
+    --secondary: 280 16% 16%;
+    --secondary-foreground: 280 15% 95%;
 
-    --muted: 318 22% 18%;
-    --muted-foreground: 318 14% 66%;
+    --muted: 280 14% 16%;
+    --muted-foreground: 280 10% 70%;
 
-    --accent: 42 35% 22%;
-    --accent-foreground: 42 65% 80%;
+    --accent: 330 35% 18%;
+    --accent-foreground: 330 55% 82%;
 
     --destructive: 0 62% 42%;
-    --destructive-foreground: 42 38% 92%;
+    --destructive-foreground: 280 15% 95%;
 
-    --border: 318 22% 20%;
-    --input: 318 22% 20%;
-    --ring: 318 38% 52%;
+    --border: 280 14% 20%;
+    --input: 280 14% 20%;
+    --ring: 187 50% 52%;
+
+    --brand-teal: 187 45% 55%;
+    --brand-magenta: 330 55% 62%;
+    --brand-lime: 76 50% 55%;
+    --brand-orange: 33 85% 58%;
+    --brand-yellow: 43 85% 58%;
+    --brand-cyan: 188 48% 58%;
+    --brand-purple: 280 35% 62%;
+    --brand-lavender: 280 28% 72%;
   }
 }
 
@@ -203,13 +231,13 @@ html {
   0%,
   100% {
     box-shadow:
-      0 4px 16px rgba(107, 24, 88, 0.35),
-      0 0 0 0 rgba(107, 24, 88, 0.45);
+      0 4px 16px hsl(var(--primary) / 0.35),
+      0 0 0 0 hsl(var(--primary) / 0.45);
   }
   50% {
     box-shadow:
-      0 4px 20px rgba(107, 24, 88, 0.5),
-      0 0 0 10px rgba(107, 24, 88, 0);
+      0 4px 20px hsl(var(--primary) / 0.5),
+      0 0 0 10px hsl(var(--primary) / 0);
   }
 }
 
@@ -217,7 +245,7 @@ html {
   animation: phone-glow 2.2s ease-in-out infinite;
 }
 
-/* SSR Tex shop-board — gold on purple; solid text (no background-clip) for mobile/dark reliability */
+/* Full logo lockup — soft craft shadow (no gold-on-purple shop board) */
 .brand-board-lockup {
   isolation: isolate;
   color-scheme: light;
@@ -227,108 +255,53 @@ html {
   text-rendering: geometricPrecision;
 }
 
-.brand-board-frame {
-  filter: drop-shadow(0 1px 4px rgba(42, 6, 40, 0.22));
-}
-
-.dark .brand-board-frame {
-  filter: drop-shadow(0 2px 10px rgba(0, 0, 0, 0.55))
-    drop-shadow(0 0 1px rgba(232, 200, 114, 0.2));
-}
-
 .brand-board-emblem {
   display: block;
-  filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.3));
+  filter: drop-shadow(0 1px 2px hsl(var(--brand-teal) / 0.18));
+}
+
+.brand-board-frame {
+  filter: drop-shadow(0 1px 3px hsl(var(--brand-teal) / 0.14));
 }
 
 .dark .brand-board-emblem {
-  filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.55))
-    drop-shadow(0 0 10px rgba(232, 200, 114, 0.14));
-}
-
-.brand-board-name {
-  /* Solid gold — background-clip:text + filter breaks on iOS/Android dark mode */
-  color: #f0d78c;
-  -webkit-text-fill-color: #f0d78c;
-  text-shadow:
-    0 1px 0 rgba(120, 88, 12, 0.85),
-    0 2px 4px rgba(0, 0, 0, 0.55),
-    0 0 12px rgba(232, 200, 114, 0.22);
-}
-
-.dark .brand-board-name {
-  color: #f8e098;
-  -webkit-text-fill-color: #f8e098;
-  text-shadow:
-    0 1px 0 rgba(100, 72, 8, 0.95),
-    0 2px 5px rgba(0, 0, 0, 0.75),
-    0 0 14px rgba(232, 200, 114, 0.28);
-}
-
-.brand-board-location {
-  color: #f0d78c;
-  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.35);
-}
-
-.dark .brand-board-location {
-  color: #f8e098;
-  text-shadow:
-    0 1px 2px rgba(0, 0, 0, 0.65),
-    0 0 8px rgba(232, 200, 114, 0.15);
-}
-
-.brand-board-rule {
-  display: block;
-  height: 1px;
-  background: linear-gradient(
-    90deg,
-    transparent 0%,
-    #e8c872 35%,
-    #f5d878 50%,
-    #e8c872 65%,
-    transparent 100%
-  );
-}
-
-.dark .brand-board-rule {
-  background: linear-gradient(
-    90deg,
-    transparent 0%,
-    #edd080 35%,
-    #f8e098 50%,
-    #edd080 65%,
-    transparent 100%
-  );
+  filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.45));
 }
 
 @media (max-width: 639px) {
   .brand-board-lockup--nav {
-    transform: scale(0.94);
-    transform-origin: center center;
-  }
-
-  .brand-board-panel--nav .brand-board-name {
-    font-size: 11.5px !important;
-    letter-spacing: 0.005em;
-  }
-
-  .brand-board-panel--nav .brand-board-location {
-    font-size: 7.5px !important;
-  }
-
-  .brand-board-panel--nav .brand-board-frame {
-    min-width: 0;
+    transform: none;
   }
 }
 
-@media (min-width: 640px) {
-  .brand-board-panel--nav .brand-board-name {
-    font-size: 14px !important;
-  }
+/* Soft logo washes on white — teal · magenta · lime · lavender */
+.storefront-atmosphere {
+  background:
+    radial-gradient(
+      120% 80% at 0% 0%,
+      hsl(var(--brand-teal) / 0.14),
+      transparent 55%
+    ),
+    radial-gradient(
+      90% 70% at 100% 8%,
+      hsl(var(--brand-magenta) / 0.12),
+      transparent 50%
+    ),
+    radial-gradient(
+      70% 50% at 50% 100%,
+      hsl(var(--brand-lime) / 0.1),
+      transparent 45%
+    ),
+    radial-gradient(
+      50% 40% at 85% 70%,
+      hsl(var(--brand-orange) / 0.08),
+      transparent 50%
+    ),
+    hsl(var(--background));
+}
 
-  .brand-board-panel--nav .brand-board-location {
-    font-size: 9px !important;
-  }
+.font-hero {
+  font-family: var(--font-hero-serif), ui-serif, Georgia, serif;
 }
 
 /* Product grid thumbnails — portrait frame, top-aligned crop (see productThumbnail.ts) */
@@ -356,6 +329,55 @@ html {
 
 .animate-announcement-scroll {
   animation: announcement-scroll 36s linear infinite;
+  will-change: transform;
+}
+
+/* Craft-paper announcement — pennants via tiny SVG data-URI (no network). */
+.announcement-craft {
+  --announcement-bunting-height: 0.7rem;
+  --announcement-rail-height: 2.05rem;
+  position: relative;
+  overflow: hidden;
+  border-bottom: 1px solid hsl(var(--brand-teal) / 0.18);
+  background: hsl(40 33% 98%);
+  contain: layout paint;
+}
+
+.announcement-bunting {
+  height: var(--announcement-bunting-height);
+  width: 100%;
+  pointer-events: none;
+  /* 6 logo-matched pennants, ~72×12 tile, repeat-x only */
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='72' height='12' viewBox='0 0 72 12'%3E%3Cpath fill='%23c9c5c0' d='M0 1h72' stroke='%23c9c5c0' stroke-width='1'/%3E%3Cpath fill='%23f09018' d='M0 1.5h12L6 12z'/%3E%3Cpath fill='%23e07810' d='M0 1.5h12v1.2H0z' opacity='.35'/%3E%3Cpath fill='%23f0b418' d='M12 1.5h12l-6 10.5z'/%3E%3Cpath fill='%23d99a10' d='M12 1.5h12v1.2H12z' opacity='.35'/%3E%3Cpath fill='%2390b430' d='M24 1.5h12l-6 10.5z'/%3E%3Cpath fill='%237a9a28' d='M24 1.5h12v1.2H24z' opacity='.35'/%3E%3Cpath fill='%2348b4c4' d='M36 1.5h12l-6 10.5z'/%3E%3Cpath fill='%233a9aaa' d='M36 1.5h12v1.2H36z' opacity='.35'/%3E%3Cpath fill='%236c3c84' d='M48 1.5h12l-6 10.5z'/%3E%3Cpath fill='%23583070' d='M48 1.5h12v1.2H48z' opacity='.35'/%3E%3Cpath fill='%23c03078' d='M60 1.5h12l-6 10.5z'/%3E%3Cpath fill='%23a02864' d='M60 1.5h12v1.2H60z' opacity='.35'/%3E%3C/svg%3E");
+  background-repeat: repeat-x;
+  background-position: center top;
+  background-size: auto 100%;
+}
+
+.announcement-craft-rail {
+  position: relative;
+  min-height: var(--announcement-rail-height);
+  background:
+    linear-gradient(
+      180deg,
+      hsl(40 40% 96%) 0%,
+      hsl(0 0% 100%) 55%,
+      hsl(187 30% 97%) 100%
+    );
+}
+
+.announcement-craft-rail::after {
+  content: "";
+  position: absolute;
+  inset-inline: 0;
+  bottom: 0;
+  height: 1px;
+  background-image: repeating-linear-gradient(
+    90deg,
+    hsl(var(--brand-teal) / 0.35) 0 4px,
+    transparent 4px 8px
+  );
+  pointer-events: none;
 }
 
 .announcement-marquee-mask {
@@ -366,6 +388,85 @@ html {
     black 94%,
     transparent
   );
+}
+
+/* Shared craft-paper accents — CSS only, reused sparingly on storefront. */
+.craft-washi {
+  display: block;
+  width: 0.55rem;
+  height: 1.65rem;
+  flex-shrink: 0;
+  border-radius: 0.15rem;
+  background:
+    repeating-linear-gradient(
+      -18deg,
+      hsl(var(--brand-teal)) 0 3px,
+      hsl(var(--brand-magenta)) 3px 6px,
+      hsl(var(--brand-lime)) 6px 9px,
+      hsl(var(--brand-orange)) 9px 12px,
+      hsl(var(--brand-yellow)) 12px 15px
+    );
+  box-shadow: 0 1px 2px hsl(var(--brand-purple) / 0.18);
+}
+
+.craft-stitch {
+  border: 1px dashed hsl(var(--brand-teal) / 0.35);
+}
+
+.craft-kraft {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid hsl(28 35% 78%);
+  background:
+    linear-gradient(180deg, hsl(40 40% 97%), hsl(36 28% 94%));
+  box-shadow: 0 10px 28px -22px hsl(var(--brand-purple) / 0.35);
+}
+
+.craft-kraft::before {
+  content: "";
+  position: absolute;
+  inset-inline: 0.75rem;
+  top: 0.55rem;
+  height: 1px;
+  background-image: repeating-linear-gradient(
+    90deg,
+    hsl(var(--brand-magenta) / 0.45) 0 5px,
+    transparent 5px 10px
+  );
+  pointer-events: none;
+}
+
+.craft-torn-top {
+  position: relative;
+}
+
+.craft-torn-top::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: -1px;
+  height: 10px;
+  pointer-events: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='48' height='10' viewBox='0 0 48 10' preserveAspectRatio='none'%3E%3Cpath fill='%23faf8f4' d='M0 10 V4 Q6 0 12 4 T24 4 T36 4 T48 4 V10Z'/%3E%3C/svg%3E");
+  background-repeat: repeat-x;
+  background-size: 48px 10px;
+}
+
+.craft-stamp {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid hsl(var(--brand-magenta) / 0.55);
+  border-radius: 9999px;
+  padding: 0.35rem 0.85rem;
+  color: hsl(var(--brand-magenta));
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  transform: rotate(-6deg);
+  opacity: 0.9;
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -41,15 +41,15 @@ function CollectionBanner({
         style={viewTransitionStyle(collectionImageTransitionName(id))}
       />
       <div
-        className="absolute inset-0 bg-gradient-to-t from-[#4A1048]/90 via-[#4A1048]/40 to-black/20"
+        className="absolute inset-0 bg-gradient-to-t from-brand-purple/90 via-brand-teal/40 to-black/20"
         aria-hidden
       />
       <div className="absolute inset-x-0 bottom-0 p-5 sm:p-8">
-        <div className="border-l-[4px] border-[#C5A059] pl-3 sm:pl-4">
+        <div className="border-l-[4px] border-brand-orange pl-3 sm:pl-4">
           <h1 className="font-[family-name:var(--font-hero-serif)] text-2xl font-semibold leading-tight text-white drop-shadow-md md:text-5xl">
             {label}
           </h1>
-          <p className="mt-2 text-xs font-semibold uppercase tracking-[0.14em] text-[#E8D5A3] sm:text-sm">
+          <p className="mt-2 text-xs font-semibold uppercase tracking-[0.14em] text-brand-yellow sm:text-sm">
             Hub of craftss collection
           </p>
         </div>

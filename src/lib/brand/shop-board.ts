@@ -1,3 +1,5 @@
+import { brandLogoMaxHeight } from "./logo";
+
 /** HOC shop-board — SVG panel with forward-slanted right edge */
 export type ShopBoardBrandSize = "nav" | "md" | "footer";
 
@@ -19,12 +21,13 @@ type SizeConfig = {
   lineWidthPx: number;
 };
 
+/** Emblem heights stay in sync with BrandWordmark maxHeight (see logo.ts). */
 export const shopBoardSizeConfig: Record<ShopBoardBrandSize, SizeConfig> = {
   nav: {
-    panelMinHeight: 44,
-    emblemPx: 58,
-    emblemOverlapPx: 18,
-    emblemOffsetRightPx: 16,
+    panelMinHeight: 64,
+    emblemPx: brandLogoMaxHeight.nav,
+    emblemOverlapPx: 0,
+    emblemOffsetRightPx: 0,
     nameFontPx: 13,
     locationFontPx: 8,
     locationTracking: "0.18em",
@@ -34,10 +37,10 @@ export const shopBoardSizeConfig: Record<ShopBoardBrandSize, SizeConfig> = {
     lineWidthPx: 20,
   },
   md: {
-    panelMinHeight: 48,
-    emblemPx: 66,
-    emblemOverlapPx: 20,
-    emblemOffsetRightPx: 18,
+    panelMinHeight: 80,
+    emblemPx: brandLogoMaxHeight.md,
+    emblemOverlapPx: 0,
+    emblemOffsetRightPx: 0,
     nameFontPx: 16,
     locationFontPx: 10,
     locationTracking: "0.2em",
@@ -47,10 +50,10 @@ export const shopBoardSizeConfig: Record<ShopBoardBrandSize, SizeConfig> = {
     lineWidthPx: 24,
   },
   footer: {
-    panelMinHeight: 76,
-    emblemPx: 86,
-    emblemOverlapPx: 26,
-    emblemOffsetRightPx: 10,
+    panelMinHeight: 100,
+    emblemPx: brandLogoMaxHeight.footer,
+    emblemOverlapPx: 0,
+    emblemOffsetRightPx: 0,
     nameFontPx: 19,
     locationFontPx: 11,
     locationTracking: "0.22em",

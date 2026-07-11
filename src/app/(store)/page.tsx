@@ -14,6 +14,7 @@ import { getDraftProductIdsCached } from "@/lib/storefront/draft-product-ids";
 import { getLandingPageDataCached } from "@/lib/storefront/landing-data";
 import { getShopByPriceBucketsCached } from "@/lib/storefront/shop-by-price";
 import { resolveStorefrontContact } from "@/lib/integrations/settings";
+import { cn } from "@/lib/utils";
 import type { Metadata } from "next";
 
 /** Avoid ISR + unstable_cache hangs on Cloudflare Workers (Error 1101). */
@@ -134,30 +135,40 @@ function TrustFeatures({ phone }: { phone: string }) {
       Icon: Icons.package,
       title: "Affordable Shipping",
       description: "Low delivery charges for orders across India.",
+      iconClass: "text-brand-teal",
     },
     {
       Icon: Icons.cart,
       title: "Contact Support",
       description: `Call ${phone} or email us anytime.`,
+      iconClass: "text-brand-magenta",
     },
     {
       Icon: Icons.tag,
       title: "Easy Replacement",
       description: "Simple returns on eligible items.",
+      iconClass: "text-brand-orange",
     },
     {
       Icon: Icons.award,
       title: "Secure Checkout",
       description: "Safe, trusted payment flow.",
+      iconClass: "text-brand-lime",
     },
   ];
 
   return (
-    <section className="grid grid-cols-2 lg:grid-cols-4 gap-6 md:gap-10 py-10 md:py-16 border-t">
-      {features.map(({ Icon, title, description }, index) => (
+    <section className="craft-stitch grid grid-cols-2 gap-6 rounded-2xl border-brand-teal/20 bg-white/70 px-3 py-10 md:grid-cols-4 md:gap-10 md:px-6 md:py-16">
+      {features.map(({ Icon, title, description, iconClass }, index) => (
         <div className="text-center px-2" key={`trust_${index}`}>
-          <div className="flex justify-center mb-3">
-            <Icon className="h-9 w-9 text-primary/80" />
+          <div className="mb-3 flex justify-center">
+            <span
+              className={cn(
+                "inline-flex h-12 w-12 items-center justify-center rounded-full bg-white shadow-[0_8px_24px_-12px_rgba(72,168,180,0.55)] ring-1 ring-brand-teal/15",
+              )}
+            >
+              <Icon className={cn("h-6 w-6", iconClass)} />
+            </span>
           </div>
           <h4 className="text-sm md:text-base font-semibold mb-1">{title}</h4>
           <p className="text-xs md:text-sm text-muted-foreground leading-relaxed">

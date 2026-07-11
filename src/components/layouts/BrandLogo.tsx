@@ -15,7 +15,7 @@ export function BrandLogo({ className, size = "nav", align = "left" }: Props) {
       href="/"
       aria-label={siteConfig.shopBoardName}
       className={cn(
-        "inline-flex min-w-0 max-w-full items-center touch-manipulation",
+        "inline-flex shrink-0 items-center touch-manipulation",
         align === "center" ? "justify-center" : "justify-start",
         className,
       )}

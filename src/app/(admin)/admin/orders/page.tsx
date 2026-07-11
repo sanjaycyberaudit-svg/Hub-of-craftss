@@ -9,6 +9,7 @@ import {
   parseAdminOrdersPage,
 } from "@/lib/admin/getAdminOrdersList";
 import { publicErrorMessage } from "@/lib/api/public-error";
+import { withDbAsync } from "@/lib/supabase/db";
 import { Suspense } from "react";
 
 export const dynamic = "force-dynamic";
@@ -66,11 +67,23 @@ async function OrdersPageContent({
   };
 
   try {
-    [counts, paid, pending] = await Promise.all([
-      getAdminOrdersCounts(),
-      getAdminOrdersList({ segment: "paid", page: paidPage, pageSize }),
-      getAdminOrdersList({ segment: "pending", page: pendingPage, pageSize }),
-    ]);
+    const result = await withDbAsync(async () => {
+      const counts = await getAdminOrdersCounts();
+      const paid = await getAdminOrdersList({
+        segment: "paid",
+        page: paidPage,
+        pageSize,
+      });
+      const pending = await getAdminOrdersList({
+        segment: "pending",
+        page: pendingPage,
+        pageSize,
+      });
+      return { counts, paid, pending };
+    });
+    counts = result.counts;
+    paid = result.paid;
+    pending = result.pending;
   } catch (error) {
     console.error("[admin/orders] page load failed:", error);
     fetchError = publicErrorMessage(error, "Failed to load orders.");

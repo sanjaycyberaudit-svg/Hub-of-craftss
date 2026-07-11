@@ -33,7 +33,7 @@ import {
 } from "@/components/admin/AdminLoadingState";
 import { BoundedNumberInput } from "@/components/admin/BoundedNumberInput";
 import { AdminSaveProgressOverlay } from "@/components/admin/AdminSaveProgressOverlay";
-import { BadgeSelectField } from "@/features/cms";
+import BadgeSelectField from "@/features/cms/components/BadgeSelectField";
 import { ImageDialog } from "@/features/medias";
 import UploadMediaContainer from "@/features/medias/components/UploadMediaContainer";
 import {

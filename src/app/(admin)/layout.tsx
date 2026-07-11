@@ -10,9 +10,22 @@ type Props = { children: ReactNode };
 export const dynamic = "force-dynamic";
 
 export default async function AdminLayout({ children }: Props) {
-  const user = await getSessionUser();
+  let user = null;
+  let admin = false;
 
-  if (!(await isAdminUser(user))) {
+  try {
+    user = await getSessionUser();
+    admin = await isAdminUser(user);
+  } catch (error) {
+    console.error("[admin-layout] auth check failed:", error);
+    redirect(
+      appendFromToSignIn("/sign-in", ADMIN_POST_LOGIN_PATH, {
+        error: "Admin session check failed. Please sign in again.",
+      }),
+    );
+  }
+
+  if (!admin) {
     if (!user) {
       redirect(
         appendFromToSignIn("/sign-in", ADMIN_POST_LOGIN_PATH, {

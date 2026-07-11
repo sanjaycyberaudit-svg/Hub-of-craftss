@@ -1,6 +1,6 @@
 "use client";
 
-import { DataTable } from "@/features/cms";
+import DataTable from "@/features/cms/components/DataTable";
 import { DocumentType } from "@/gql";
 import { TestimonialColumnsFragment } from "../query";
 import TestimonialsColumns from "./TestimonialsColumns";
