@@ -1,5 +1,18 @@
-/** @type {import('next').NextConfig} */
+import { initOpenNextCloudflareForDev } from "@opennextjs/cloudflare";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const shippingLabelPdf = path.resolve(
+  __dirname,
+  "src/lib/pdf/shipping-label-pdf.ts",
+);
+const shippingLabelPdfStub = path.resolve(
+  __dirname,
+  "src/lib/pdf/shipping-label-pdf.stub.ts",
+);
+
+/** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
@@ -101,13 +114,18 @@ const nextConfig = {
       ...config.resolve.alias,
       // Drop unused OG image WASM from the server Worker bundle.
       "next/og": false,
-      ...(isServer ? { jspdf: false } : {}),
+      ...(isServer
+        ? {
+            jspdf: false,
+            // Shipping-label PDF + jsPDF are browser-only; stub on SSR/Worker.
+            [shippingLabelPdf]: shippingLabelPdfStub,
+          }
+        : {}),
     };
     return config;
   },
-}
+};
 
-export default nextConfig
+export default nextConfig;
 
-import { initOpenNextCloudflareForDev } from "@opennextjs/cloudflare";
 initOpenNextCloudflareForDev();
