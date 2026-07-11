@@ -90,13 +90,18 @@ const nextConfig = {
       static: 180,
     },
   },
-  // Keep AWS SDK out of the Next server graph where possible (OpenNext/Wrangler still resolve for Workers).
-  serverExternalPackages: ["@aws-sdk/client-s3", "@aws-sdk/s3-request-presigner"],
-  webpack: (config) => {
+  // Keep AWS SDK / browser-only PDF out of the Next server graph (Workers Free 3 MiB).
+  serverExternalPackages: [
+    "@aws-sdk/client-s3",
+    "@aws-sdk/s3-request-presigner",
+    "jspdf",
+  ],
+  webpack: (config, { isServer }) => {
     config.resolve.alias = {
       ...config.resolve.alias,
       // Drop unused OG image WASM from the server Worker bundle.
       "next/og": false,
+      ...(isServer ? { jspdf: false } : {}),
     };
     return config;
   },

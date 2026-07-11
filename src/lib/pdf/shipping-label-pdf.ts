@@ -1,4 +1,3 @@
-import { jsPDF } from "jspdf";
 import { siteConfig } from "@/config/site";
 
 /** Minimal order shape for shipping-label PDFs (matches Software-Saree-order). */
@@ -926,6 +925,7 @@ export async function downloadOrderPdf(order: PdfLabelOrder) {
   try {
     const renderOptions = await fetchPdfSettingsForRendering();
     console.log(`[PDF] Creating jsPDF document...`);
+    const { jsPDF } = await import("jspdf");
     const doc = new jsPDF({ unit: "mm", format: "a4" });
     const d = doc as unknown as DocShape &
       Parameters<typeof drawSectionBorder>[0];
@@ -960,6 +960,7 @@ export async function downloadOrdersPdf(orders: PdfLabelOrder[]) {
   console.log(`[PDF] downloadOrdersPdf called for ${orders.length} orders`);
   try {
     console.log(`[PDF] Creating jsPDF document...`);
+    const { jsPDF } = await import("jspdf");
     const doc = new jsPDF({ unit: "mm", format: "a4" });
     const d = doc as unknown as DocShape &
       Parameters<typeof drawSectionBorder>[0];
