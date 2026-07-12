@@ -23,11 +23,7 @@ function randomPose(prev?: ButterflyPose): ButterflyPose {
   };
 }
 
-function RealisticButterfly({
-  variant,
-}: {
-  variant: "rose" | "lavender";
-}) {
+function RealisticButterfly({ variant }: { variant: "rose" | "lavender" }) {
   const isRose = variant === "rose";
   const upper = isRose ? "#e070a8" : "#8b6fc4";
   const upperDeep = isRose ? "#c03078" : "#6a4aa8";
@@ -46,10 +42,7 @@ function RealisticButterfly({
       className="store-butterfly__svg"
     >
       <g className="store-butterfly__wing store-butterfly__wing--left">
-        <path
-          d="M30 30C22 14 6 10 4 20c-1.5 7 10 14 26 12Z"
-          fill={upper}
-        />
+        <path d="M30 30C22 14 6 10 4 20c-1.5 7 10 14 26 12Z" fill={upper} />
         <path
           d="M30 30C22 14 6 10 4 20c-1.5 7 10 14 26 12Z"
           fill={upperDeep}
@@ -58,17 +51,11 @@ function RealisticButterfly({
         <circle cx="12" cy="18" r="2.2" fill={spot} fillOpacity="0.9" />
         <circle cx="18" cy="22" r="1.4" fill={spot} fillOpacity="0.75" />
         <circle cx="14" cy="24" r="1" fill={accent} fillOpacity="0.7" />
-        <path
-          d="M30 32C18 36 8 48 14 50c6 2 12-8 16-18Z"
-          fill={lower}
-        />
+        <path d="M30 32C18 36 8 48 14 50c6 2 12-8 16-18Z" fill={lower} />
         <circle cx="18" cy="42" r="1.6" fill={spot} fillOpacity="0.8" />
       </g>
       <g className="store-butterfly__wing store-butterfly__wing--right">
-        <path
-          d="M34 30C42 14 58 10 60 20c1.5 7-10 14-26 12Z"
-          fill={upper}
-        />
+        <path d="M34 30C42 14 58 10 60 20c1.5 7-10 14-26 12Z" fill={upper} />
         <path
           d="M34 30C42 14 58 10 60 20c1.5 7-10 14-26 12Z"
           fill={upperDeep}
@@ -77,10 +64,7 @@ function RealisticButterfly({
         <circle cx="52" cy="18" r="2.2" fill={spot} fillOpacity="0.9" />
         <circle cx="46" cy="22" r="1.4" fill={spot} fillOpacity="0.75" />
         <circle cx="50" cy="24" r="1" fill={accent} fillOpacity="0.7" />
-        <path
-          d="M34 32C46 36 56 48 50 50c-6 2-12-8-16-18Z"
-          fill={lower}
-        />
+        <path d="M34 32C46 36 56 48 50 50c-6 2-12-8-16-18Z" fill={lower} />
         <circle cx="46" cy="42" r="1.6" fill={spot} fillOpacity="0.8" />
       </g>
       <ellipse cx="32" cy="33" rx="2.2" ry="9" fill={body} />
@@ -159,9 +143,7 @@ function FlyingButterfly({
  * Homepage-only: two butterflies for 5–10s, then fade out for the rest of the visit.
  */
 export function StoreButterflies() {
-  const [phase, setPhase] = useState<"boot" | "show" | "fade" | "done">(
-    "boot",
-  );
+  const [phase, setPhase] = useState<"boot" | "show" | "fade" | "done">("boot");
   const [starts, setStarts] = useState<[ButterflyPose, ButterflyPose] | null>(
     null,
   );

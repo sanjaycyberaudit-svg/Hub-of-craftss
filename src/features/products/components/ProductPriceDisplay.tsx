@@ -58,7 +58,9 @@ export function ProductPriceDisplay({
   }
 
   return (
-    <div className={cn("craft-price-pill flex-col items-start gap-0.5", className)}>
+    <div
+      className={cn("craft-price-pill flex-col items-start gap-0.5", className)}
+    >
       <div className={cn("font-semibold text-destructive", saleClassName)}>
         {formatPrice(salePrice)}
       </div>
