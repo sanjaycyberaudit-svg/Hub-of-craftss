@@ -25,7 +25,7 @@ function Modal({ header, containerClassName, children }: Props) {
     >
       <Card
         className={cn(
-          "relative max-w-full inset-0 md:inset-20 md:max-w-2xl lg:max-w-[960px] xl:max-w-[1080px] top-20 mx-auto p-5 border container w-full shadow-lg rounded-md bg-white min-h-[480px]",
+          "relative max-w-full inset-0 md:inset-20 md:max-w-2xl lg:max-w-[960px] xl:max-w-[1080px] top-20 mx-auto p-5 border container w-full shadow-lg rounded-md bg-card min-h-[480px]",
           containerClassName,
         )}
       >

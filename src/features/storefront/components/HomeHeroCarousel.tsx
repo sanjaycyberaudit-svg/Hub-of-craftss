@@ -117,7 +117,7 @@ export function HomeHeroCarousel({ slides }: Props) {
                     </p>
                     <Link
                       href={slide.href}
-                      className="pointer-events-auto relative z-[3] mt-6 inline-flex min-h-[44px] items-center justify-center rounded-full bg-gradient-to-r from-brand-rose to-brand-gold px-8 py-3 text-xs font-semibold uppercase tracking-[0.2em] text-white shadow-[0_12px_30px_-8px_rgba(154,69,88,0.55)] transition-all duration-300 hover:-translate-y-0.5 hover:from-brand-gold hover:to-brand-rose hover:shadow-[0_16px_36px_-8px_rgba(201,162,39,0.55)] sm:mt-8 sm:px-10 sm:text-sm"
+                      className="pointer-events-auto relative z-[3] mt-6 inline-flex min-h-[44px] items-center justify-center rounded-full bg-gradient-to-r from-brand-rose to-brand-gold px-8 py-3 text-xs font-semibold uppercase tracking-[0.2em] text-white shadow-[0_12px_30px_-8px_rgba(192,48,120,0.55)] transition-all duration-300 hover:-translate-y-0.5 hover:from-brand-gold hover:to-brand-rose hover:shadow-[0_16px_36px_-8px_rgba(201,162,39,0.55)] sm:mt-8 sm:px-10 sm:text-sm"
                     >
                       {slide.cta}
                     </Link>

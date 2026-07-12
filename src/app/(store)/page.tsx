@@ -1,4 +1,5 @@
 import { Shell } from "@/components/layouts/Shell";
+import { StoreButterflies } from "@/components/layouts/StoreButterflies";
 import { Icons } from "@/components/layouts/icons";
 import {
   HomeHeroCarousel,
@@ -91,6 +92,7 @@ export default async function Home() {
 
   return (
     <main className="min-h-screen w-full min-w-0 overflow-x-hidden">
+      <StoreButterflies />
       <HomeHeroCarousel slides={slides} />
 
       <Shell>
@@ -99,7 +101,7 @@ export default async function Home() {
             <p className="font-semibold mb-2">Store data not loaded</p>
             <p className="text-muted-foreground mb-2">
               Enable GraphQL in Supabase: SQL Editor → run{" "}
-              <code className="bg-white px-1">
+              <code className="bg-card px-1">
                 supabase/02-enable-graphql.sql
               </code>
             </p>
@@ -158,13 +160,13 @@ function TrustFeatures({ phone }: { phone: string }) {
   ];
 
   return (
-    <section className="craft-stitch grid grid-cols-2 gap-6 rounded-2xl border-brand-gold/30 bg-white/80 px-3 py-10 md:grid-cols-4 md:gap-10 md:px-6 md:py-16">
+    <section className="craft-stitch grid grid-cols-2 gap-6 rounded-2xl border-brand-gold/30 bg-card/80 px-3 py-10 md:grid-cols-4 md:gap-10 md:px-6 md:py-16">
       {features.map(({ Icon, title, description, iconClass }, index) => (
         <div className="text-center px-2" key={`trust_${index}`}>
           <div className="mb-3 flex justify-center">
             <span
               className={cn(
-                "inline-flex h-12 w-12 items-center justify-center rounded-full bg-white shadow-[0_8px_24px_-12px_rgba(154,69,88,0.35)] ring-1 ring-brand-rose/15",
+                "inline-flex h-12 w-12 items-center justify-center rounded-full bg-card shadow-[0_8px_24px_-12px_rgba(192,48,120,0.35)] ring-1 ring-brand-rose/15",
               )}
             >
               <Icon className={cn("h-6 w-6", iconClass)} />

@@ -22,12 +22,12 @@ const modeStyles: Record<
   { pill: string; pillHover: string; ring: string }
 > = {
   call: {
-    pill: "border-primary/25 bg-white",
+    pill: "border-primary/25 bg-card",
     pillHover: "hover:border-primary/50 hover:bg-primary/[0.06]",
     ring: "ring-primary/40",
   },
   whatsapp: {
-    pill: "border-[#25D366]/30 bg-white",
+    pill: "border-[#25D366]/30 bg-card",
     pillHover: "hover:border-[#25D366]/55 hover:bg-[#25D366]/[0.08]",
     ring: "ring-[#25D366]/40",
   },

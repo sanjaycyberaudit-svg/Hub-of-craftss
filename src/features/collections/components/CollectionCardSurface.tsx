@@ -51,11 +51,11 @@ export function CollectionCardSurface({
         aria-hidden
       />
       <div className="absolute inset-x-0 bottom-0 p-3 sm:p-4">
-        <div className="border-l-[3px] border-brand-orange pl-2.5 sm:pl-3">
+        <div className="inline-flex max-w-full flex-col gap-1 rounded-xl border border-white/25 bg-white/15 px-2.5 py-2 backdrop-blur-[3px] sm:px-3">
           <p className="font-[family-name:var(--font-hero-serif)] text-sm font-semibold leading-snug text-white drop-shadow-md sm:text-base lg:text-lg">
             {label}
           </p>
-          <p className="mt-1 inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-brand-yellow sm:text-[11px]">
+          <p className="inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-brand-yellow sm:text-[11px]">
             View collection
             <ArrowUpRight className="h-3 w-3 transition-transform duration-300 group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
           </p>

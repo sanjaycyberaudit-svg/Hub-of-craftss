@@ -5,7 +5,7 @@ import { AdminUserMenu } from "./AdminUserMenu";
 
 export function AdminSidebarFooter() {
   return (
-    <div className="shrink-0 space-y-1 border-t border-border bg-white p-3">
+    <div className="shrink-0 space-y-1 border-t border-border bg-card p-3">
       <Link
         href="/"
         target="_blank"

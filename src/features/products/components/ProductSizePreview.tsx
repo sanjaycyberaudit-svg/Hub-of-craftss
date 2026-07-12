@@ -62,8 +62,12 @@ export default function ProductSizePreview({
   if (labels.length === 0) return null;
 
   return (
-    <p className="text-xs text-muted-foreground line-clamp-2">
-      Sizes: {labels.join(", ")}
-    </p>
+    <div className="craft-size-pills" aria-label={`Sizes: ${labels.join(", ")}`}>
+      {labels.map((label) => (
+        <span key={label} className="craft-size-pill">
+          {label}
+        </span>
+      ))}
+    </div>
   );
 }

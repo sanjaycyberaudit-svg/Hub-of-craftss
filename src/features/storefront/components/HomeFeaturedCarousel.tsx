@@ -81,7 +81,7 @@ function FeaturedSlide({ product }: { product: ProductNode }) {
             {badge}
           </Badge>
         ) : null}
-        <div className="absolute bottom-3 left-1/2 z-10 flex -translate-x-1/2 items-center gap-2 rounded-full border border-primary/15 bg-white/95 px-3 py-1.5 shadow-md backdrop-blur-sm">
+        <div className="absolute bottom-3 left-1/2 z-10 flex -translate-x-1/2 items-center gap-2 rounded-full border border-primary/15 bg-card/95 px-3 py-1.5 shadow-md backdrop-blur-sm">
           <Suspense fallback={<span className="inline-block h-9 w-9" />}>
             <AddToWishListButton productId={id} />
           </Suspense>

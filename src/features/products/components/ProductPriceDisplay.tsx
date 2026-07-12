@@ -28,7 +28,7 @@ export function ProductPriceDisplay({
 
   if (!onSale) {
     return (
-      <div className={cn("font-medium text-foreground", className)}>
+      <div className={cn("craft-price-pill", className)}>
         {formatPrice(salePrice)}
       </div>
     );
@@ -38,7 +38,7 @@ export function ProductPriceDisplay({
     return (
       <div
         className={cn(
-          "flex flex-wrap items-baseline gap-x-2 gap-y-0.5",
+          "craft-price-pill flex-wrap items-baseline gap-x-2 gap-y-0.5",
           className,
         )}
       >
@@ -58,7 +58,7 @@ export function ProductPriceDisplay({
   }
 
   return (
-    <div className={cn("space-y-0.5", className)}>
+    <div className={cn("craft-price-pill flex-col items-start gap-0.5", className)}>
       <div className={cn("font-semibold text-destructive", saleClassName)}>
         {formatPrice(salePrice)}
       </div>

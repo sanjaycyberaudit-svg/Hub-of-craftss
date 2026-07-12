@@ -49,7 +49,7 @@ function ReelProductCard({ product }: { product: ProductNode }) {
           </p>
           <ProductPriceDisplay
             product={product}
-            className="mt-1 text-white [&_span]:text-white [&_s]:text-white/70"
+            className="mt-1 craft-price-pill--frost text-white [&_span]:text-white [&_s]:text-white/70"
           />
           <span
             className={cn(

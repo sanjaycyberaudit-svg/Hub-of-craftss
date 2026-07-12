@@ -19,12 +19,12 @@ function isExternalHref(href: string) {
 
 function MarqueeItem({ item }: { item: Announcement }) {
   const className =
-    "inline-flex shrink-0 items-center gap-2 whitespace-nowrap text-xs text-white/95 transition-opacity hover:text-white sm:text-sm";
+    "inline-flex shrink-0 items-center gap-2 whitespace-nowrap text-xs text-foreground/90 transition-opacity hover:text-foreground sm:text-sm";
 
   const content = (
     <>
       <span>{item.text}</span>
-      <span className="inline-flex items-center gap-0.5 text-[10px] font-bold uppercase tracking-wider text-brand-gold sm:text-[11px]">
+      <span className="inline-flex items-center gap-0.5 text-[10px] font-bold uppercase tracking-wider text-brand-rose sm:text-[11px]">
         {item.cta}
         <ChevronRight className="h-3 w-3" strokeWidth={2.5} aria-hidden />
       </span>
@@ -67,7 +67,7 @@ function MarqueeStrip({
           className="inline-flex items-center gap-10 sm:gap-14"
         >
           {index > 0 ? (
-            <span className="select-none text-brand-gold/80" aria-hidden>
+            <span className="select-none text-brand-gold" aria-hidden>
               ◆
             </span>
           ) : null}

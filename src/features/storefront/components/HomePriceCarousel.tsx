@@ -45,8 +45,8 @@ function PriceCircleCard({ bucket }: { bucket: ShopByPriceBucket }) {
         )}
         <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
       </div>
-      <div className="flex w-full min-w-0 flex-col items-center gap-1 px-1 text-center">
-        <p className="w-full text-sm font-bold leading-snug tracking-tight text-foreground sm:text-base md:text-[17px]">
+      <div className="flex w-full min-w-0 flex-col items-center gap-1.5 px-1 text-center">
+        <p className="craft-price-pill justify-center text-center text-sm sm:text-[15px]">
           {bucket.label}
         </p>
         <p className="text-xs font-medium text-muted-foreground sm:text-sm">

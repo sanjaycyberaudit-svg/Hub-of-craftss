@@ -25,7 +25,7 @@ export function HomeExploreLinks() {
           <Link
             key={item.href}
             href={item.href}
-            className="rounded-xl border border-brand-rose/20 bg-white/90 p-4 transition hover:border-brand-gold/50 hover:bg-white"
+            className="rounded-xl border border-brand-rose/20 bg-card/90 p-4 transition hover:border-brand-gold/50 hover:bg-card"
           >
             <h3 className="text-sm font-semibold text-brand-rose md:text-base">
               {item.name}

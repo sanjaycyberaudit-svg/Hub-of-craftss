@@ -373,7 +373,7 @@ export function AdminMediaManager() {
     <div className="space-y-4">
       {uploadProgress ? (
         <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/35 backdrop-blur-[1px]">
-          <div className="w-[320px] rounded-xl border border-[#E8A317]/40 bg-white p-5 shadow-2xl">
+          <div className="w-[320px] rounded-xl border border-[#E8A317]/40 bg-card p-5 shadow-2xl">
             <p className="text-center text-sm font-semibold text-[#8A5A00]">
               {uploadProgress.message}
             </p>

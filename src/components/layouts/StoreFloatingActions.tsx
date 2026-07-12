@@ -63,7 +63,7 @@ export function StoreFloatingActions() {
 
         <Link
           href="/cart"
-          className={`relative ${floatingActionButtonClass} border border-border bg-white text-foreground shadow-[0_4px_16px_rgba(0,0,0,0.12)]`}
+          className={`relative ${floatingActionButtonClass} border border-border bg-card text-foreground shadow-[0_4px_16px_rgba(192,48,120,0.12)]`}
           aria-label={`Cart${cartCount > 0 ? `, ${cartCount} items` : ""}`}
         >
           <ShoppingBag className="h-5 w-5" strokeWidth={1.75} />
