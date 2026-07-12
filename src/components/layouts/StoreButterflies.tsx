@@ -140,7 +140,7 @@ function FlyingButterfly({
 }
 
 /**
- * Homepage-only: two butterflies for 5–10s, then fade out for the rest of the visit.
+ * Homepage-only: two butterflies for 10–15s, then fade out for the rest of the visit.
  */
 export function StoreButterflies() {
   const [phase, setPhase] = useState<"boot" | "show" | "fade" | "done">("boot");
@@ -166,7 +166,7 @@ export function StoreButterflies() {
     setStarts([randomPose(), randomPose()]);
     setPhase("show");
 
-    const visibleMs = 5000 + Math.random() * 5000; // 5–10s
+    const visibleMs = 10000 + Math.random() * 5000; // 10–15s
     const fadeTimer = setTimeout(() => setPhase("fade"), visibleMs);
     const doneTimer = setTimeout(() => {
       try {
