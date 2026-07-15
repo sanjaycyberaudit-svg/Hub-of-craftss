@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/form";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
@@ -154,6 +155,11 @@ const productFormSchema = createInsertSchema(products)
   .omit({ slug: true })
   .extend({
     slug: z.string().optional(),
+    description: z
+      .string()
+      .trim()
+      .min(1, "Description is required.")
+      .max(4000, "Description is too long."),
   });
 
 export const ProductFormQuery = gql(/* GraphQL */ `
@@ -742,13 +748,18 @@ function ProductFrom({ product }: ProductsFormProps) {
           <FormItem>
             <FormLabel className="text-sm">Description*</FormLabel>
             <FormControl>
-              <Input
+              <Textarea
                 defaultValue={product?.description || ""}
                 aria-invalid={!!form.formState.errors.description}
-                placeholder="Type a short description for the product.."
+                placeholder="Describe this product for customers — materials, what’s included, and how it feels to use."
+                className="min-h-[120px]"
                 {...register("description")}
               />
             </FormControl>
+            <FormDescription>
+              Shown on the product page, just like category descriptions on
+              collection pages. Write a clear customer-facing paragraph.
+            </FormDescription>
             <FormMessage />
           </FormItem>
 

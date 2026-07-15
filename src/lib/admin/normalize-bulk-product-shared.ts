@@ -7,7 +7,12 @@ const BADGE_VALUES = new Set(["new_product", "best_sale", "featured"]);
 export const bulkSharedInputSchema = z
   .object({
     name: z.string().trim().min(2, "Name is required for bulk mode."),
-    description: z.string().default(""),
+    description: z
+      .string()
+      .trim()
+      .min(1, "Description is required.")
+      .max(4000)
+      .default(""),
     isDraft: z.coerce.boolean().default(true),
     collectionId: z
       .string()

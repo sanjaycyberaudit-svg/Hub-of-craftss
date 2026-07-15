@@ -46,15 +46,18 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const path = `/shop/${resolvedParams.slug}`;
 
   if (productName) {
+    const productDescription =
+      data?.productsCollection?.edges?.[0]?.node?.description?.trim() ||
+      `Buy ${productName} online from Hub of craftss. Premium terracotta and craft supplies with secure checkout.`;
     return {
       title: productName,
-      description: `Buy ${productName} online from Hub of craftss. Premium terracotta and craft supplies with secure checkout.`,
+      description: productDescription,
       alternates: {
         canonical: path,
       },
       openGraph: {
         title: `${productName} | Hub of craftss`,
-        description: `Buy ${productName} online from Hub of craftss.`,
+        description: productDescription,
         url: path,
       },
     };
@@ -174,8 +177,17 @@ async function ProductDetailPage({ params }: Props) {
             ) : null}
           </section>
 
-          <section>
-            <p>{description}</p>
+          <section className="space-y-6">
+            {description?.trim() ? (
+              <div>
+                <h2 className="text-lg font-semibold tracking-wide mb-3">
+                  About this product
+                </h2>
+                <p className="max-w-4xl text-base leading-[1.8] tracking-wide text-zinc-700 whitespace-pre-line">
+                  {description.trim()}
+                </p>
+              </div>
+            ) : null}
 
             <Accordion type="single" collapsible>
               <AccordionItem value="item-1">

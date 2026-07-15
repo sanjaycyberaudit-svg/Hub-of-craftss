@@ -18,11 +18,16 @@ export function normalizeProductFormPayload(
       ? (badgeRaw as InsertProducts["badge"])
       : null;
 
+  const description = String(data.description ?? "").trim();
+  if (!description) {
+    throw new Error("Description is required.");
+  }
+
   return {
     ...data,
     name: String(data.name ?? "").trim(),
     slug: String(data.slug ?? "").trim(),
-    description: String(data.description ?? ""),
+    description,
     rating: String(data.rating ?? "4"),
     price: String(data.price ?? "0"),
     isDraft: Boolean(data.isDraft),
