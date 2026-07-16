@@ -134,6 +134,18 @@ export async function middleware(request: NextRequest) {
   const isAdminPath = pathname.startsWith("/admin");
   const authCookieState = classifyAuthCookieState(request);
 
+  // Public storefront pages: skip Supabase getUser even if cookies exist.
+  // Auth refresh still runs on admin / account / orders routes.
+  const needsSessionRefresh =
+    isAdminPath ||
+    pathname.startsWith("/orders") ||
+    pathname.startsWith("/setting") ||
+    pathname.startsWith("/wish-list") ||
+    pathname.startsWith("/cart") ||
+    pathname.startsWith("/sign-in") ||
+    pathname.startsWith("/sign-up") ||
+    pathname.startsWith("/auth/");
+
   if (authCookieState === "absent") {
     if (isAdminPath) {
       return redirectToAdminSignIn(request, pathname);
@@ -155,6 +167,12 @@ export async function middleware(request: NextRequest) {
     }
 
     return response;
+  }
+
+  if (!needsSessionRefresh) {
+    return NextResponse.next({
+      request: { headers: request.headers },
+    });
   }
 
   let response = NextResponse.next({

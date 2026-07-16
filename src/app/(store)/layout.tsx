@@ -65,7 +65,7 @@ async function StoreLayout({ children }: Props) {
     offerCodes,
   } = await withTimeout(
     getStorefrontRuntimeBundleCached(),
-    6000,
+    4000,
     getDefaultStorefrontRuntimeBundle(),
     "runtimeBundle",
   );

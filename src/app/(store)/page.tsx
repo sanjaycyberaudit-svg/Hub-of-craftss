@@ -10,14 +10,11 @@ import {
   HomeExploreLinks,
 } from "@/features/storefront/components";
 import { heroSlides } from "@/config/heroSlides";
-import {
-  getDefaultStorefrontRuntimeBundle,
-  getHomeBannerSlidesCached,
-  getStorefrontRuntimeBundleCached,
-} from "@/lib/integrations/settings";
+import { getHomeBannerSlidesCached } from "@/lib/integrations/settings";
 import { getDraftProductIdsCached } from "@/lib/storefront/draft-product-ids";
 import { getLandingPageDataCached } from "@/lib/storefront/landing-data";
 import { getShopByPriceBucketsCached } from "@/lib/storefront/shop-by-price";
+import { siteConfig } from "@/config/site";
 import { cn } from "@/lib/utils";
 import type { Metadata } from "next";
 
@@ -61,21 +58,16 @@ async function withTimeout<T>(
 }
 
 export default async function Home() {
-  const [homeBannerSlides, data, draftProductIds, runtimeBundle, priceBuckets] =
+  const [homeBannerSlides, data, draftProductIds, priceBuckets] =
     await Promise.all([
-      withTimeout(getHomeBannerSlidesCached(), 8000, null, "homeBanner"),
-      withTimeout(getLandingPageDataCached(), 8000, null, "landing"),
-      withTimeout(getDraftProductIdsCached(), 8000, [], "drafts"),
-      withTimeout(
-        getStorefrontRuntimeBundleCached(),
-        8000,
-        getDefaultStorefrontRuntimeBundle(),
-        "runtimeBundle",
-      ),
-      withTimeout(getShopByPriceBucketsCached(), 8000, [], "priceBuckets"),
+      withTimeout(getHomeBannerSlidesCached(), 5000, null, "homeBanner"),
+      withTimeout(getLandingPageDataCached(), 5000, null, "landing"),
+      withTimeout(getDraftProductIdsCached(), 5000, [], "drafts"),
+      withTimeout(getShopByPriceBucketsCached(), 5000, [], "priceBuckets"),
     ]);
 
-  const contact = runtimeBundle.contact;
+  // Contact comes from store layout providers; use site default for this section only.
+  const phone = siteConfig.phone;
 
   const draftIds = new Set(draftProductIds);
   const products = data?.products;
@@ -120,7 +112,7 @@ export default async function Home() {
         ) : null}
 
         <HomeExploreLinks />
-        <TrustFeatures phone={contact.phone} />
+        <TrustFeatures phone={phone} />
       </Shell>
     </main>
   );
