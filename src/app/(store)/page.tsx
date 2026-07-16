@@ -1,5 +1,5 @@
 import { Shell } from "@/components/layouts/Shell";
-import { StoreButterflies } from "@/components/layouts/StoreButterflies";
+import { DeferredStoreButterflies } from "@/components/layouts/DeferredStoreButterflies";
 import { Icons } from "@/components/layouts/icons";
 import {
   HomeHeroCarousel,
@@ -79,7 +79,7 @@ export default async function Home() {
 
   return (
     <main className="min-h-screen w-full min-w-0 overflow-x-hidden">
-      <StoreButterflies />
+      <DeferredStoreButterflies />
       <HomeHeroCarousel slides={slides} />
 
       <Shell>
