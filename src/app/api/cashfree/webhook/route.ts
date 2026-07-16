@@ -1,5 +1,9 @@
 import { verifyCashfreeWebhookSignature } from "@/lib/payments/cashfree";
 import { syncCashfreeOrderPayment } from "@/lib/payments/orderPaymentSync";
+import {
+  cashfreeWebhookEventKey,
+  withPaymentWebhookIdempotency,
+} from "@/lib/payments/webhook-idempotency";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function POST(request: NextRequest) {
@@ -38,6 +42,7 @@ export async function POST(request: NextRequest) {
 
   const rawData = body?.data as Record<string, unknown> | undefined;
   const orderEntity = rawData?.order as Record<string, unknown> | undefined;
+  const paymentEntity = rawData?.payment as Record<string, unknown> | undefined;
   const orderId = String(
     (orderEntity?.order_id as string) ||
       (rawData?.order_id as string) ||
@@ -49,9 +54,38 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ ok: true, skipped: true });
   }
 
+  const webhookType = String(body?.type ?? body?.event ?? "webhook").trim();
+  const paymentId = String(
+    (paymentEntity?.cf_payment_id as string) ||
+      (paymentEntity?.payment_id as string) ||
+      (rawData?.cf_payment_id as string) ||
+      "",
+  ).trim();
+
+  const eventId = cashfreeWebhookEventKey({
+    orderId,
+    webhookType,
+    paymentId: paymentId || null,
+    rawBody,
+  });
+
   try {
-    await syncCashfreeOrderPayment(orderId);
-    return NextResponse.json({ ok: true });
+    const outcome = await withPaymentWebhookIdempotency({
+      provider: "cashfree",
+      eventId,
+      orderId,
+      handler: async () => syncCashfreeOrderPayment(orderId),
+    });
+
+    if (outcome.status === "skipped") {
+      return NextResponse.json({
+        ok: true,
+        duplicate: true,
+        reason: outcome.reason,
+      });
+    }
+
+    return NextResponse.json({ ok: true, ...outcome.result });
   } catch (error) {
     console.error("[cashfree] webhook sync failed:", error);
     return NextResponse.json({ ok: false }, { status: 500 });

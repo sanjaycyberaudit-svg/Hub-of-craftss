@@ -71,6 +71,22 @@ export async function syncPhonePeOrderPayment(input: SyncInput) {
     throw new Error("merchantTransactionId missing for PhonePe status sync");
   }
 
+  // Already paid for this merchant txn — allow gateway retries without
+  // re-running WhatsApp / cart clear / inventory side effects.
+  if (
+    currentOrder.payment_status === "paid" &&
+    (currentOrder.phonepe_merchant_transaction_id === merchantTransactionId ||
+      currentOrder.payment_reference === merchantTransactionId ||
+      currentOrder.phonepe_transaction_id)
+  ) {
+    return {
+      orderId: currentOrder.id,
+      state: "COMPLETED",
+      isPaid: true,
+      alreadyPaid: true as const,
+    };
+  }
+
   const status = await fetchPhonePePaymentStatus(merchantTransactionId);
   const state = status?.state ?? "PENDING";
   const isPaid = state === "COMPLETED";
@@ -144,6 +160,15 @@ export async function syncCashfreeOrderPayment(orderId: string) {
 
   if (!currentOrder) {
     throw new Error("Order not found for Cashfree payment sync");
+  }
+
+  if (currentOrder.payment_status === "paid") {
+    return {
+      orderId: currentOrder.id,
+      state: "PAID",
+      isPaid: true,
+      alreadyPaid: true as const,
+    };
   }
 
   const status = await fetchCashfreeOrderStatus(orderId);

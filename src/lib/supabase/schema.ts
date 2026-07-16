@@ -9,6 +9,7 @@ import {
   primaryKey,
   text,
   timestamp,
+  uniqueIndex,
   uuid,
   varchar,
 } from "drizzle-orm/pg-core";
@@ -97,6 +98,57 @@ export const externalApiKeys = pgTable("external_api_keys", {
 
 export type SelectExternalApiKeys = InferSelectModel<typeof externalApiKeys>;
 export type InsertExternalApiKeys = InferInsertModel<typeof externalApiKeys>;
+
+/**
+ * Durable webhook delivery ledger. Unique (provider, event_id) so gateway
+ * retries are no-ops; a second real purchase has a different event_id.
+ */
+export const paymentWebhookEvents = pgTable(
+  "payment_webhook_events",
+  {
+    id: text("id")
+      .notNull()
+      .primaryKey()
+      .$defaultFn(() => createId()),
+    provider: varchar("provider", { length: 32 }).notNull(),
+    eventId: text("event_id").notNull(),
+    status: text("status", {
+      enum: ["processing", "processed", "failed"],
+    })
+      .notNull()
+      .default("processing"),
+    orderId: text("order_id"),
+    errorMessage: text("error_message"),
+    createdAt: timestamp("created_at", {
+      withTimezone: true,
+      mode: "string",
+    })
+      .defaultNow()
+      .notNull(),
+    updatedAt: timestamp("updated_at", {
+      withTimezone: true,
+      mode: "string",
+    })
+      .defaultNow()
+      .notNull(),
+    processedAt: timestamp("processed_at", {
+      withTimezone: true,
+      mode: "string",
+    }),
+  },
+  (table) => ({
+    providerEventUid: uniqueIndex(
+      "payment_webhook_events_provider_event_uid",
+    ).on(table.provider, table.eventId),
+  }),
+);
+
+export type SelectPaymentWebhookEvents = InferSelectModel<
+  typeof paymentWebhookEvents
+>;
+export type InsertPaymentWebhookEvents = InferInsertModel<
+  typeof paymentWebhookEvents
+>;
 
 export const carts = pgTable(
   "carts",

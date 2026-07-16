@@ -32,6 +32,7 @@
     "db:migrate-testimonials": "node scripts/apply-testimonials.mjs",
     "db:migrate-testimonials-video": "node scripts/apply-testimonials-video.mjs",
     "db:migrate-payment-integrations": "node scripts/apply-payment-integrations.mjs",
+    "db:migrate-payment-webhook-events": "node scripts/apply-payment-webhook-events.mjs",
     "db:migrate-seller-whatsapp-notify": "node scripts/apply-seller-whatsapp-notify.mjs",
     "db:migrate-products-draft-code": "node scripts/apply-products-draft-code.mjs",
     "db:migrate-product-discount": "node scripts/apply-product-discount.mjs",

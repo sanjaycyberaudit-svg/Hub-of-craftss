@@ -1,6 +1,10 @@
 import { verifyPhonePeWebhookSignature } from "@/lib/payments/phonepe";
 import { getPhonePeConfig } from "@/lib/integrations/settings";
 import { syncPhonePeOrderPayment } from "@/lib/payments/orderPaymentSync";
+import {
+  phonePeWebhookEventKey,
+  withPaymentWebhookIdempotency,
+} from "@/lib/payments/webhook-idempotency";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function POST(request: NextRequest) {
@@ -78,11 +82,31 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ ok: true, skipped: true });
   }
 
+  const eventId = phonePeWebhookEventKey({
+    merchantTransactionId,
+    rawBody,
+  });
+
   try {
-    await syncPhonePeOrderPayment({
-      merchantTransactionId,
+    const outcome = await withPaymentWebhookIdempotency({
+      provider: "phonepe",
+      eventId,
+      orderId: null,
+      handler: async () =>
+        syncPhonePeOrderPayment({
+          merchantTransactionId,
+        }),
     });
-    return NextResponse.json({ ok: true });
+
+    if (outcome.status === "skipped") {
+      return NextResponse.json({
+        ok: true,
+        duplicate: true,
+        reason: outcome.reason,
+      });
+    }
+
+    return NextResponse.json({ ok: true, ...outcome.result });
   } catch (error) {
     console.error("[phonepe] webhook sync failed:", error);
     return NextResponse.json({ ok: false }, { status: 500 });
