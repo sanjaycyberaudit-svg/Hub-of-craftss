@@ -1,0 +1,182 @@
+import {
+  buildUniqueProductSlug,
+  createNextProductCode,
+  PRODUCT_CODE_LOCK_ID,
+} from "@/lib/admin/product-slug";
+import { normalizeProductFormPayload } from "@/lib/admin/normalize-product-form-payload";
+import {
+  normalizeProductImageMediaIds,
+  syncProductGalleryImages,
+} from "@/lib/admin/product-gallery";
+import db from "@/lib/supabase/db";
+import { InsertProducts, products } from "@/lib/supabase/schema";
+import { eq, sql } from "drizzle-orm";
+import { createInsertSchema } from "drizzle-zod";
+
+export type ProductImageOptions = {
+  /** Ordered media ids: first = featured/main, rest = gallery (max 5). */
+  imageMediaIds?: string[];
+};
+
+function resolveFeaturedAndGallery(
+  product: InsertProducts,
+  options?: ProductImageOptions,
+) {
+  const fromOptions = options?.imageMediaIds
+    ? normalizeProductImageMediaIds(options.imageMediaIds)
+    : [];
+
+  if (fromOptions.length > 0) {
+    return {
+      featuredImageId: fromOptions[0],
+      orderedMediaIds: fromOptions,
+    };
+  }
+
+  const featuredImageId = String(product.featuredImageId ?? "").trim() || null;
+  return {
+    featuredImageId,
+    orderedMediaIds: featuredImageId ? [featuredImageId] : [],
+  };
+}
+
+/** Drop client-only / DB-owned fields before insert/update. */
+function toWritableProductFields(
+  product: InsertProducts,
+  featuredImageId: string,
+) {
+  const normalized = normalizeProductFormPayload({
+    ...product,
+    featuredImageId,
+  });
+
+  return {
+    name: normalized.name,
+    description: normalized.description,
+    featured: normalized.featured,
+    badge: normalized.badge,
+    rating: normalized.rating,
+    price: normalized.price,
+    isDraft: normalized.isDraft,
+    stock: normalized.stock,
+    collectionId: normalized.collectionId ?? null,
+    discountEnabled: normalized.discountEnabled,
+    discountPercent: normalized.discountPercent,
+    featuredImageId,
+    tags: [] as string[],
+    images: Array.isArray(normalized.images) ? normalized.images : [],
+    totalComments:
+      typeof normalized.totalComments === "number"
+        ? normalized.totalComments
+        : 0,
+  };
+}
+
+/** Plain JSON-safe product for API / client forms (no Date / Decimal surprises). */
+export function serializeProductRow<T extends Record<string, unknown>>(row: T) {
+  return JSON.parse(
+    JSON.stringify(row, (_key, value) => {
+      if (value instanceof Date) return value.toISOString();
+      return value;
+    }),
+  ) as T;
+}
+
+export async function createProductRecord(
+  product: InsertProducts,
+  options?: ProductImageOptions,
+) {
+  const { featuredImageId, orderedMediaIds } = resolveFeaturedAndGallery(
+    product,
+    options,
+  );
+  if (!featuredImageId) {
+    throw new Error("Select at least one product image.");
+  }
+
+  const base = toWritableProductFields(product, featuredImageId);
+
+  const data = await db.transaction(async (tx) => {
+    await tx.execute(
+      sql`select pg_advisory_xact_lock(${PRODUCT_CODE_LOCK_ID})`,
+    );
+
+    const productCode = await createNextProductCode(tx);
+    const slug = await buildUniqueProductSlug(tx, base.name, productCode);
+    const values = {
+      ...base,
+      productCode,
+      slug,
+    };
+
+    createInsertSchema(products).parse(values);
+    return tx.insert(products).values(values).returning();
+  });
+
+  const created = data[0];
+  if (!created) {
+    throw new Error("Product was not created.");
+  }
+
+  try {
+    await syncProductGalleryImages(created.id, orderedMediaIds);
+  } catch (error) {
+    console.error("[products] gallery sync failed after create:", error);
+  }
+
+  return serializeProductRow(created as unknown as Record<string, unknown>);
+}
+
+export async function updateProductRecord(
+  productId: string,
+  product: InsertProducts,
+  options?: ProductImageOptions,
+) {
+  const [existing] = await db
+    .select({
+      slug: products.slug,
+      productCode: products.productCode,
+    })
+    .from(products)
+    .where(eq(products.id, productId))
+    .limit(1);
+
+  if (!existing) {
+    throw new Error("Product not found.");
+  }
+
+  const { featuredImageId, orderedMediaIds } = resolveFeaturedAndGallery(
+    product,
+    options,
+  );
+  if (!featuredImageId) {
+    throw new Error("Select at least one product image.");
+  }
+
+  const base = toWritableProductFields(product, featuredImageId);
+  const values = {
+    ...base,
+    slug: existing.slug,
+    productCode: existing.productCode,
+  };
+
+  createInsertSchema(products).parse(values);
+
+  const [updated] = await db
+    .update(products)
+    .set(values)
+    .where(eq(products.id, productId))
+    .returning();
+
+  if (!updated) {
+    throw new Error("Product was not updated.");
+  }
+
+  try {
+    await syncProductGalleryImages(productId, orderedMediaIds);
+  } catch (error) {
+    console.error("[products] gallery sync failed after update:", error);
+  }
+
+  return serializeProductRow(updated as unknown as Record<string, unknown>);
+}

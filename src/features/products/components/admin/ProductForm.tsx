@@ -1,6 +1,5 @@
 "use client";
 
-import { createProductAction, updateProductAction } from "@/_actions/products";
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
   Dialog,
@@ -489,15 +488,36 @@ function ProductFrom({ product, galleryMediaIds = [] }: ProductsFormProps) {
         },
       );
 
-      const imageOptions = { imageMediaIds: productImageMediaIds };
+      // Use JSON API instead of Server Actions — Workers often wrap action
+      // failures as opaque "Server Components render" errors.
+      const saveResponse = await fetchWithTimeout(
+        "/api/admin/products/manage",
+        {
+          method: product ? "PUT" : "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            productId: product?.id,
+            product: payload,
+            imageMediaIds: productImageMediaIds,
+          }),
+        },
+      );
 
-      const result = product
-        ? await updateProductAction(product.id, payload, imageOptions)
-        : await createProductAction(payload, imageOptions);
+      const saveBody = (await saveResponse.json().catch(() => null)) as {
+        message?: string;
+        product?: SelectProducts;
+      } | null;
 
+      if (!saveResponse.ok || !saveBody?.product) {
+        throw new Error(
+          saveBody?.message || "Could not save product. Please retry.",
+        );
+      }
+
+      const savedProduct = saveBody.product;
       setSingleSaveStep("sizes");
 
-      const productId = product?.id ?? result?.[0]?.id;
+      const productId = savedProduct.id;
       if (!productId) {
         throw new Error("Product id missing after save.");
       }
@@ -525,29 +545,23 @@ function ProductFrom({ product, galleryMediaIds = [] }: ProductsFormProps) {
 
       setSingleSaveStep("storefront");
 
-      const savedProduct = result?.[0];
-      if (savedProduct) {
-        form.reset({
-          ...savedProduct,
-          featured: savedProduct.featured ?? false,
-          stock:
-            typeof savedProduct.stock === "number" ? savedProduct.stock : 1,
-        });
-        setProductImageMediaIds(productImageMediaIds);
-        setSavedSummary(productStorefrontVisibilitySummary(savedProduct));
-      }
+      form.reset({
+        ...savedProduct,
+        featured: savedProduct.featured ?? false,
+        stock:
+          typeof savedProduct.stock === "number" ? savedProduct.stock : 1,
+      });
+      setProductImageMediaIds(productImageMediaIds);
+      setSavedSummary(productStorefrontVisibilitySummary(savedProduct));
 
       toast({
         title: product ? "Product updated" : "Product created",
-        description: savedProduct
-          ? productStorefrontVisibilitySummary(savedProduct)
-          : payload.name,
+        description: productStorefrontVisibilitySummary(savedProduct),
       });
 
       if (!product) {
         router.push("/admin/products");
       } else {
-        // Avoid full RSC refresh after heavy writes — it can fail on Workers.
         router.replace(`/admin/products/${productId}`);
       }
     } catch (err) {

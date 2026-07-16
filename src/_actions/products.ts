@@ -1,23 +1,22 @@
 "use server";
 
 import db from "@/lib/supabase/db";
-import { InsertProducts, productMedias, products } from "@/lib/supabase/schema";
+import { productMedias, products } from "@/lib/supabase/schema";
 import { requireAdminActionUser } from "@/lib/auth/require-admin";
 import { invalidateStorefrontCache } from "@/lib/cache/invalidate-storefront";
 import {
   buildUniqueProductSlug,
-  createNextProductCode,
   PRODUCT_CODE_LOCK_ID,
 } from "@/lib/admin/product-slug";
 import {
   buildBulkProductInsertValues,
   type NormalizedBulkDraftShared,
 } from "@/lib/admin/normalize-bulk-product-shared";
-import { normalizeProductFormPayload } from "@/lib/admin/normalize-product-form-payload";
 import {
-  normalizeProductImageMediaIds,
-  syncProductGalleryImages,
-} from "@/lib/admin/product-gallery";
+  createProductRecord,
+  updateProductRecord,
+  type ProductImageOptions,
+} from "@/lib/admin/save-product";
 import { eq, inArray, sql } from "drizzle-orm";
 import { createInsertSchema } from "drizzle-zod";
 import { revalidatePath } from "next/cache";
@@ -42,143 +41,27 @@ async function softInvalidateStorefrontCache() {
   }
 }
 
-type ProductImageOptions = {
-  /** Ordered media ids: first = featured/main, rest = gallery (max 5). */
-  imageMediaIds?: string[];
-};
-
-function resolveFeaturedAndGallery(
-  product: InsertProducts,
-  options?: ProductImageOptions,
-) {
-  const fromOptions = options?.imageMediaIds
-    ? normalizeProductImageMediaIds(options.imageMediaIds)
-    : [];
-
-  if (fromOptions.length > 0) {
-    return {
-      featuredImageId: fromOptions[0],
-      orderedMediaIds: fromOptions,
-    };
-  }
-
-  const featuredImageId = String(product.featuredImageId ?? "").trim() || null;
-  return {
-    featuredImageId,
-    orderedMediaIds: featuredImageId ? [featuredImageId] : [],
-  };
-}
-
 export const createProductAction = async (
-  product: InsertProducts,
+  product: Parameters<typeof createProductRecord>[0],
   options?: ProductImageOptions,
 ) => {
   await requireAdminActionUser();
-  const { featuredImageId, orderedMediaIds } = resolveFeaturedAndGallery(
-    product,
-    options,
-  );
-  if (!featuredImageId) {
-    throw new Error("Select at least one product image.");
-  }
-
-  const normalized = normalizeProductFormPayload({
-    ...product,
-    featuredImageId,
-  });
-
-  const data = await db.transaction(async (tx) => {
-    await tx.execute(
-      sql`select pg_advisory_xact_lock(${PRODUCT_CODE_LOCK_ID})`,
-    );
-
-    const productCode = await createNextProductCode(tx);
-    const slug = await buildUniqueProductSlug(tx, normalized.name, productCode);
-    const values = {
-      ...normalized,
-      featuredImageId,
-      productCode,
-      slug,
-      tags: [] as string[],
-    };
-
-    createInsertSchema(products).parse(values);
-    return tx.insert(products).values(values).returning();
-  });
-
-  const created = data[0];
-  if (!created) {
-    throw new Error("Product was not created.");
-  }
-
-  try {
-    await syncProductGalleryImages(created.id, orderedMediaIds);
-  } catch (error) {
-    console.error("[products] gallery sync failed after create:", error);
-  }
-
+  const created = await createProductRecord(product, options);
   revalidateProductCatalogPaths();
   void softInvalidateStorefrontCache();
-  return data;
+  return [created];
 };
 
 export const updateProductAction = async (
   productId: string,
-  product: InsertProducts,
+  product: Parameters<typeof updateProductRecord>[1],
   options?: ProductImageOptions,
 ) => {
   await requireAdminActionUser();
-
-  const [existing] = await db
-    .select({
-      slug: products.slug,
-      productCode: products.productCode,
-    })
-    .from(products)
-    .where(eq(products.id, productId))
-    .limit(1);
-
-  if (!existing) {
-    throw new Error("Product not found.");
-  }
-
-  const { featuredImageId, orderedMediaIds } = resolveFeaturedAndGallery(
-    product,
-    options,
-  );
-  if (!featuredImageId) {
-    throw new Error("Select at least one product image.");
-  }
-
-  const normalized = normalizeProductFormPayload({
-    ...product,
-    featuredImageId,
-  });
-  const values = {
-    ...normalized,
-    featuredImageId,
-    slug: existing.slug,
-    productCode: existing.productCode,
-    tags: [] as string[],
-  };
-
-  createInsertSchema(products).parse(values);
-
-  const insertedProduct = await db
-    .update(products)
-    .set(values)
-    .where(eq(products.id, productId))
-    .returning();
-
-  try {
-    await syncProductGalleryImages(productId, orderedMediaIds);
-  } catch (error) {
-    console.error("[products] gallery sync failed after update:", error);
-  }
-
+  const updated = await updateProductRecord(productId, product, options);
   revalidateProductCatalogPaths();
   void softInvalidateStorefrontCache();
-  return insertedProduct;
+  return [updated];
 };
 
 export const getProductsByIds = async (productIds: string[]) => {
