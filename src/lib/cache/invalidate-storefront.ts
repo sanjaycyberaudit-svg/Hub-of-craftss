@@ -2,6 +2,7 @@ import { revalidateTag } from "next/cache";
 import { ADMIN_PRODUCTS_LIST_TAG } from "@/lib/admin/getAdminProductsList";
 import { CACHE_TAGS } from "./constants";
 import { redisDelByPrefix } from "./redis";
+import { clearStorefrontMemoryCache } from "./storefront-cache";
 
 const REDIS_PREFIXES = [
   "sf:products:",
@@ -9,6 +10,9 @@ const REDIS_PREFIXES = [
   "sf:size:",
   "sf:collection:",
   "sf:product:",
+  "sf:published:",
+  "sf:runtime-bundle",
+  "sf:home-banner",
   "sf:landing",
   "sf:recommendations:",
   "sf:shop-by-price",
@@ -26,4 +30,5 @@ export async function invalidateStorefrontCache() {
   Object.values(CACHE_TAGS).forEach((tag) => revalidateTag(tag));
 
   await Promise.all(REDIS_PREFIXES.map((prefix) => redisDelByPrefix(prefix)));
+  clearStorefrontMemoryCache("sf:");
 }

@@ -10,7 +10,7 @@ import { MobileBottomNav } from "@/components/layouts/MobileBottomNav";
 import { JsonLd } from "@/components/seo/JsonLd";
 import {
   getDefaultStorefrontRuntimeBundle,
-  resolveStorefrontRuntimeBundle,
+  getStorefrontRuntimeBundleCached,
 } from "@/lib/integrations/settings";
 import { sweepExpiredStockReservationsIfEnabled } from "@/lib/orders/lazy-stock-reservation-sweep";
 import {
@@ -30,8 +30,7 @@ import { ReactNode } from "react";
 
 type Props = { children: ReactNode };
 
-export const dynamic = "force-dynamic";
-export const revalidate = 0;
+export const revalidate = 120;
 
 async function withTimeout<T>(
   promise: Promise<T>,
@@ -65,7 +64,7 @@ async function StoreLayout({ children }: Props) {
     courierCharges,
     offerCodes,
   } = await withTimeout(
-    resolveStorefrontRuntimeBundle(),
+    getStorefrontRuntimeBundleCached(),
     6000,
     getDefaultStorefrontRuntimeBundle(),
     "runtimeBundle",

@@ -17,8 +17,7 @@ import {
   productImageTransitionName,
   viewTransitionStyle,
 } from "@/lib/view-transitions";
-import { keytoUrl } from "@/lib/utils";
-import { cn } from "@/lib/utils";
+import { cn, getStorefrontImageProps, keytoUrl } from "@/lib/utils";
 
 type ProductNode = DocumentType<typeof HomeFeaturedProductFragment>;
 
@@ -30,17 +29,20 @@ function ReelProductCard({ product }: { product: ProductNode }) {
   const { id, name, slug, featuredImage } = product;
   if (!featuredImage?.key) return null;
 
+  const imageSrc = keytoUrl(featuredImage.key);
+
   return (
     <ViewTransitionLink href={`/shop/${slug}`} className="group block w-full">
       <article className="relative aspect-[9/16] w-full min-h-[220px] overflow-hidden rounded-2xl border border-brand-teal/25 bg-muted shadow-[0_16px_40px_-20px_rgba(72,168,180,0.4)]">
         <Image
-          src={keytoUrl(featuredImage.key)}
+          src={imageSrc}
           alt={featuredImage.alt || name}
           fill
           sizes="(max-width: 640px) 45vw, 220px"
           className="object-cover object-top transition-transform duration-500 group-hover:scale-[1.05]"
           style={viewTransitionStyle(productImageTransitionName(id))}
           loading="lazy"
+          {...getStorefrontImageProps(imageSrc)}
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-transparent" />
         <div className="absolute inset-x-0 bottom-0 z-[2] p-3 pt-12">

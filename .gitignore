@@ -49,3 +49,10 @@ next-env.d.ts
 
 .wrangler-dry/
 
+
+.dev.vars.new-account
+.env.local.bak-migrate
+wrangler.workers.new-account.jsonc
+
+
+.dev.vars.new-account

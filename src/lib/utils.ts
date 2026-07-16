@@ -39,6 +39,17 @@ export function r2PublicUrl(key: string) {
   return `${base}/${key.replace(/^\//, "")}`;
 }
 
+/** OpenNext on Cloudflare serves `/_next/image` with attachment headers for remote URLs. */
+export function shouldBypassImageOptimization(src: string): boolean {
+  if (!src || src.startsWith("/")) return false;
+  if (src.startsWith("http://") || src.startsWith("https://")) return true;
+  return false;
+}
+
+export function getStorefrontImageProps(src: string): { unoptimized?: true } {
+  return shouldBypassImageOptimization(src) ? { unoptimized: true } : {};
+}
+
 import {
   DEFAULT_SAREE_PLACEHOLDER,
   collectionPlaceholderImage,

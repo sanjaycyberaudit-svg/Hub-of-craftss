@@ -9,7 +9,6 @@ import { getDraftProductIdsCached } from "@/lib/storefront/draft-product-ids";
 import { fetchFeaturedProductsCached } from "@/lib/storefront/product-queries";
 
 export const revalidate = 120;
-export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "Featured Products",

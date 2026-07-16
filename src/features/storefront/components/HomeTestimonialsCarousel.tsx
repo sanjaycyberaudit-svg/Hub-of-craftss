@@ -9,8 +9,7 @@ import {
   testimonialPanelAt,
   type TestimonialPanel,
 } from "@/lib/brand/testimonial-panels";
-import { keytoUrl } from "@/lib/utils";
-import { cn } from "@/lib/utils";
+import { cn, getStorefrontImageProps, keytoUrl } from "@/lib/utils";
 import { HomeSectionHeader } from "./HomeSectionHeader";
 import { HomeScrollSnapStrip, ScrollSnapItem } from "./HomeScrollSnapStrip";
 import {
@@ -80,6 +79,7 @@ function CustomerAvatar({
     .join("");
 
   if (imageKey) {
+    const imageSrc = keytoUrl(imageKey);
     return (
       <div
         className={cn(
@@ -90,12 +90,13 @@ function CustomerAvatar({
         )}
       >
         <Image
-          src={keytoUrl(imageKey)}
+          src={imageSrc}
           alt={imageAlt || name}
           fill
           sizes="44px"
           className="object-cover"
           loading="lazy"
+          {...getStorefrontImageProps(imageSrc)}
         />
       </div>
     );

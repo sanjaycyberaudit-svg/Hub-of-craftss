@@ -12,12 +12,23 @@ import {
 } from "@/lib/storage/safeUploadFileName";
 
 /** Soft ceiling for FormData fallback through the Worker. */
-export const VERCEL_SAFE_REQUEST_BYTES = 3.5 * 1024 * 1024;
+export const VERCEL_SAFE_REQUEST_BYTES = 1.25 * 1024 * 1024;
 
-export const CLIENT_PREPROCESS_MAX_EDGE = 2400;
-export const CLIENT_AGGRESSIVE_MAX_EDGE = 1600;
-export const CLIENT_TARGET_IMAGE_BYTES = 2 * 1024 * 1024;
-export const CLIENT_QUALITY_STEPS = [0.9, 0.86, 0.82, 0.78, 0.74, 0.7] as const;
+/**
+ * Low-memory WebP for Workers: keep edge high enough to stay sharp on product
+ * pages, then drop quality / edge only until we hit the byte target.
+ */
+export const CLIENT_PREPROCESS_MAX_EDGE = 1600;
+export const CLIENT_AGGRESSIVE_MAX_EDGE = 1280;
+export const CLIENT_MIN_EDGE = 1100;
+export const CLIENT_TARGET_IMAGE_BYTES = 650 * 1024;
+/** Prefer higher quality first so images stay sharp at ~650 KB. */
+export const CLIENT_QUALITY_STEPS = [0.84, 0.8, 0.76, 0.72, 0.68] as const;
+export const CLIENT_EDGE_STEPS = [
+  CLIENT_PREPROCESS_MAX_EDGE,
+  CLIENT_AGGRESSIVE_MAX_EDGE,
+  CLIENT_MIN_EDGE,
+] as const;
 export const MAX_UPLOAD_RETRIES = 3;
 export const UPLOAD_RETRY_DELAY_MS = 400;
 export const UPLOAD_REQUEST_TIMEOUT_MS = 45000;
@@ -57,7 +68,14 @@ export type UploadProgressUpdate = {
 export type PreparedUploadItem = {
   sourceName: string;
   file: File;
+  /** Original picker file before client compression (for preview cleanup). */
+  sourceFile: File;
 };
+
+/** Stable key for matching a picker file to its upload preview tile. */
+export function uploadFileIdentityKey(file: File) {
+  return `${file.name}:${file.size}:${file.lastModified}`;
+}
 
 export type MediaUploadResult = {
   uploadedCount: number;
@@ -139,10 +157,44 @@ export function validateImageFiles(files: File[]): {
   return { valid, rejected };
 }
 
-async function canvasCompress(
+async function canvasCompressAtEdge(
+  image: HTMLImageElement,
   file: File,
   maxEdge: number,
-): Promise<File | null> {
+): Promise<{ blob: Blob; quality: number } | null> {
+  const originalWidth = image.naturalWidth || image.width;
+  const originalHeight = image.naturalHeight || image.height;
+  if (!originalWidth || !originalHeight) return null;
+
+  const scale = Math.min(1, maxEdge / Math.max(originalWidth, originalHeight));
+  const targetWidth = Math.max(1, Math.round(originalWidth * scale));
+  const targetHeight = Math.max(1, Math.round(originalHeight * scale));
+
+  const canvas = document.createElement("canvas");
+  canvas.width = targetWidth;
+  canvas.height = targetHeight;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return null;
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = "high";
+  ctx.drawImage(image, 0, 0, targetWidth, targetHeight);
+
+  let best: { blob: Blob; quality: number } | null = null;
+  for (const quality of CLIENT_QUALITY_STEPS) {
+    // eslint-disable-next-line no-await-in-loop
+    const blob = await new Promise<Blob | null>((resolve) =>
+      canvas.toBlob(resolve, "image/webp", quality),
+    );
+    if (!blob) continue;
+    if (!best || blob.size < best.blob.size) best = { blob, quality };
+    if (blob.size <= CLIENT_TARGET_IMAGE_BYTES) {
+      return { blob, quality };
+    }
+  }
+  return best;
+}
+
+async function canvasCompress(file: File): Promise<File | null> {
   if (!file.type.startsWith("image/")) return null;
   if (file.type === "image/gif") return file;
 
@@ -155,41 +207,32 @@ async function canvasCompress(
       img.src = objectUrl;
     });
 
-    const originalWidth = image.naturalWidth || image.width;
-    const originalHeight = image.naturalHeight || image.height;
-    if (!originalWidth || !originalHeight) return null;
+    let bestUnderCap: Blob | null = null;
+    let smallest: Blob | null = null;
 
-    const scale = Math.min(
-      1,
-      maxEdge / Math.max(originalWidth, originalHeight),
-    );
-    const targetWidth = Math.max(1, Math.round(originalWidth * scale));
-    const targetHeight = Math.max(1, Math.round(originalHeight * scale));
-
-    const canvas = document.createElement("canvas");
-    canvas.width = targetWidth;
-    canvas.height = targetHeight;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return null;
-    ctx.drawImage(image, 0, 0, targetWidth, targetHeight);
-
-    let bestBlob: Blob | null = null;
-    for (const quality of CLIENT_QUALITY_STEPS) {
+    for (const maxEdge of CLIENT_EDGE_STEPS) {
       // eslint-disable-next-line no-await-in-loop
-      const blob = await new Promise<Blob | null>((resolve) =>
-        canvas.toBlob(resolve, "image/webp", quality),
-      );
-      if (!blob) continue;
-      if (!bestBlob || blob.size < bestBlob.size) bestBlob = blob;
-      if (blob.size <= CLIENT_TARGET_IMAGE_BYTES) {
-        bestBlob = blob;
+      const result = await canvasCompressAtEdge(image, file, maxEdge);
+      if (!result) continue;
+      if (!smallest || result.blob.size < smallest.size) {
+        smallest = result.blob;
+      }
+      if (result.blob.size <= CLIENT_TARGET_IMAGE_BYTES) {
+        bestUnderCap = result.blob;
         break;
+      }
+      if (
+        result.blob.size <= VERCEL_SAFE_REQUEST_BYTES &&
+        (!bestUnderCap || result.blob.size < bestUnderCap.size)
+      ) {
+        bestUnderCap = result.blob;
       }
     }
 
-    if (!bestBlob) return null;
+    const chosen = bestUnderCap ?? smallest;
+    if (!chosen) return null;
 
-    return new File([bestBlob], replaceExt(file.name, ".webp"), {
+    return new File([chosen], replaceExt(file.name, ".webp"), {
       type: "image/webp",
       lastModified: file.lastModified,
     });
@@ -201,18 +244,13 @@ async function canvasCompress(
 }
 
 export async function compressImageForUpload(file: File): Promise<File> {
-  const standard = await canvasCompress(file, CLIENT_PREPROCESS_MAX_EDGE);
-  if (standard && standard.size <= VERCEL_SAFE_REQUEST_BYTES) {
-    return standard.size < file.size ? standard : file;
-  }
+  const compressed = await canvasCompress(file);
+  if (!compressed) return file;
 
-  const aggressive = await canvasCompress(file, CLIENT_AGGRESSIVE_MAX_EDGE);
-  if (aggressive && aggressive.size <= VERCEL_SAFE_REQUEST_BYTES) {
-    return aggressive;
-  }
-
-  if (standard && standard.size < file.size) return standard;
-  if (aggressive && aggressive.size < file.size) return aggressive;
+  // Always prefer the WebP result when it fits Worker limits (even if a tiny
+  // JPEG was somehow smaller — we need consistent low-memory WebP in R2).
+  if (compressed.size <= VERCEL_SAFE_REQUEST_BYTES) return compressed;
+  if (compressed.size < file.size) return compressed;
   return file;
 }
 
@@ -221,10 +259,10 @@ function postCompressRejectReason(
   sourceName: string,
 ): string | null {
   if (file.size > UPLOAD_LIMIT_BYTES) {
-    return `${sourceName}: still ${formatFileSize(file.size)} after compression. Resize to 2000px and under ${UPLOAD_LIMIT_MB} MB on your computer.`;
+    return `${sourceName}: still ${formatFileSize(file.size)} after compression. Resize to 1600px and under ${UPLOAD_LIMIT_MB} MB on your computer.`;
   }
   if (file.size > MAX_PROCESSED_IMAGE_BYTES) {
-    return `${sourceName}: ${formatFileSize(file.size)} is still too large after compression (max ${formatFileSize(MAX_PROCESSED_IMAGE_BYTES)}). Resize on your computer and retry.`;
+    return `${sourceName}: ${formatFileSize(file.size)} is still too large after compression (max ${formatFileSize(MAX_PROCESSED_IMAGE_BYTES)}). Use a simpler photo or resize on your computer.`;
   }
   if (file.size > STAGING_UPLOAD_LIMIT_BYTES) {
     return `${sourceName}: ${formatFileSize(file.size)} exceeds the ${STAGING_UPLOAD_LIMIT_MB} MB upload limit. Compress and retry.`;
@@ -261,6 +299,7 @@ export async function prepareImageFiles(
     prepared.push({
       sourceName: sanitizeUploadFileName(source.name),
       file: withSafeUploadFile(compressed).file,
+      sourceFile: source,
     });
   }
 
@@ -275,9 +314,7 @@ export async function prepareImageFilesForDirect(
   prepared: PreparedUploadItem[];
   rejected: FileValidationError[];
 }> {
-  // Direct R2 staging still finalizes on the Worker, which rejects payloads
-  // over ~2.75 MB. Always compress/rename here so banner & media uploads work
-  // with large Instagram / phone camera originals.
+  // Direct R2 staging finalizes on the Worker — aim for ~650 KB sharp WebP.
   return prepareImageFiles(files, onProgress);
 }
 
@@ -368,18 +405,46 @@ async function uploadViaDirectStorage(
 
       const init = (await initRes.json()) as {
         storagePath: string;
-        signedUrl: string;
+        signedUrl?: string | null;
+        uploadMode?: "worker" | "presigned";
       };
 
-      // eslint-disable-next-line no-await-in-loop
-      const putRes = await fetch(init.signedUrl, {
-        method: "PUT",
-        body: safeFile,
-        // Do not set Content-Type: presigned URL is signed without it (R2 browser PUT).
-      });
+      let putOk = false;
+      if (init.uploadMode === "worker" || !init.signedUrl) {
+        const stageData = new FormData();
+        stageData.append("storagePath", init.storagePath);
+        stageData.append("file", safeFile);
+        // eslint-disable-next-line no-await-in-loop
+        const stageRes = await fetchWithTimeout(
+          "/api/admin/medias/direct-upload/stage",
+          {
+            method: "POST",
+            body: stageData,
+            timeoutMs: UPLOAD_REQUEST_TIMEOUT_MS,
+          },
+        );
+        putOk = stageRes.ok;
+        if (!putOk) {
+          const payload = (await stageRes.json().catch(() => ({}))) as {
+            message?: string;
+          };
+          lastError =
+            payload.message ?? `Storage upload failed (${stageRes.status}).`;
+        }
+      } else {
+        // eslint-disable-next-line no-await-in-loop
+        const putRes = await fetch(init.signedUrl, {
+          method: "PUT",
+          body: safeFile,
+          // Do not set Content-Type: presigned URL is signed without it (R2 browser PUT).
+        });
+        putOk = putRes.ok;
+        if (!putOk) {
+          lastError = `Storage upload failed (${putRes.status}).`;
+        }
+      }
 
-      if (!putRes.ok) {
-        lastError = `Storage upload failed (${putRes.status}).`;
+      if (!putOk) {
         // eslint-disable-next-line no-continue
         continue;
       }
@@ -567,6 +632,8 @@ export async function uploadMediaFilesQueue(
   files: File[],
   callbacks?: {
     onProgress?: (update: UploadProgressUpdate) => void;
+    /** Called after each file finishes; use source file to clear preview tiles. */
+    onFileUploaded?: (sourceFile: File, ok: boolean) => void;
     skipPrepare?: boolean;
     preparedItems?: PreparedUploadItem[];
     preferDirectUpload?: boolean;
@@ -593,7 +660,11 @@ export async function uploadMediaFilesQueue(
   if (callbacks?.skipPrepare && callbacks.preparedItems) {
     prepared = callbacks.preparedItems.map((item) => {
       const { file, fileName } = withSafeUploadFile(item.file);
-      return { sourceName: fileName, file };
+      return {
+        sourceName: fileName,
+        file,
+        sourceFile: item.sourceFile ?? item.file,
+      };
     });
     validationErrors = [];
   } else {
@@ -655,13 +726,14 @@ export async function uploadMediaFilesQueue(
       purpose: "upload",
       preferDirect,
     });
+    callbacks?.onFileUploaded?.(item.sourceFile, result.ok);
     if (result.ok && result.uploadedName) {
       uploadedNames.push(result.uploadedName);
     } else {
       failures.push({
         fileName: item.sourceName,
         reason: result.reason ?? `${item.sourceName}: upload failed.`,
-        file: item.file,
+        file: item.sourceFile,
       });
     }
 
@@ -915,8 +987,7 @@ export async function runBulkDraftUpload(params: {
 export function mergeUniqueFiles(prev: File[], next: File[]): File[] {
   const map = new Map<string, File>();
   [...prev, ...next].forEach((file) => {
-    const key = `${file.name}:${file.size}:${file.lastModified}`;
-    map.set(key, file);
+    map.set(uploadFileIdentityKey(file), file);
   });
   return Array.from(map.values());
 }

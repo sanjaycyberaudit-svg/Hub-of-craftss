@@ -87,8 +87,10 @@ async function ProductDetailPage({ params }: Props) {
     featuredImage,
   } = productEdge.node;
   const productSlug = resolvedParams.slug;
-  const sizeConfig = await getProductSizeConfig(id);
-  const livePricing = await getCartProductPricingByIds([id]);
+  const [sizeConfig, livePricing] = await Promise.all([
+    getProductSizeConfig(id),
+    getCartProductPricingByIds([id]),
+  ]);
   const resolvedPricing = livePricing[id];
   const pricingProduct = resolvedPricing
     ? toProductDiscountFields(resolvedPricing)

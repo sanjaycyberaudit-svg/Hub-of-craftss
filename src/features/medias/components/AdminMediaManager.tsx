@@ -231,8 +231,13 @@ export function AdminMediaManager() {
         onProgress: setUploadProgress,
         skipPrepare: options?.retry,
         preparedItems: options?.retry
-          ? files.map((file) => ({ sourceName: file.name, file }))
+          ? files.map((file) => ({
+              sourceName: file.name,
+              file,
+              sourceFile: file,
+            }))
           : undefined,
+        preferDirectUpload: true,
       });
 
       setUploadProgress({

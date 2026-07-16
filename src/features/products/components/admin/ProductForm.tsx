@@ -35,13 +35,15 @@ import {
 import { BoundedNumberInput } from "@/components/admin/BoundedNumberInput";
 import { AdminSaveProgressOverlay } from "@/components/admin/AdminSaveProgressOverlay";
 import BadgeSelectField from "@/features/cms/components/BadgeSelectField";
-import { ImageDialog } from "@/features/medias";
+import ImagePreviewCard from "@/features/medias/components/ImagePreviewCard";
 import UploadMediaContainer from "@/features/medias/components/UploadMediaContainer";
 import {
   InsertProducts,
   SelectProducts,
   products,
 } from "@/lib/supabase/schema";
+import { MAX_PRODUCT_IMAGES } from "@/lib/admin/product-gallery-shared";
+import { X } from "lucide-react";
 import {
   mergeUniqueFiles,
   prepareImageFilesForDirect,
@@ -82,6 +84,8 @@ import { gql } from "urql";
 
 type ProductsFormProps = {
   product?: SelectProducts;
+  /** Extra gallery media ids (not including featured). Loaded on edit. */
+  galleryMediaIds?: string[];
 };
 
 type BulkCreateMode = "single" | "bulk";
@@ -184,7 +188,7 @@ const SINGLE_SAVE_STEPS = [
 
 type SingleSaveStep = (typeof SINGLE_SAVE_STEPS)[number]["key"];
 
-function ProductFrom({ product }: ProductsFormProps) {
+function ProductFrom({ product, galleryMediaIds = [] }: ProductsFormProps) {
   const [isPending, startTransition] = useTransition();
   const router = useRouter();
   const { toast } = useToast();
@@ -192,6 +196,19 @@ function ProductFrom({ product }: ProductsFormProps) {
   const [bulkFiles, setBulkFiles] = useState<File[]>([]);
   const [selectedMediaIds, setSelectedMediaIds] = useState<string[]>([]);
   const [isMediaDialogOpen, setIsMediaDialogOpen] = useState(false);
+  const [isProductImagesDialogOpen, setIsProductImagesDialogOpen] =
+    useState(false);
+  const [productImageMediaIds, setProductImageMediaIds] = useState<string[]>(
+    () => {
+      const featured = product?.featuredImageId
+        ? [product.featuredImageId]
+        : [];
+      const gallery = galleryMediaIds.filter(
+        (id) => id && id !== product?.featuredImageId,
+      );
+      return [...featured, ...gallery].slice(0, MAX_PRODUCT_IMAGES);
+    },
+  );
   const [bulkCreated, setBulkCreated] = useState<CreatedDraftProduct[]>([]);
   const [bulkErrors, setBulkErrors] = useState<string[]>([]);
   const [bulkFailures, setBulkFailures] = useState<UploadFileFailure[]>([]);
@@ -231,12 +248,22 @@ function ProductFrom({ product }: ProductsFormProps) {
       discountEnabled: product?.discountEnabled ?? false,
       discountPercent: product?.discountPercent ?? null,
       stock: typeof product?.stock === "number" ? product.stock : 1,
+      featuredImageId:
+        product?.featuredImageId ??
+        (galleryMediaIds[0] ? galleryMediaIds[0] : undefined),
     },
   });
 
-  const { register, control, handleSubmit, watch } = form;
+  const { register, control, handleSubmit, watch, setValue } = form;
   const isDraft = watch("isDraft");
   const isFeatured = watch("featured");
+
+  useEffect(() => {
+    setValue("featuredImageId", productImageMediaIds[0] ?? "", {
+      shouldValidate: productImageMediaIds.length > 0,
+      shouldDirty: true,
+    });
+  }, [productImageMediaIds, setValue]);
   const isSavingSingle = singleSaveStep !== null;
   const isFormBusy =
     isPending ||
@@ -415,18 +442,58 @@ function ProductFrom({ product }: ProductsFormProps) {
     );
   };
 
+  const toggleProductImageMediaId = (mediaId: string) => {
+    setProductImageMediaIds((prev) => {
+      if (prev.includes(mediaId)) {
+        return prev.filter((id) => id !== mediaId);
+      }
+      if (prev.length >= MAX_PRODUCT_IMAGES) {
+        toast({
+          title: "Image limit reached",
+          description: `You can add up to ${MAX_PRODUCT_IMAGES} images per product.`,
+          variant: "destructive",
+        });
+        return prev;
+      }
+      return [...prev, mediaId];
+    });
+  };
+
+  const removeProductImageMediaId = (mediaId: string) => {
+    setProductImageMediaIds((prev) => prev.filter((id) => id !== mediaId));
+  };
+
+  const setProductImageAsMain = (mediaId: string) => {
+    setProductImageMediaIds((prev) => {
+      if (!prev.includes(mediaId)) return prev;
+      return [mediaId, ...prev.filter((id) => id !== mediaId)];
+    });
+  };
+
   const onSingleSubmit = async (data: InsertProducts) => {
     setSavedSummary(null);
     setSingleSaveStep("product");
 
     try {
-      const payload = normalizeProductFormPayload(data, {
-        stockFallback: stockControl.enabled ? 1 : 0,
-      });
+      if (productImageMediaIds.length === 0) {
+        throw new Error("Select at least one product image.");
+      }
+
+      const payload = normalizeProductFormPayload(
+        {
+          ...data,
+          featuredImageId: productImageMediaIds[0],
+        },
+        {
+          stockFallback: stockControl.enabled ? 1 : 0,
+        },
+      );
+
+      const imageOptions = { imageMediaIds: productImageMediaIds };
 
       const result = product
-        ? await updateProductAction(product.id, payload)
-        : await createProductAction(payload);
+        ? await updateProductAction(product.id, payload, imageOptions)
+        : await createProductAction(payload, imageOptions);
 
       setSingleSaveStep("sizes");
 
@@ -1172,28 +1239,125 @@ function ProductFrom({ product }: ProductsFormProps) {
             <FormField
               control={form.control}
               name="featuredImageId"
-              render={({ field }) => (
+              render={() => (
                 <FormItem>
-                  <FormLabel>Product image*</FormLabel>
-                  <Suspense>
-                    <ImageDialog
-                      defaultValue={product?.featuredImageId}
-                      onChange={field.onChange}
-                      value={field.value}
-                      selectLabel="Select product image"
-                      changeLabel="Change product image"
-                    />
-                  </Suspense>
+                  <FormLabel>Product images*</FormLabel>
+                  <div className="space-y-3">
+                    {productImageMediaIds.length > 0 ? (
+                      <div className="flex flex-wrap gap-3">
+                        {productImageMediaIds.map((mediaId, index) => (
+                          <div
+                            key={mediaId}
+                            className="relative w-[120px] space-y-1"
+                          >
+                            <div className="relative">
+                              <ImagePreviewCard mediaId={mediaId} />
+                              {index === 0 ? (
+                                <span className="absolute left-1 top-1 rounded bg-primary px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-primary-foreground">
+                                  Main
+                                </span>
+                              ) : null}
+                              <button
+                                type="button"
+                                className="absolute right-1 top-1 rounded-full bg-background/90 p-1 text-muted-foreground shadow hover:text-destructive"
+                                aria-label="Remove image"
+                                onClick={() =>
+                                  removeProductImageMediaId(mediaId)
+                                }
+                              >
+                                <X className="h-3.5 w-3.5" />
+                              </button>
+                            </div>
+                            {index > 0 ? (
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                className="h-7 w-full px-1 text-[11px]"
+                                onClick={() => setProductImageAsMain(mediaId)}
+                              >
+                                Set as main
+                              </Button>
+                            ) : (
+                              <p className="text-center text-[11px] text-muted-foreground">
+                                Main photo
+                              </p>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    ) : null}
+
+                    <Button
+                      type="button"
+                      variant="default"
+                      className="h-10 gap-2 px-4 font-medium"
+                      onClick={() => setIsProductImagesDialogOpen(true)}
+                    >
+                      {productImageMediaIds.length
+                        ? "Add / change images"
+                        : "Select product images"}
+                    </Button>
+                  </div>
 
                   <FormDescription>
-                    Click the button to choose an image from the media library
-                    or upload a new one.
+                    Select up to {MAX_PRODUCT_IMAGES} images. The first image is
+                    the main photo; the rest appear as gallery thumbnails on the
+                    product page.
                   </FormDescription>
                   <FormMessage />
+                  {!productImageMediaIds.length ? (
+                    <p className="text-sm font-medium text-destructive">
+                      At least one product image is required.
+                    </p>
+                  ) : null}
                 </FormItem>
               )}
             />
           )}
+
+          {!inBulkMode ? (
+            <Dialog
+              open={isProductImagesDialogOpen}
+              onOpenChange={setIsProductImagesDialogOpen}
+            >
+              <DialogContent className="flex max-h-[90vh] max-w-[1080px] flex-col overflow-hidden sm:max-w-[1080px]">
+                <DialogHeader className="shrink-0">
+                  <DialogTitle>Select product images</DialogTitle>
+                </DialogHeader>
+                <div className="min-h-0 flex-1 overflow-hidden">
+                  <Suspense>
+                    <UploadMediaContainer
+                      onClickItemsHandler={toggleProductImageMediaId}
+                      selectedImageIds={productImageMediaIds}
+                      defaultImageId={productImageMediaIds[0]}
+                    />
+                  </Suspense>
+                </div>
+                <div className="flex shrink-0 items-center justify-between border-t pt-3">
+                  <p className="text-xs text-muted-foreground">
+                    Selected: {productImageMediaIds.length}/{MAX_PRODUCT_IMAGES}
+                    {productImageMediaIds.length
+                      ? " — first selected is Main"
+                      : ""}
+                  </p>
+                  <Button
+                    type="button"
+                    onClick={() => {
+                      form.setValue(
+                        "featuredImageId",
+                        productImageMediaIds[0] ?? "",
+                        { shouldValidate: true, shouldDirty: true },
+                      );
+                      setIsProductImagesDialogOpen(false);
+                    }}
+                  >
+                    Done
+                  </Button>
+                </div>
+              </DialogContent>
+            </Dialog>
+          ) : null}
 
           {inBulkMode ? (
             <Dialog

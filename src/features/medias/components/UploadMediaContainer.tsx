@@ -6,6 +6,7 @@ import { useToast } from "@/components/ui/use-toast";
 import { gql } from "@/gql";
 import {
   UPLOAD_LIMIT_BYTES,
+  uploadFileIdentityKey,
   uploadMediaFilesQueue,
 } from "@/lib/admin/client-image-upload";
 import { FileWithPreview } from "@/types";
@@ -67,6 +68,25 @@ function UploadMediaContainer({
     setAccumulatedEdges([]);
     setHasNextPage(false);
     setIsLoadingMore(false);
+  }, []);
+
+  const removeUploadingPreviews = useCallback((files: File[]) => {
+    if (files.length === 0) return;
+    const keys = new Set(files.map(uploadFileIdentityKey));
+    setUploadingImages((prev) => {
+      const kept: FileWithPreview[] = [];
+      for (const item of prev) {
+        if (keys.has(uploadFileIdentityKey(item))) {
+          URL.revokeObjectURL(item.preview);
+          previewUrlsRef.current = previewUrlsRef.current.filter(
+            (url) => url !== item.preview,
+          );
+        } else {
+          kept.push(item);
+        }
+      }
+      return kept;
+    });
   }, []);
 
   useEffect(() => {
@@ -149,15 +169,18 @@ function UploadMediaContainer({
         onProgress: (update) => {
           setUploadMessage(update.message);
         },
+        onFileUploaded: (sourceFile, ok) => {
+          if (ok) removeUploadingPreviews([sourceFile]);
+        },
+        preferDirectUpload: true,
       });
 
-      const uploadedNames = new Set(result.uploadedNames);
-      if (uploadedNames.size > 0) {
+      // Safety: clear any remaining previews from this batch (failed/skipped).
+      removeUploadingPreviews(acceptedFiles);
+
+      if (result.uploadedCount > 0) {
         resetGallery();
         refetch({ requestPolicy: "network-only" });
-        setUploadingImages((prev) =>
-          prev.filter((item) => !uploadedNames.has(item.name)),
-        );
       }
 
       const issueCount =

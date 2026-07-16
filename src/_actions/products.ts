@@ -14,6 +14,10 @@ import {
   type NormalizedBulkDraftShared,
 } from "@/lib/admin/normalize-bulk-product-shared";
 import { normalizeProductFormPayload } from "@/lib/admin/normalize-product-form-payload";
+import {
+  normalizeProductImageMediaIds,
+  syncProductGalleryImages,
+} from "@/lib/admin/product-gallery";
 import { eq, inArray, sql } from "drizzle-orm";
 import { createInsertSchema } from "drizzle-zod";
 import { revalidatePath } from "next/cache";
@@ -27,9 +31,50 @@ function revalidateProductCatalogPaths() {
   revalidatePath("/collections");
 }
 
-export const createProductAction = async (product: InsertProducts) => {
+type ProductImageOptions = {
+  /** Ordered media ids: first = featured/main, rest = gallery (max 5). */
+  imageMediaIds?: string[];
+};
+
+function resolveFeaturedAndGallery(
+  product: InsertProducts,
+  options?: ProductImageOptions,
+) {
+  const fromOptions = options?.imageMediaIds
+    ? normalizeProductImageMediaIds(options.imageMediaIds)
+    : [];
+
+  if (fromOptions.length > 0) {
+    return {
+      featuredImageId: fromOptions[0],
+      orderedMediaIds: fromOptions,
+    };
+  }
+
+  const featuredImageId = String(product.featuredImageId ?? "").trim() || null;
+  return {
+    featuredImageId,
+    orderedMediaIds: featuredImageId ? [featuredImageId] : [],
+  };
+}
+
+export const createProductAction = async (
+  product: InsertProducts,
+  options?: ProductImageOptions,
+) => {
   await requireAdminActionUser();
-  const normalized = normalizeProductFormPayload(product);
+  const { featuredImageId, orderedMediaIds } = resolveFeaturedAndGallery(
+    product,
+    options,
+  );
+  if (!featuredImageId) {
+    throw new Error("Select at least one product image.");
+  }
+
+  const normalized = normalizeProductFormPayload({
+    ...product,
+    featuredImageId,
+  });
 
   const data = await db.transaction(async (tx) => {
     await tx.execute(
@@ -40,13 +85,21 @@ export const createProductAction = async (product: InsertProducts) => {
     const slug = await buildUniqueProductSlug(tx, normalized.name, productCode);
     const values = {
       ...normalized,
+      featuredImageId,
       productCode,
       slug,
       tags: [] as string[],
     };
 
     createInsertSchema(products).parse(values);
-    return tx.insert(products).values(values).returning();
+    const inserted = await tx.insert(products).values(values).returning();
+    const created = inserted[0];
+    if (!created) {
+      throw new Error("Product was not created.");
+    }
+
+    await syncProductGalleryImages(created.id, orderedMediaIds, tx);
+    return inserted;
   });
 
   revalidateProductCatalogPaths();
@@ -57,6 +110,7 @@ export const createProductAction = async (product: InsertProducts) => {
 export const updateProductAction = async (
   productId: string,
   product: InsertProducts,
+  options?: ProductImageOptions,
 ) => {
   await requireAdminActionUser();
 
@@ -73,9 +127,21 @@ export const updateProductAction = async (
     throw new Error("Product not found.");
   }
 
-  const normalized = normalizeProductFormPayload(product);
+  const { featuredImageId, orderedMediaIds } = resolveFeaturedAndGallery(
+    product,
+    options,
+  );
+  if (!featuredImageId) {
+    throw new Error("Select at least one product image.");
+  }
+
+  const normalized = normalizeProductFormPayload({
+    ...product,
+    featuredImageId,
+  });
   const values = {
     ...normalized,
+    featuredImageId,
     slug: existing.slug,
     productCode: existing.productCode,
     tags: [] as string[],
@@ -83,11 +149,16 @@ export const updateProductAction = async (
 
   createInsertSchema(products).parse(values);
 
-  const insertedProduct = await db
-    .update(products)
-    .set(values)
-    .where(eq(products.id, productId))
-    .returning();
+  const insertedProduct = await db.transaction(async (tx) => {
+    const updated = await tx
+      .update(products)
+      .set(values)
+      .where(eq(products.id, productId))
+      .returning();
+
+    await syncProductGalleryImages(productId, orderedMediaIds, tx);
+    return updated;
+  });
 
   revalidateProductCatalogPaths();
   await invalidateStorefrontCache();

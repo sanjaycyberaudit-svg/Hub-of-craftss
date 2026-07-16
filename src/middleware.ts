@@ -90,14 +90,19 @@ function redirectToCanonicalHost(request: NextRequest): NextResponse | null {
   }
 
   const canonicalHost = canonical.host.toLowerCase();
-  if (host === canonicalHost) {
+  const apexHost = canonicalHost.replace(/^www\./, "");
+  const wwwHost = apexHost.startsWith("www.") ? apexHost : `www.${apexHost}`;
+  // Allow both apex and www of the configured domain (no forced hop).
+  if (host === canonicalHost || host === apexHost || host === wwwHost) {
     return null;
   }
 
   const redirect = new URL(request.url);
   redirect.protocol = canonical.protocol;
   redirect.host = canonicalHost;
-  return NextResponse.redirect(redirect, 308);
+  // 307 (not 308): browsers aggressively cache permanent redirects; a wrong
+  // canonical SITE_URL must not lock users onto workers.dev forever.
+  return NextResponse.redirect(redirect, 307);
 }
 
 export async function middleware(request: NextRequest) {

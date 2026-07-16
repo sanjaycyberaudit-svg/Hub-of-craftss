@@ -11,9 +11,11 @@ import {
   createPresignedPutUrl,
   deleteObjects,
   getObjectBuffer,
+  putObject,
 } from "@/lib/s3";
 import db from "@/lib/supabase/db";
 import { medias } from "@/lib/supabase/schema";
+import { env } from "@/env.mjs";
 import { nanoid } from "nanoid";
 import {
   sanitizeExtension,
@@ -23,6 +25,7 @@ import {
 import { uploadMediaToR2 } from "./uploadMedia";
 
 export type DirectUploadPurpose = "upload" | "product-draft";
+export type DirectUploadMode = "worker" | "presigned";
 
 const STAGING_PREFIX = "uploads/staging/";
 
@@ -40,6 +43,18 @@ export function isValidStagingPath(path: string): boolean {
 
 async function deleteStagingFile(storagePath: string) {
   await deleteObjects({ keys: [storagePath] });
+}
+
+async function hasMediaBucketBinding(): Promise<boolean> {
+  try {
+    const { getCloudflareContext } = await import("@opennextjs/cloudflare");
+    const { env: cfEnv } = await getCloudflareContext({ async: true });
+    return Boolean(
+      (cfEnv as Record<string, unknown> | undefined)?.MEDIA_BUCKET,
+    );
+  } catch {
+    return false;
+  }
 }
 
 export async function createDirectUploadSession(params: {
@@ -61,6 +76,16 @@ export async function createDirectUploadSession(params: {
 
   const storagePath = buildStagingPath(sanitizeUploadFileName(params.fileName));
 
+  // Prefer Worker R2 binding staging — S3 presigned PUT credentials may still
+  // point at another account during cutover, and aws4fetch PUT 401s on Workers.
+  if (await hasMediaBucketBinding()) {
+    return {
+      storagePath,
+      uploadMode: "worker" as DirectUploadMode,
+      signedUrl: null as string | null,
+    };
+  }
+
   let signedUrl: string | null = null;
   let error: unknown = null;
   try {
@@ -80,8 +105,44 @@ export async function createDirectUploadSession(params: {
 
   return {
     storagePath,
+    uploadMode: "presigned" as DirectUploadMode,
     signedUrl,
   };
+}
+
+/** Stage bytes into R2 via MEDIA_BUCKET (or local S3 fallback). */
+export async function stageDirectUpload(params: {
+  storagePath: string;
+  body: ArrayBuffer | Uint8Array | Buffer;
+  contentType: string;
+}) {
+  if (!isValidStagingPath(params.storagePath)) {
+    throw new Error("Invalid staging path.");
+  }
+  if (!params.contentType.startsWith("image/")) {
+    throw new Error("Only image files are allowed.");
+  }
+  const size =
+    params.body instanceof ArrayBuffer
+      ? params.body.byteLength
+      : params.body.byteLength;
+  if (size <= 0) {
+    throw new Error("File is empty.");
+  }
+  if (size > STAGING_UPLOAD_LIMIT_BYTES) {
+    throw new Error(
+      `Each image must be ${STAGING_UPLOAD_LIMIT_MB} MB or smaller after compression.`,
+    );
+  }
+
+  await putObject({
+    Bucket: env.NEXT_PUBLIC_S3_BUCKET,
+    Key: params.storagePath,
+    Body: params.body,
+    ContentType: params.contentType || "application/octet-stream",
+  });
+
+  return { storagePath: params.storagePath };
 }
 
 export async function finalizeDirectUpload(params: {
@@ -114,7 +175,7 @@ export async function finalizeDirectUpload(params: {
   if (buffer.length > MAX_PROCESSED_IMAGE_BYTES) {
     await deleteStagingFile(stagingKey);
     throw new Error(
-      "Image is too large after upload. Compress under 2.75 MB and retry.",
+      "Image is too large after upload. Compress under 1 MB and retry.",
     );
   }
 

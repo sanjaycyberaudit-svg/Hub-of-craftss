@@ -254,7 +254,11 @@ export const ProductDetailPageQueryDocument = gql(/* GraphQL */ `
         }
       }
     }
-    recommendations: productsCollection(first: 4) {
+    recommendations: productsCollection(
+      filter: { featured: { eq: true } }
+      first: 4
+      orderBy: [{ created_at: DescNullsLast }]
+    ) {
       edges {
         node {
           id

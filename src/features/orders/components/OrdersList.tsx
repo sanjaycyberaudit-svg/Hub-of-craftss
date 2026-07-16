@@ -7,7 +7,12 @@ import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import type { UserOrderListView } from "@/lib/orders/getUserOrdersList";
 import { formatOrderDateTimeIst } from "@/lib/datetime/india";
-import { cn, formatPrice, keytoUrl } from "@/lib/utils";
+import {
+  cn,
+  formatPrice,
+  getStorefrontImageProps,
+  keytoUrl,
+} from "@/lib/utils";
 
 type OrdersListProps = {
   orders: UserOrderListView[];
@@ -60,37 +65,41 @@ function OrdersList({ orders }: OrdersListProps) {
 
             <div className="grid grid-cols-12 gap-8 py-3">
               <div className="col-span-12 flex flex-col gap-5 md:col-span-8">
-                {order.lines.map((line) => (
-                  <div className="flex items-center gap-5" key={line.id}>
-                    <div className="relative h-[120px] min-w-[80px] w-[120px] grow">
-                      <Image
-                        width={120}
-                        height={120}
-                        src={keytoUrl(line.imageKey ?? undefined)}
-                        alt={line.imageAlt || line.productName}
-                        className="h-[120px] w-[120px] object-cover"
-                      />
-                    </div>
+                {order.lines.map((line) => {
+                  const imageSrc = keytoUrl(line.imageKey ?? undefined);
+                  return (
+                    <div className="flex items-center gap-5" key={line.id}>
+                      <div className="relative h-[120px] min-w-[80px] w-[120px] grow">
+                        <Image
+                          width={120}
+                          height={120}
+                          src={imageSrc}
+                          alt={line.imageAlt || line.productName}
+                          className="h-[120px] w-[120px] object-cover"
+                          {...getStorefrontImageProps(imageSrc)}
+                        />
+                      </div>
 
-                    <div className="flex flex-col gap-2">
-                      {line.productSlug ? (
-                        <Link
-                          href={`/shop/${line.productSlug}`}
-                          className="text-blue-600"
-                        >
-                          {line.productName}
-                        </Link>
-                      ) : (
-                        <p className="font-medium">{line.productName}</p>
-                      )}
-                      {line.productDescription ? (
-                        <p className="line-clamp-2 leading-tight tracking-tighter">
-                          {line.productDescription}
-                        </p>
-                      ) : null}
+                      <div className="flex flex-col gap-2">
+                        {line.productSlug ? (
+                          <Link
+                            href={`/shop/${line.productSlug}`}
+                            className="text-blue-600"
+                          >
+                            {line.productName}
+                          </Link>
+                        ) : (
+                          <p className="font-medium">{line.productName}</p>
+                        )}
+                        {line.productDescription ? (
+                          <p className="line-clamp-2 leading-tight tracking-tighter">
+                            {line.productDescription}
+                          </p>
+                        ) : null}
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
 
               <section className="col-span-12 flex w-full flex-col gap-3 md:col-span-4">

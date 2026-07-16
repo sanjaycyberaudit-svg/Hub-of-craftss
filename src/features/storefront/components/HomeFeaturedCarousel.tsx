@@ -12,7 +12,7 @@ import { AddToCartButton } from "@/features/carts";
 import { AddToWishListButton } from "@/features/wishlists";
 import { ViewTransitionLink } from "@/components/ui/ViewTransitionLink";
 import { Badge } from "@/components/ui/badge";
-import { keytoUrl } from "@/lib/utils";
+import { getStorefrontImageProps, keytoUrl } from "@/lib/utils";
 import {
   productImageTransitionName,
   viewTransitionStyle,
@@ -55,18 +55,21 @@ type Props = {
 function FeaturedSlide({ product }: { product: ProductNode }) {
   const { id, name, slug, featuredImage, badge } = product;
 
+  const imageSrc = keytoUrl(featuredImage?.key);
+
   return (
     <article className="group flex h-full flex-col overflow-hidden rounded-2xl border border-brand-teal/15 bg-card shadow-[0_14px_36px_-22px_rgba(72,168,180,0.4)]">
       <div className="relative w-full aspect-[3/4] max-h-[min(72vh,440px)] bg-muted">
         <ViewTransitionLink href={`/shop/${slug}`} className="absolute inset-0">
           <Image
-            src={keytoUrl(featuredImage?.key)}
+            src={imageSrc}
             alt={featuredImage?.alt || name}
             fill
             sizes="(max-width: 640px) 78vw, (max-width: 1024px) 42vw, 360px"
             className="object-cover object-top transition-transform duration-500 group-hover:scale-[1.04]"
             style={viewTransitionStyle(productImageTransitionName(id))}
             loading="lazy"
+            {...getStorefrontImageProps(imageSrc)}
           />
         </ViewTransitionLink>
         <ProductDiscountBadge

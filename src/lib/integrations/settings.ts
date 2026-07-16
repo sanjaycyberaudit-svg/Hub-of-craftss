@@ -7,6 +7,11 @@ import {
   type CourierChargeBreakdown,
   type CourierChargesConfig,
 } from "@/lib/courier/calculate";
+import {
+  CACHE_TAGS,
+  STOREFRONT_REVALIDATE_SECONDS,
+} from "@/lib/cache/constants";
+import { withStorefrontCache } from "@/lib/cache/storefront-cache";
 import { cache } from "react";
 import type {
   ResolvedStorefrontAnnouncements,
@@ -612,37 +617,42 @@ export function getDefaultStorefrontRuntimeBundle(): StorefrontRuntimeBundle {
   };
 }
 
+async function loadStorefrontRuntimeBundle(): Promise<StorefrontRuntimeBundle> {
+  try {
+    const map = await loadStorefrontSettingsMap();
+    return {
+      contact: parseContactFromRow(map.get(INTEGRATION_KEYS.storefrontContact)),
+      social: parseSocialFromRow(map.get(INTEGRATION_KEYS.storefrontSocial)),
+      announcements: parseAnnouncementsFromRow(
+        map.get(INTEGRATION_KEYS.announcementBar),
+      ),
+      bulkOrderGuard: parseBulkOrderFromRow(
+        map.get(INTEGRATION_KEYS.bulkOrderGuard),
+      ),
+      stockControl: parseStockControlFromRow(
+        map.get(INTEGRATION_KEYS.stockControl),
+      ),
+      courierCharges: parseCourierFromRow(
+        map.get(INTEGRATION_KEYS.courierCharges),
+      ),
+      offerCodes: parseOfferCodesFromRow(map.get(INTEGRATION_KEYS.offerCodes)),
+    };
+  } catch (error) {
+    console.error("[settings] resolveStorefrontRuntimeBundle failed:", error);
+    return getDefaultStorefrontRuntimeBundle();
+  }
+}
+
 export const resolveStorefrontRuntimeBundle = cache(
-  async (): Promise<StorefrontRuntimeBundle> => {
-    try {
-      const map = await loadStorefrontSettingsMap();
-      return {
-        contact: parseContactFromRow(
-          map.get(INTEGRATION_KEYS.storefrontContact),
-        ),
-        social: parseSocialFromRow(map.get(INTEGRATION_KEYS.storefrontSocial)),
-        announcements: parseAnnouncementsFromRow(
-          map.get(INTEGRATION_KEYS.announcementBar),
-        ),
-        bulkOrderGuard: parseBulkOrderFromRow(
-          map.get(INTEGRATION_KEYS.bulkOrderGuard),
-        ),
-        stockControl: parseStockControlFromRow(
-          map.get(INTEGRATION_KEYS.stockControl),
-        ),
-        courierCharges: parseCourierFromRow(
-          map.get(INTEGRATION_KEYS.courierCharges),
-        ),
-        offerCodes: parseOfferCodesFromRow(
-          map.get(INTEGRATION_KEYS.offerCodes),
-        ),
-      };
-    } catch (error) {
-      console.error("[settings] resolveStorefrontRuntimeBundle failed:", error);
-      return getDefaultStorefrontRuntimeBundle();
-    }
-  },
+  loadStorefrontRuntimeBundle,
 );
+
+export async function getStorefrontRuntimeBundleCached(): Promise<StorefrontRuntimeBundle> {
+  return withStorefrontCache("sf:runtime-bundle", loadStorefrontRuntimeBundle, {
+    revalidate: STOREFRONT_REVALIDATE_SECONDS,
+    tags: [CACHE_TAGS.settings],
+  });
+}
 
 export async function upsertIntegrationSetting(
   key: IntegrationKey,
@@ -862,4 +872,13 @@ export async function getHomeBannerSlides(): Promise<HomeBannerSlide[] | null> {
     console.error("[settings] getHomeBannerSlides failed:", error);
     return null;
   }
+}
+
+export async function getHomeBannerSlidesCached(): Promise<
+  HomeBannerSlide[] | null
+> {
+  return withStorefrontCache("sf:home-banner", getHomeBannerSlides, {
+    revalidate: STOREFRONT_REVALIDATE_SECONDS,
+    tags: [CACHE_TAGS.settings],
+  });
 }

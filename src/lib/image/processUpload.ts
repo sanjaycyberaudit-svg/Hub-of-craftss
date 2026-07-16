@@ -3,11 +3,11 @@ import { UPLOAD_LIMIT_BYTES } from "./uploadLimits";
 export { UPLOAD_LIMIT_BYTES } from "./uploadLimits";
 
 /** Max width stored in R2 — detail/zoom; Next.js Image serves smaller sizes. */
-export const MAX_IMAGE_WIDTH = 2000;
+export const MAX_IMAGE_WIDTH = 1600;
 
-export const WEBP_QUALITY = 82;
+export const WEBP_QUALITY = 80;
 /** Hard cap for bytes held in the Worker after staging fetch / FormData. */
-export const MAX_PROCESSED_IMAGE_BYTES = 2.75 * 1024 * 1024;
+export const MAX_PROCESSED_IMAGE_BYTES = 1 * 1024 * 1024;
 
 export type ProcessedImage = {
   buffer: Buffer;
@@ -85,7 +85,9 @@ const FORMAT_META: Record<string, { contentType: string; extension: string }> =
   };
 
 function toBuffer(bytes: Uint8Array): Buffer {
-  return Buffer.isBuffer(bytes) ? bytes : Buffer.from(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  return Buffer.isBuffer(bytes)
+    ? bytes
+    : Buffer.from(bytes.buffer, bytes.byteOffset, bytes.byteLength);
 }
 
 /**
@@ -111,7 +113,7 @@ export function processImageBytes(bytes: Uint8Array): ProcessedImage {
   if (format === "gif" && isAnimatedGif(bytes)) {
     if (bytes.length > MAX_PROCESSED_IMAGE_BYTES) {
       throw new Error(
-        "Animated GIF is too large. Use a shorter clip or WebP under 2.75 MB.",
+        "Animated GIF is too large. Use a shorter clip or WebP under 1 MB.",
       );
     }
     return {
@@ -123,7 +125,7 @@ export function processImageBytes(bytes: Uint8Array): ProcessedImage {
 
   if (bytes.length > MAX_PROCESSED_IMAGE_BYTES) {
     throw new Error(
-      "Image is too large after upload. Use JPEG/WebP under 2.75 MB (admin uploads are auto-compressed in the browser).",
+      "Image is too large after upload. Use JPEG/WebP under 1 MB (admin uploads are auto-compressed to WebP in the browser).",
     );
   }
 

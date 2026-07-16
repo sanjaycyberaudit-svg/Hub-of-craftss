@@ -1,6 +1,6 @@
 "use client";
 import { DocumentType, gql } from "@/gql";
-import { formatPrice, keytoUrl } from "@/lib/utils";
+import { formatPrice, getStorefrontImageProps, keytoUrl } from "@/lib/utils";
 import Image from "next/image";
 import Link from "next/link";
 import { Card, CardContent, CardHeader } from "../../../components/ui/card";
@@ -34,31 +34,35 @@ function BuyAgainCard({ products }: BuyAgainCardProps) {
         <h2 className="text-lg">Buy again</h2>
       </CardHeader>
       <CardContent className="flex flex-col gap-y-5 py-5">
-        {products.map(({ node }) => (
-          <div key={node.id} className="grid grid-cols-5">
-            <div className="relative col-span-2">
-              <Image
-                src={keytoUrl(node.featuredImage.key)}
-                alt={node.featuredImage.alt}
-                className="w-[80px] h-[80px] object-cover"
-                width={80}
-                height={80}
-              />
-            </div>
+        {products.map(({ node }) => {
+          const imageSrc = keytoUrl(node.featuredImage.key);
+          return (
+            <div key={node.id} className="grid grid-cols-5">
+              <div className="relative col-span-2">
+                <Image
+                  src={imageSrc}
+                  alt={node.featuredImage.alt}
+                  className="w-[80px] h-[80px] object-cover"
+                  width={80}
+                  height={80}
+                  {...getStorefrontImageProps(imageSrc)}
+                />
+              </div>
 
-            <div className="col-span-3 ">
-              <Link
-                href={"/shop/" + node.slug}
-                className="text-blue-500 line-clamp-3"
-              >
-                {node.name}
-              </Link>
-              <Link href={node.slug} className="text-red-700">
-                <p>{formatPrice(node.price)}</p>
-              </Link>
+              <div className="col-span-3 ">
+                <Link
+                  href={"/shop/" + node.slug}
+                  className="text-blue-500 line-clamp-3"
+                >
+                  {node.name}
+                </Link>
+                <Link href={node.slug} className="text-red-700">
+                  <p>{formatPrice(node.price)}</p>
+                </Link>
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </CardContent>
     </Card>
   );

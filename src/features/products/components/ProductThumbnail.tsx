@@ -1,5 +1,5 @@
 import Image from "next/image";
-import { cn, keytoUrl } from "@/lib/utils";
+import { cn, getStorefrontImageProps, keytoUrl } from "@/lib/utils";
 import {
   productThumbnailFrameClass,
   productThumbnailImageClass,
@@ -26,16 +26,19 @@ export function ProductThumbnail({
   imageClassName,
   priority = false,
 }: Props) {
+  const imageSrc = keytoUrl(imageKey);
+
   return (
     <div className={cn(productThumbnailFrameClass, frameClassName)}>
       <Image
-        src={keytoUrl(imageKey)}
+        src={imageSrc}
         alt={alt}
         fill
         sizes={productThumbnailSizes}
         className={cn(productThumbnailImageClass, imageClassName)}
         priority={priority}
         loading={priority ? undefined : "lazy"}
+        {...getStorefrontImageProps(imageSrc)}
       />
     </div>
   );

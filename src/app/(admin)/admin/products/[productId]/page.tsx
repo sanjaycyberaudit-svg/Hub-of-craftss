@@ -1,5 +1,6 @@
 import AdminShell from "@/components/admin/AdminShell";
 import { ProductForm } from "@/features/products";
+import { loadProductGalleryMediaIds } from "@/lib/admin/product-gallery";
 import db from "@/lib/supabase/db";
 import { products } from "@/lib/supabase/schema";
 import { eq } from "drizzle-orm";
@@ -21,13 +22,15 @@ async function EditProjectPage({ params }: EditProjectPageProps) {
   });
   if (!product) return notFound();
 
+  const galleryMediaIds = await loadProductGalleryMediaIds(productId);
+
   return (
     <AdminShell
       heading="Edit Product"
       description="Update the fields below, then click Update to save changes."
     >
       <Suspense>
-        <ProductForm product={product} />
+        <ProductForm product={product} galleryMediaIds={galleryMediaIds} />
       </Suspense>
     </AdminShell>
   );

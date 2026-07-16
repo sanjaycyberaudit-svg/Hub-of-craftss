@@ -18,6 +18,13 @@
       "service": "hub-of-craftss"
     }
   ],
+  // Native R2 access for Worker put/get/delete (avoids S3 API 401s from aws4fetch).
+  "r2_buckets": [
+    {
+      "binding": "MEDIA_BUCKET",
+      "bucket_name": "hubofcraftss-cdn"
+    }
+  ],
   "observability": {
     "enabled": true,
     "head_sampling_rate": 1

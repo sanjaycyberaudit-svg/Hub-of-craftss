@@ -1,6 +1,7 @@
 "use client";
 import { Spinner } from "@/components/ui/spinner";
 import { DocumentType, gql } from "@/gql";
+import { uploadFileIdentityKey } from "@/lib/admin/client-image-upload";
 import { cn, keytoUrl } from "@/lib/utils";
 import { FileWithPreview } from "@/types";
 import Image from "next/image";
@@ -37,16 +38,18 @@ function ImagesGrid({
       {AddMediaButtonComponent}
       {UploadingMediaComponent}
 
-      {uploadingFiles.map((file, index) => (
+      {uploadingFiles.map((file) => (
         <div
-          key={`uploadingImage_${index}`}
+          key={`uploading-${uploadFileIdentityKey(file)}`}
           className="relative h-[120px] w-[120px] opacity-50"
+          aria-busy="true"
+          aria-label={`Uploading ${file.name}`}
         >
           <Image
             width={120}
             height={120}
             src={file.preview}
-            alt={`uploadingImage_${index}`}
+            alt={`Uploading ${file.name}`}
             className="h-[100px] w-[100px] object-cover"
           />
           <div className="absolute w-full h-full top-0 left-0 flex items-center justify-center">

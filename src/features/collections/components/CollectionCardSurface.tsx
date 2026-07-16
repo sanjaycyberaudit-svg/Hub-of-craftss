@@ -1,6 +1,6 @@
 import Image from "next/image";
 import { ArrowUpRight } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, getStorefrontImageProps } from "@/lib/utils";
 import { viewTransitionStyle } from "@/lib/view-transitions";
 
 type CollectionCardSurfaceProps = {
@@ -45,6 +45,7 @@ export function CollectionCardSurface({
             ? viewTransitionStyle(viewTransitionName)
             : undefined
         }
+        {...getStorefrontImageProps(imageSrc)}
       />
       <div
         className="absolute inset-0 bg-gradient-to-t from-brand-purple/95 via-brand-teal/40 to-transparent"

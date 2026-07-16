@@ -3,7 +3,7 @@
 import Image from "next/image";
 import { ViewTransitionLink } from "@/components/ui/ViewTransitionLink";
 import type { ShopByPriceBucket } from "@/lib/storefront/shop-by-price-buckets";
-import { keytoUrl } from "@/lib/utils";
+import { getStorefrontImageProps, keytoUrl } from "@/lib/utils";
 import { HomeSectionHeader } from "./HomeSectionHeader";
 import {
   HomeScrollSnapStrip,
@@ -39,6 +39,7 @@ function PriceCircleCard({ bucket }: { bucket: ShopByPriceBucket }) {
             sizes="(max-width: 640px) 46vw, 200px"
             className="object-cover object-top transition-transform duration-500 group-hover:scale-[1.06]"
             loading="lazy"
+            {...getStorefrontImageProps(imageSrc)}
           />
         ) : (
           <div className="absolute inset-0 bg-gradient-to-br from-brand-rose/25 via-brand-cream to-brand-gold/30" />

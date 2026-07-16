@@ -10,17 +10,18 @@ import {
   HomeExploreLinks,
 } from "@/features/storefront/components";
 import { heroSlides } from "@/config/heroSlides";
-import { getHomeBannerSlides } from "@/lib/integrations/settings";
+import {
+  getDefaultStorefrontRuntimeBundle,
+  getHomeBannerSlidesCached,
+  getStorefrontRuntimeBundleCached,
+} from "@/lib/integrations/settings";
 import { getDraftProductIdsCached } from "@/lib/storefront/draft-product-ids";
 import { getLandingPageDataCached } from "@/lib/storefront/landing-data";
 import { getShopByPriceBucketsCached } from "@/lib/storefront/shop-by-price";
-import { resolveStorefrontContact } from "@/lib/integrations/settings";
 import { cn } from "@/lib/utils";
 import type { Metadata } from "next";
 
-/** Avoid ISR + unstable_cache hangs on Cloudflare Workers (Error 1101). */
-export const dynamic = "force-dynamic";
-export const revalidate = 0;
+export const revalidate = 120;
 
 export const metadata: Metadata = {
   title: "Hub of craftss | Make · Craft · Create",
@@ -60,27 +61,21 @@ async function withTimeout<T>(
 }
 
 export default async function Home() {
-  const [homeBannerSlides, data, draftProductIds, contact, priceBuckets] =
+  const [homeBannerSlides, data, draftProductIds, runtimeBundle, priceBuckets] =
     await Promise.all([
-      withTimeout(getHomeBannerSlides(), 8000, null, "homeBanner"),
+      withTimeout(getHomeBannerSlidesCached(), 8000, null, "homeBanner"),
       withTimeout(getLandingPageDataCached(), 8000, null, "landing"),
       withTimeout(getDraftProductIdsCached(), 8000, [], "drafts"),
       withTimeout(
-        resolveStorefrontContact(),
+        getStorefrontRuntimeBundleCached(),
         8000,
-        {
-          addressLines: [],
-          address: "",
-          gstin: "",
-          email: "",
-          contacts: [],
-          phone: "",
-          phoneHref: "",
-        },
-        "contact",
+        getDefaultStorefrontRuntimeBundle(),
+        "runtimeBundle",
       ),
       withTimeout(getShopByPriceBucketsCached(), 8000, [], "priceBuckets"),
     ]);
+
+  const contact = runtimeBundle.contact;
 
   const draftIds = new Set(draftProductIds);
   const products = data?.products;
