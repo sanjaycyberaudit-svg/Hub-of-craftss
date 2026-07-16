@@ -223,7 +223,7 @@ export function AdminMediaManager() {
       percent: 1,
       message: options?.retry
         ? `Retrying ${files.length} failed image(s)...`
-        : `Checking ${files.length} image(s)...`,
+        : `Optimizing ${files.length} photo(s)...`,
     });
 
     try {

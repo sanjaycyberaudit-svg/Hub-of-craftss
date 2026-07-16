@@ -15,8 +15,9 @@ import {
 export const VERCEL_SAFE_REQUEST_BYTES = 1.25 * 1024 * 1024;
 
 /**
- * Low-memory WebP for Workers: keep edge high enough to stay sharp on product
- * pages, then drop quality / edge only until we hit the byte target.
+ * Low-memory WebP/JPEG for Workers: try sharp settings first, then keep
+ * shrinking until the file fits MAX_PROCESSED_IMAGE_BYTES (never fail on
+ * normal phone / WhatsApp photos).
  */
 export const CLIENT_PREPROCESS_MAX_EDGE = 1600;
 export const CLIENT_AGGRESSIVE_MAX_EDGE = 1280;
@@ -24,11 +25,25 @@ export const CLIENT_MIN_EDGE = 1100;
 export const CLIENT_TARGET_IMAGE_BYTES = 650 * 1024;
 /** Prefer higher quality first so images stay sharp at ~650 KB. */
 export const CLIENT_QUALITY_STEPS = [0.84, 0.8, 0.76, 0.72, 0.68] as const;
+export const CLIENT_AGGRESSIVE_WEBP_QUALITY_STEPS = [
+  0.64, 0.58, 0.52, 0.46,
+] as const;
+export const CLIENT_JPEG_QUALITY_STEPS = [0.82, 0.72, 0.62, 0.52, 0.42] as const;
 export const CLIENT_EDGE_STEPS = [
   CLIENT_PREPROCESS_MAX_EDGE,
   CLIENT_AGGRESSIVE_MAX_EDGE,
   CLIENT_MIN_EDGE,
+  960,
+  800,
+  640,
+  512,
 ] as const;
+
+type EncodedImageCandidate = {
+  blob: Blob;
+  mime: string;
+  extension: string;
+};
 export const MAX_UPLOAD_RETRIES = 3;
 export const UPLOAD_RETRY_DELAY_MS = 400;
 export const UPLOAD_REQUEST_TIMEOUT_MS = 45000;
@@ -129,7 +144,7 @@ export function validateImageFile(file: File): string | null {
     return "File is empty.";
   }
   if (file.size > UPLOAD_LIMIT_BYTES) {
-    return `File is ${formatFileSize(file.size)}. Maximum is ${UPLOAD_LIMIT_MB} MB per image. Resize on your computer and try again.`;
+    return `File is ${formatFileSize(file.size)}. Maximum is ${UPLOAD_LIMIT_MB} MB per image.`;
   }
   return null;
 }
@@ -157,11 +172,28 @@ export function validateImageFiles(files: File[]): {
   return { valid, rejected };
 }
 
-async function canvasCompressAtEdge(
+function mimeMeta(mime: string): { mime: string; extension: string } {
+  if (mime === "image/jpeg") {
+    return { mime, extension: ".jpg" };
+  }
+  return { mime: "image/webp", extension: ".webp" };
+}
+
+function trackCandidate(
+  current: EncodedImageCandidate | null,
+  next: EncodedImageCandidate,
+): EncodedImageCandidate {
+  if (!current || next.blob.size < current.blob.size) return next;
+  return current;
+}
+
+async function canvasEncodeAtEdge(
   image: HTMLImageElement,
-  file: File,
   maxEdge: number,
-): Promise<{ blob: Blob; quality: number } | null> {
+  mime: string,
+  qualitySteps: readonly number[],
+  stopAtBytes: number,
+): Promise<EncodedImageCandidate | null> {
   const originalWidth = image.naturalWidth || image.width;
   const originalHeight = image.naturalHeight || image.height;
   if (!originalWidth || !originalHeight) return null;
@@ -179,18 +211,27 @@ async function canvasCompressAtEdge(
   ctx.imageSmoothingQuality = "high";
   ctx.drawImage(image, 0, 0, targetWidth, targetHeight);
 
-  let best: { blob: Blob; quality: number } | null = null;
-  for (const quality of CLIENT_QUALITY_STEPS) {
+  const meta = mimeMeta(mime);
+  let best: EncodedImageCandidate | null = null;
+
+  for (const quality of qualitySteps) {
     // eslint-disable-next-line no-await-in-loop
     const blob = await new Promise<Blob | null>((resolve) =>
-      canvas.toBlob(resolve, "image/webp", quality),
+      canvas.toBlob(resolve, meta.mime, quality),
     );
     if (!blob) continue;
-    if (!best || blob.size < best.blob.size) best = { blob, quality };
-    if (blob.size <= CLIENT_TARGET_IMAGE_BYTES) {
-      return { blob, quality };
+
+    const candidate: EncodedImageCandidate = {
+      blob,
+      mime: meta.mime,
+      extension: meta.extension,
+    };
+    best = trackCandidate(best, candidate);
+    if (blob.size <= stopAtBytes) {
+      return candidate;
     }
   }
+
   return best;
 }
 
@@ -207,33 +248,76 @@ async function canvasCompress(file: File): Promise<File | null> {
       img.src = objectUrl;
     });
 
-    let bestUnderCap: Blob | null = null;
-    let smallest: Blob | null = null;
+    let bestUnderCap: EncodedImageCandidate | null = null;
+    let smallest: EncodedImageCandidate | null = null;
 
-    for (const maxEdge of CLIENT_EDGE_STEPS) {
-      // eslint-disable-next-line no-await-in-loop
-      const result = await canvasCompressAtEdge(image, file, maxEdge);
-      if (!result) continue;
-      if (!smallest || result.blob.size < smallest.size) {
-        smallest = result.blob;
-      }
-      if (result.blob.size <= CLIENT_TARGET_IMAGE_BYTES) {
-        bestUnderCap = result.blob;
-        break;
-      }
+    const remember = (candidate: EncodedImageCandidate | null) => {
+      if (!candidate) return;
+      smallest = trackCandidate(smallest, candidate);
       if (
-        result.blob.size <= VERCEL_SAFE_REQUEST_BYTES &&
-        (!bestUnderCap || result.blob.size < bestUnderCap.size)
+        candidate.blob.size <= MAX_PROCESSED_IMAGE_BYTES &&
+        (!bestUnderCap || candidate.blob.size < bestUnderCap.blob.size)
       ) {
-        bestUnderCap = result.blob;
+        bestUnderCap = candidate;
       }
+    };
+
+    const tryPass = async (
+      edges: readonly number[],
+      mime: string,
+      qualities: readonly number[],
+      stopAtBytes: number,
+    ) => {
+      for (const maxEdge of edges) {
+        // eslint-disable-next-line no-await-in-loop
+        const candidate = await canvasEncodeAtEdge(
+          image,
+          maxEdge,
+          mime,
+          qualities,
+          stopAtBytes,
+        );
+        remember(candidate);
+        if (bestUnderCap && bestUnderCap.blob.size <= CLIENT_TARGET_IMAGE_BYTES) {
+          return true;
+        }
+      }
+      return Boolean(bestUnderCap);
+    };
+
+    // Pass 1: sharp WebP near the industry target (~650 KB).
+    let fitsCap = await tryPass(
+      CLIENT_EDGE_STEPS.slice(0, 3),
+      "image/webp",
+      CLIENT_QUALITY_STEPS,
+      CLIENT_TARGET_IMAGE_BYTES,
+    );
+
+    // Pass 2: smaller WebP until the Worker cap (1 MB).
+    if (!fitsCap) {
+      fitsCap = await tryPass(
+        CLIENT_EDGE_STEPS,
+        "image/webp",
+        [...CLIENT_QUALITY_STEPS, ...CLIENT_AGGRESSIVE_WEBP_QUALITY_STEPS],
+        MAX_PROCESSED_IMAGE_BYTES,
+      );
+    }
+
+    // Pass 3: JPEG often wins on noisy WhatsApp / craft detail photos.
+    if (!fitsCap) {
+      await tryPass(
+        CLIENT_EDGE_STEPS,
+        "image/jpeg",
+        CLIENT_JPEG_QUALITY_STEPS,
+        MAX_PROCESSED_IMAGE_BYTES,
+      );
     }
 
     const chosen = bestUnderCap ?? smallest;
     if (!chosen) return null;
 
-    return new File([chosen], replaceExt(file.name, ".webp"), {
-      type: "image/webp",
+    return new File([chosen.blob], replaceExt(file.name, chosen.extension), {
+      type: chosen.mime,
       lastModified: file.lastModified,
     });
   } catch {
@@ -244,14 +328,14 @@ async function canvasCompress(file: File): Promise<File | null> {
 }
 
 export async function compressImageForUpload(file: File): Promise<File> {
+  if (file.type === "image/gif") return file;
+
   const compressed = await canvasCompress(file);
   if (!compressed) return file;
 
-  // Always prefer the WebP result when it fits Worker limits (even if a tiny
-  // JPEG was somehow smaller — we need consistent low-memory WebP in R2).
-  if (compressed.size <= VERCEL_SAFE_REQUEST_BYTES) return compressed;
+  if (compressed.size <= MAX_PROCESSED_IMAGE_BYTES) return compressed;
   if (compressed.size < file.size) return compressed;
-  return file;
+  return compressed;
 }
 
 function postCompressRejectReason(
@@ -259,13 +343,13 @@ function postCompressRejectReason(
   sourceName: string,
 ): string | null {
   if (file.size > UPLOAD_LIMIT_BYTES) {
-    return `${sourceName}: still ${formatFileSize(file.size)} after compression. Resize to 1600px and under ${UPLOAD_LIMIT_MB} MB on your computer.`;
+    return `${sourceName}: still ${formatFileSize(file.size)} after optimization. Maximum is ${UPLOAD_LIMIT_MB} MB per image.`;
   }
   if (file.size > MAX_PROCESSED_IMAGE_BYTES) {
-    return `${sourceName}: ${formatFileSize(file.size)} is still too large after compression (max ${formatFileSize(MAX_PROCESSED_IMAGE_BYTES)}). Use a simpler photo or resize on your computer.`;
+    return `${sourceName}: could not optimize below ${formatFileSize(MAX_PROCESSED_IMAGE_BYTES)}. Try a different photo or crop closer to the product.`;
   }
   if (file.size > STAGING_UPLOAD_LIMIT_BYTES) {
-    return `${sourceName}: ${formatFileSize(file.size)} exceeds the ${STAGING_UPLOAD_LIMIT_MB} MB upload limit. Compress and retry.`;
+    return `${sourceName}: ${formatFileSize(file.size)} exceeds the ${STAGING_UPLOAD_LIMIT_MB} MB upload limit.`;
   }
   return null;
 }
@@ -314,7 +398,8 @@ export async function prepareImageFilesForDirect(
   prepared: PreparedUploadItem[];
   rejected: FileValidationError[];
 }> {
-  // Direct R2 staging finalizes on the Worker — aim for ~650 KB sharp WebP.
+  // Direct R2 staging finalizes on the Worker — aim for ~650 KB, never fail
+  // normal phone photos (aggressive WebP/JPEG fallback in-browser).
   return prepareImageFiles(files, onProgress);
 }
 
@@ -674,7 +759,7 @@ export async function uploadMediaFilesQueue(
         0,
         total,
         preferDirect
-          ? `Checking images 0/${total}`
+          ? `Optimizing photos 0/${total}`
           : `Preparing images 0/${total}`,
       ),
     );
@@ -686,7 +771,7 @@ export async function uploadMediaFilesQueue(
               "preparing",
               current,
               prepTotal,
-              `Checking ${name} (${current}/${prepTotal})`,
+              `Optimizing ${name} (${current}/${prepTotal})`,
             ),
           );
         })

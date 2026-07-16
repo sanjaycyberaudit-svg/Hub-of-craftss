@@ -1194,8 +1194,7 @@ function ProductFrom({ product, galleryMediaIds = [] }: ProductsFormProps) {
               <FormDescription>
                 Select up to {MAX_BULK_FILES} images. Each image becomes one
                 product using the shared details above. Max {UPLOAD_LIMIT_MB} MB
-                per image; uploads go directly to storage, then are optimized on
-                the server.
+                per image; photos are optimized automatically before upload.
               </FormDescription>
               <FormMessage />
               <p className="text-xs text-muted-foreground">
@@ -1209,7 +1208,7 @@ function ProductFrom({ product, galleryMediaIds = [] }: ProductsFormProps) {
                 <AdminLoadingState
                   message={
                     bulkPhase === "preparing"
-                      ? `Preparing images... ${prepareProgress?.current ?? 0}/${prepareProgress?.total ?? 0}`
+                      ? `Optimizing photos... ${prepareProgress?.current ?? 0}/${prepareProgress?.total ?? 0}`
                       : bulkProgress?.message ?? "Creating products..."
                   }
                 />
