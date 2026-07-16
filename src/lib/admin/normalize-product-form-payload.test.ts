@@ -1,23 +1,64 @@
 import {
+  normalizeDecimalInput,
   normalizeProductFormPayload,
   productStorefrontVisibilitySummary,
 } from "./normalize-product-form-payload";
 
+const base = {
+  name: "Silk Saree",
+  slug: "silk-saree",
+  description: "Handcrafted silk saree.",
+  rating: "4",
+  price: "999",
+  stock: 2,
+  isDraft: false,
+  featured: false,
+  badge: null as null,
+  tags: [] as string[],
+  collectionId: null as null,
+  featuredImageId: "img-1",
+};
+
+describe("normalizeDecimalInput", () => {
+  it("rejects blank required decimals", () => {
+    expect(() =>
+      normalizeDecimalInput("", {
+        fallback: "0",
+        fieldLabel: "Price",
+        required: true,
+      }),
+    ).toThrow(/Price is required/);
+  });
+
+  it("uses fallback for blank optional decimals", () => {
+    expect(
+      normalizeDecimalInput("  ", {
+        fallback: "4",
+        fieldLabel: "Rating",
+        required: false,
+      }),
+    ).toBe("4");
+  });
+
+  it("rejects non-numeric text", () => {
+    expect(() =>
+      normalizeDecimalInput("abc", {
+        fallback: "0",
+        fieldLabel: "Price",
+        required: true,
+      }),
+    ).toThrow(/valid price/i);
+  });
+});
+
 describe("normalizeProductFormPayload", () => {
   it("normalizes featured and draft flags", () => {
     const payload = normalizeProductFormPayload({
+      ...base,
       name: " Silk Saree ",
-      slug: "silk-saree",
-      description: "",
-      rating: "4",
-      price: "999",
-      stock: 2,
       isDraft: 0 as unknown as boolean,
       featured: 1 as unknown as boolean,
       badge: "best_sale",
-      tags: [],
-      collectionId: null,
-      featuredImageId: "img-1",
     });
 
     expect(payload.name).toBe("Silk Saree");
@@ -28,19 +69,37 @@ describe("normalizeProductFormPayload", () => {
 
   it("clears invalid badge values", () => {
     const payload = normalizeProductFormPayload({
-      name: "Test",
-      slug: "test",
-      description: "",
-      rating: "4",
-      price: "100",
-      stock: 1,
+      ...base,
       badge: "invalid" as never,
-      tags: [],
-      collectionId: null,
-      featuredImageId: "img-1",
     });
 
     expect(payload.badge).toBeNull();
+  });
+
+  it("defaults empty rating and rejects empty price", () => {
+    expect(
+      normalizeProductFormPayload({
+        ...base,
+        rating: "" as never,
+        price: "1299",
+      }).rating,
+    ).toBe("4");
+
+    expect(() =>
+      normalizeProductFormPayload({
+        ...base,
+        price: "" as never,
+      }),
+    ).toThrow(/Price is required/);
+  });
+
+  it("rejects missing description", () => {
+    expect(() =>
+      normalizeProductFormPayload({
+        ...base,
+        description: "   ",
+      }),
+    ).toThrow(/Description is required/);
   });
 });
 

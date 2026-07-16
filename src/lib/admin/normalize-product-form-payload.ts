@@ -3,13 +3,54 @@ import { normalizeDiscountPercent } from "@/lib/products/discount";
 
 const BADGE_VALUES = new Set(["new_product", "best_sale", "featured"]);
 
+/** Coerce blank / invalid form values into a safe numeric string for PG decimal. */
+export function normalizeDecimalInput(
+  raw: unknown,
+  options: {
+    fallback: string;
+    fieldLabel: string;
+    min?: number;
+    max?: number;
+    required?: boolean;
+  },
+): string {
+  const trimmed = String(raw ?? "").trim();
+  if (!trimmed) {
+    if (options.required) {
+      throw new Error(`${options.fieldLabel} is required.`);
+    }
+    return options.fallback;
+  }
+
+  const value = Number(trimmed);
+  if (!Number.isFinite(value)) {
+    throw new Error(`Enter a valid ${options.fieldLabel.toLowerCase()}.`);
+  }
+
+  const min = options.min ?? Number.NEGATIVE_INFINITY;
+  const max = options.max ?? Number.POSITIVE_INFINITY;
+  if (value < min || value > max) {
+    throw new Error(
+      `${options.fieldLabel} must be between ${min} and ${max}.`,
+    );
+  }
+
+  // Keep at most 2 decimal places for money-like fields; rating uses 1.
+  const rounded =
+    options.max != null && options.max <= 5
+      ? Math.round(value * 10) / 10
+      : Math.round(value * 100) / 100;
+
+  return String(rounded);
+}
+
 export function normalizeProductFormPayload(
   data: InsertProducts,
   options?: { stockFallback?: number },
 ): InsertProducts {
-  const stockRaw = Number(data.stock);
-  const stock = Number.isFinite(stockRaw)
-    ? Math.max(0, Math.round(stockRaw))
+  const stockParsed = Number(data.stock);
+  const stock = Number.isFinite(stockParsed)
+    ? Math.max(0, Math.round(stockParsed))
     : Math.max(0, Math.round(options?.stockFallback ?? 0));
 
   const badgeRaw = data.badge == null ? null : String(data.badge).trim();
@@ -23,23 +64,52 @@ export function normalizeProductFormPayload(
     throw new Error("Description is required.");
   }
 
+  const name = String(data.name ?? "").trim();
+  if (!name) {
+    throw new Error("Product name is required.");
+  }
+
+  const rating = normalizeDecimalInput(data.rating, {
+    fallback: "4",
+    fieldLabel: "Rating",
+    min: 0,
+    max: 5,
+    required: false,
+  });
+
+  const price = normalizeDecimalInput(data.price, {
+    fallback: "0",
+    fieldLabel: "Price",
+    min: 0,
+    required: true,
+  });
+
+  const discountEnabled = Boolean(data.discountEnabled);
+  const discountPercent = discountEnabled
+    ? normalizeDiscountPercent(data.discountPercent)
+    : null;
+
+  if (discountEnabled && discountPercent === null) {
+    throw new Error(
+      "Discount percent must be between 1 and 99 when discount is enabled.",
+    );
+  }
+
   return {
     ...data,
-    name: String(data.name ?? "").trim(),
+    name,
     slug: String(data.slug ?? "").trim(),
     description,
-    rating: String(data.rating ?? "4"),
-    price: String(data.price ?? "0"),
+    rating,
+    price,
     isDraft: Boolean(data.isDraft),
     featured: Boolean(data.featured),
     badge,
     stock,
     tags: [],
     collectionId: data.collectionId || null,
-    discountEnabled: Boolean(data.discountEnabled),
-    discountPercent: data.discountEnabled
-      ? normalizeDiscountPercent(data.discountPercent)
-      : null,
+    discountEnabled,
+    discountPercent,
   };
 }
 

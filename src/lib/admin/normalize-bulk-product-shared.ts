@@ -134,8 +134,14 @@ export function buildBulkSharedPayloadFromForm(values: {
       typeof values.collectionId === "string" ? values.collectionId : null,
     badge:
       values.badge == null || values.badge === "" ? null : String(values.badge),
-    rating: String(values.rating ?? "4"),
-    price: String(values.price ?? "0"),
+    rating:
+      values.rating == null || String(values.rating).trim() === ""
+        ? "4"
+        : String(values.rating).trim(),
+    price:
+      values.price == null || String(values.price).trim() === ""
+        ? "0"
+        : String(values.price).trim(),
     stock: Number.isFinite(Number(values.stock))
       ? Math.max(0, Math.round(Number(values.stock)))
       : 0,

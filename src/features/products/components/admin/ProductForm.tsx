@@ -163,6 +163,21 @@ const productFormSchema = createInsertSchema(products)
       .trim()
       .min(1, "Description is required.")
       .max(4000, "Description is too long."),
+    name: z.string().trim().min(1, "Product name is required."),
+    price: z.preprocess(
+      (value) => (typeof value === "string" ? value.trim() : value),
+      z
+        .string()
+        .min(1, "Price is required.")
+        .refine(
+          (value) => Number.isFinite(Number(value)) && Number(value) >= 0,
+          "Enter a valid price.",
+        ),
+    ),
+    rating: z.preprocess((value) => {
+      if (value == null || String(value).trim() === "") return "4";
+      return typeof value === "string" ? value.trim() : value;
+    }, z.string().min(1)),
   });
 
 export const ProductFormQuery = gql(/* GraphQL */ `
@@ -548,8 +563,7 @@ function ProductFrom({ product, galleryMediaIds = [] }: ProductsFormProps) {
       form.reset({
         ...savedProduct,
         featured: savedProduct.featured ?? false,
-        stock:
-          typeof savedProduct.stock === "number" ? savedProduct.stock : 1,
+        stock: typeof savedProduct.stock === "number" ? savedProduct.stock : 1,
       });
       setProductImageMediaIds(productImageMediaIds);
       setSavedSummary(productStorefrontVisibilitySummary(savedProduct));
