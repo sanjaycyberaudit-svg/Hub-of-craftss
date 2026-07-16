@@ -1,3 +1,4 @@
+import { getMenuCollectionsCached } from "@/lib/storefront/menu-collections";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
 import { Suspense } from "react";
@@ -15,6 +16,8 @@ interface MainNavbarProps {
 }
 
 async function MainNavbar({ adminLayout = false }: MainNavbarProps) {
+  const menuCollections = adminLayout ? [] : await getMenuCollectionsCached();
+
   return (
     <header
       className={cn("top-0 z-[100] w-full", adminLayout ? "relative" : "fixed")}
@@ -30,7 +33,7 @@ async function MainNavbar({ adminLayout = false }: MainNavbarProps) {
             <div className="container hidden md:block">
               <div className="flex min-h-[var(--store-nav-content-height-desktop)] w-full items-center justify-between gap-x-6 py-1">
                 <div className="flex shrink-0 items-center gap-x-2">
-                  <SideMenu />
+                  <SideMenu collections={menuCollections} />
                   <Branding size="md" />
                 </div>
 
@@ -73,7 +76,10 @@ async function MainNavbar({ adminLayout = false }: MainNavbarProps) {
                 </div>
               </div>
             </div>
-            <MobileNavbar adminLayout={adminLayout} />
+            <MobileNavbar
+              adminLayout={adminLayout}
+              collections={menuCollections}
+            />
           </>
         )}
       </nav>

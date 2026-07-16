@@ -10,11 +10,13 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { siteConfig } from "@/config/site";
+import type { MenuCollection } from "@/lib/storefront/menu-collections";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Check, Menu } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useMobileMenu } from "./MobileMenuContext";
+import { SideMenuCollections } from "./SideMenuCollections";
 import SocialMedias from "./SocialMedias";
 import { cn } from "@/lib/utils";
 import { useRobustNavigate } from "@/hooks/useRobustNavigate";
@@ -24,14 +26,6 @@ const navLinkBase =
 
 type NavItem = { title: string; href: string };
 
-const primaryNav: NavItem[] = [
-  { title: "Home", href: "/" },
-  { title: "Shop", href: "/shop" },
-  ...siteConfig.mainNav.map(({ title, href }) => ({ title, href })),
-  { title: "Wishlist", href: "/wish-list" },
-  { title: "Cart", href: "/cart" },
-];
-
 function isNavActive(pathname: string, href: string) {
   if (href === "/") return pathname === "/";
   return pathname === href || pathname.startsWith(`${href}/`);
@@ -39,6 +33,7 @@ function isNavActive(pathname: string, href: string) {
 
 type SideMenuProps = {
   triggerClassName?: string;
+  collections?: MenuCollection[];
 };
 
 function SideNavLink({
@@ -79,11 +74,27 @@ function SideNavLink({
   );
 }
 
-export function SideMenu({ triggerClassName }: SideMenuProps) {
+export function SideMenu({
+  triggerClassName,
+  collections = [],
+}: SideMenuProps) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const { setOpen: setMenuOpenGlobal } = useMobileMenu();
   const { onNavigateClick } = useRobustNavigate();
+
+  const navItems = useMemo<NavItem[]>(
+    () => [
+      { title: "Home", href: "/" },
+      { title: "Shop", href: "/shop" },
+      ...siteConfig.mainNav
+        .filter((item) => item.href !== "/collections")
+        .map(({ title, href }) => ({ title, href })),
+      { title: "Wishlist", href: "/wish-list" },
+      { title: "Cart", href: "/cart" },
+    ],
+    [],
+  );
 
   const closeMenu = () => setOpen(false);
 
@@ -96,6 +107,12 @@ export function SideMenu({ triggerClassName }: SideMenuProps) {
     setOpen(false);
     setMenuOpenGlobal(false);
   }, [pathname, setMenuOpenGlobal]);
+
+  const makeNavigate =
+    (href: string) => (event: React.MouseEvent<HTMLAnchorElement>) => {
+      closeMenu();
+      onNavigateClick(href)(event);
+    };
 
   return (
     <Sheet open={open} onOpenChange={handleOpenChange}>
@@ -128,17 +145,33 @@ export function SideMenu({ triggerClassName }: SideMenuProps) {
           className="flex flex-1 flex-col gap-0.5 overflow-y-auto px-4 py-4"
           aria-label="Main"
         >
-          {primaryNav.map((item) => (
-            <SideNavLink
-              key={item.href}
-              item={item}
-              pathname={pathname}
-              onNavigate={(event) => {
-                closeMenu();
-                onNavigateClick(item.href)(event);
-              }}
-            />
-          ))}
+          {navItems.map((item) => {
+            if (item.href === "/shop") {
+              return (
+                <div key="shop-and-collections" className="flex flex-col gap-0.5">
+                  <SideNavLink
+                    item={item}
+                    pathname={pathname}
+                    onNavigate={makeNavigate(item.href)}
+                  />
+                  <SideMenuCollections
+                    collections={collections}
+                    pathname={pathname}
+                    onNavigate={makeNavigate}
+                  />
+                </div>
+              );
+            }
+
+            return (
+              <SideNavLink
+                key={item.href}
+                item={item}
+                pathname={pathname}
+                onNavigate={makeNavigate(item.href)}
+              />
+            );
+          })}
         </nav>
 
         <div className="shrink-0 border-t border-primary/15 bg-muted/30 px-4 py-4">

@@ -6,15 +6,19 @@ import {
 import Branding from "./Branding";
 import { MobileSearchTrigger } from "./MobileSearchOverlay";
 import { SideMenu } from "./SideMenu";
+import type { MenuCollection } from "@/lib/storefront/menu-collections";
 import Link from "next/link";
 import { Icons } from "./icons";
 
-type Props = { adminLayout: boolean };
+type Props = {
+  adminLayout: boolean;
+  collections?: MenuCollection[];
+};
 
 const edgeInset = "max(0.75rem, env(safe-area-inset-left, 0px))" as const;
 const edgeInsetRight = "max(0.75rem, env(safe-area-inset-right, 0px))" as const;
 
-function MobileNavbar({ adminLayout }: Props) {
+function MobileNavbar({ adminLayout, collections = [] }: Props) {
   return (
     <div className="relative h-[var(--store-nav-height-mobile)] min-h-[var(--store-nav-height-mobile)] w-full md:hidden">
       <div
@@ -24,7 +28,7 @@ function MobileNavbar({ adminLayout }: Props) {
         {adminLayout ? (
           <AdminMobileNav triggerClassName="ml-0" />
         ) : (
-          <SideMenu triggerClassName="ml-0" />
+          <SideMenu triggerClassName="ml-0" collections={collections} />
         )}
       </div>
 
