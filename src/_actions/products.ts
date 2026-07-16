@@ -23,12 +23,23 @@ import { createInsertSchema } from "drizzle-zod";
 import { revalidatePath } from "next/cache";
 
 function revalidateProductCatalogPaths() {
-  revalidatePath("/admin/products");
-  revalidatePath("/", "layout");
-  revalidatePath("/");
-  revalidatePath("/featured");
-  revalidatePath("/shop");
-  revalidatePath("/collections");
+  // Keep this light on Cloudflare Workers — broad layout revalidation can 1102
+  // right after admin saves and surfaces as a vague "Server Components" error.
+  try {
+    revalidatePath("/admin/products");
+    revalidatePath("/shop");
+    revalidatePath("/featured");
+  } catch (error) {
+    console.error("[products] revalidatePath failed:", error);
+  }
+}
+
+async function softInvalidateStorefrontCache() {
+  try {
+    await invalidateStorefrontCache();
+  } catch (error) {
+    console.error("[products] invalidateStorefrontCache failed:", error);
+  }
 }
 
 type ProductImageOptions = {
@@ -92,18 +103,22 @@ export const createProductAction = async (
     };
 
     createInsertSchema(products).parse(values);
-    const inserted = await tx.insert(products).values(values).returning();
-    const created = inserted[0];
-    if (!created) {
-      throw new Error("Product was not created.");
-    }
-
-    await syncProductGalleryImages(created.id, orderedMediaIds, tx);
-    return inserted;
+    return tx.insert(products).values(values).returning();
   });
 
+  const created = data[0];
+  if (!created) {
+    throw new Error("Product was not created.");
+  }
+
+  try {
+    await syncProductGalleryImages(created.id, orderedMediaIds);
+  } catch (error) {
+    console.error("[products] gallery sync failed after create:", error);
+  }
+
   revalidateProductCatalogPaths();
-  await invalidateStorefrontCache();
+  void softInvalidateStorefrontCache();
   return data;
 };
 
@@ -149,19 +164,20 @@ export const updateProductAction = async (
 
   createInsertSchema(products).parse(values);
 
-  const insertedProduct = await db.transaction(async (tx) => {
-    const updated = await tx
-      .update(products)
-      .set(values)
-      .where(eq(products.id, productId))
-      .returning();
+  const insertedProduct = await db
+    .update(products)
+    .set(values)
+    .where(eq(products.id, productId))
+    .returning();
 
-    await syncProductGalleryImages(productId, orderedMediaIds, tx);
-    return updated;
-  });
+  try {
+    await syncProductGalleryImages(productId, orderedMediaIds);
+  } catch (error) {
+    console.error("[products] gallery sync failed after update:", error);
+  }
 
   revalidateProductCatalogPaths();
-  await invalidateStorefrontCache();
+  void softInvalidateStorefrontCache();
   return insertedProduct;
 };
 

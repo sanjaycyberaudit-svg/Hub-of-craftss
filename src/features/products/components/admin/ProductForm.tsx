@@ -533,10 +533,9 @@ function ProductFrom({ product, galleryMediaIds = [] }: ProductsFormProps) {
           stock:
             typeof savedProduct.stock === "number" ? savedProduct.stock : 1,
         });
+        setProductImageMediaIds(productImageMediaIds);
         setSavedSummary(productStorefrontVisibilitySummary(savedProduct));
       }
-
-      router.refresh();
 
       toast({
         title: product ? "Product updated" : "Product created",
@@ -547,6 +546,9 @@ function ProductFrom({ product, galleryMediaIds = [] }: ProductsFormProps) {
 
       if (!product) {
         router.push("/admin/products");
+      } else {
+        // Avoid full RSC refresh after heavy writes — it can fail on Workers.
+        router.replace(`/admin/products/${productId}`);
       }
     } catch (err) {
       toast({

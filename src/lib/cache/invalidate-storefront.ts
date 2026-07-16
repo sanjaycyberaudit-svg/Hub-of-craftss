@@ -26,9 +26,27 @@ export function invalidateAdminProductsCache() {
 
 /** Bust storefront read caches after admin/catalog writes. */
 export async function invalidateStorefrontCache() {
-  invalidateAdminProductsCache();
-  Object.values(CACHE_TAGS).forEach((tag) => revalidateTag(tag));
+  try {
+    invalidateAdminProductsCache();
+  } catch (error) {
+    console.warn("[cache] admin tag revalidate failed:", error);
+  }
 
-  await Promise.all(REDIS_PREFIXES.map((prefix) => redisDelByPrefix(prefix)));
-  clearStorefrontMemoryCache("sf:");
+  try {
+    Object.values(CACHE_TAGS).forEach((tag) => revalidateTag(tag));
+  } catch (error) {
+    console.warn("[cache] storefront tag revalidate failed:", error);
+  }
+
+  try {
+    await Promise.all(REDIS_PREFIXES.map((prefix) => redisDelByPrefix(prefix)));
+  } catch (error) {
+    console.warn("[cache] redis prefix clear failed:", error);
+  }
+
+  try {
+    clearStorefrontMemoryCache("sf:");
+  } catch (error) {
+    console.warn("[cache] memory clear failed:", error);
+  }
 }
