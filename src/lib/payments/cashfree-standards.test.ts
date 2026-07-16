@@ -14,18 +14,14 @@ describe("cashfree-standards", () => {
   it("builds canonical Cashfree callback URLs", () => {
     expect(
       buildCashfreeReturnUrl(
-        "https://www.hub-of-craftss.hubofcraftss.workers.dev/",
+        "https://hubsofcraftss.com/",
       ),
     ).toBe(
-      "https://www.hub-of-craftss.hubofcraftss.workers.dev/api/cashfree/redirect?order_id={order_id}",
+      "https://hubsofcraftss.com/api/cashfree/redirect?order_id={order_id}",
     );
     expect(
-      buildCashfreeNotifyUrl(
-        "https://www.hub-of-craftss.hubofcraftss.workers.dev",
-      ),
-    ).toBe(
-      "https://www.hub-of-craftss.hubofcraftss.workers.dev/api/cashfree/webhook",
-    );
+      buildCashfreeNotifyUrl("https://hubsofcraftss.com"),
+    ).toBe("https://hubsofcraftss.com/api/cashfree/webhook");
   });
 
   it("builds hosted checkout URLs per environment", () => {
@@ -87,8 +83,8 @@ describe("cashfree-standards", () => {
       paymentSessionId: "session_abc123",
       environment: "production",
       returnUrl:
-        "https://www.hub-of-craftss.hubofcraftss.workers.dev/api/cashfree/redirect?order_id={order_id}",
-      checkoutOrigin: "https://www.hub-of-craftss.hubofcraftss.workers.dev",
+        "https://hubsofcraftss.com/api/cashfree/redirect?order_id={order_id}",
+      checkoutOrigin: "https://hubsofcraftss.com",
     });
 
     expect(parsed.environment).toBe("production");
@@ -98,7 +94,7 @@ describe("cashfree-standards", () => {
     const message = readCashfreeCheckoutError(
       { error: { message: "Domain is not whitelisted" } },
       {
-        whitelistOrigin: "https://www.hub-of-craftss.hubofcraftss.workers.dev",
+        whitelistOrigin: "https://hubsofcraftss.com",
       },
     );
 

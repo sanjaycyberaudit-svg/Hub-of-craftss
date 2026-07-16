@@ -5,6 +5,7 @@ import {
   clearSupabaseAuthCookiesOnResponse,
 } from "@/lib/auth/middleware-session-cookie";
 import { getCanonicalSiteOrigin } from "@/lib/auth/site-urls";
+import { buildCanonicalRedirectUrl } from "@/lib/auth/canonical-host-redirect";
 import {
   checkAuthRateLimit,
   getRequestIp,
@@ -67,42 +68,20 @@ function redirectStrayOAuthToCallback(
   return NextResponse.redirect(callback);
 }
 
-/** Keep storefront on the canonical custom domain (www) for Cashfree whitelisting. */
+/** Send workers.dev / pages.dev and other non-canonical hosts to the shop domain. */
 function redirectToCanonicalHost(request: NextRequest): NextResponse | null {
   const hostHeader = request.headers.get("host") ?? "";
-  const host = hostHeader.split(":")[0]?.toLowerCase() ?? "";
-  if (
-    !host ||
-    host === "localhost" ||
-    host === "127.0.0.1" ||
-    host.endsWith(".vercel.app") ||
-    host.endsWith(".workers.dev") ||
-    host.endsWith(".pages.dev")
-  ) {
+  const redirectUrl = buildCanonicalRedirectUrl(
+    request.url,
+    hostHeader,
+    getCanonicalSiteOrigin(),
+  );
+  if (!redirectUrl) {
     return null;
   }
 
-  let canonical: URL;
-  try {
-    canonical = new URL(getCanonicalSiteOrigin());
-  } catch {
-    return null;
-  }
-
-  const canonicalHost = canonical.host.toLowerCase();
-  const apexHost = canonicalHost.replace(/^www\./, "");
-  const wwwHost = apexHost.startsWith("www.") ? apexHost : `www.${apexHost}`;
-  // Allow both apex and www of the configured domain (no forced hop).
-  if (host === canonicalHost || host === apexHost || host === wwwHost) {
-    return null;
-  }
-
-  const redirect = new URL(request.url);
-  redirect.protocol = canonical.protocol;
-  redirect.host = canonicalHost;
-  // 307 (not 308): browsers aggressively cache permanent redirects; a wrong
-  // canonical SITE_URL must not lock users onto workers.dev forever.
-  return NextResponse.redirect(redirect, 307);
+  // 307 (not 308): temporary redirect avoids sticky browser cache if SITE_URL changes.
+  return NextResponse.redirect(redirectUrl, 307);
 }
 
 export async function middleware(request: NextRequest) {

@@ -15,10 +15,10 @@ describe("cashfree-checkout-client", () => {
   it("builds client return URLs from the current origin", () => {
     expect(
       buildClientCashfreeReturnUrl(
-        "https://www.hub-of-craftss.hubofcraftss.workers.dev",
+        "https://hubsofcraftss.com",
       ),
     ).toBe(
-      "https://www.hub-of-craftss.hubofcraftss.workers.dev/api/cashfree/redirect?order_id={order_id}",
+      "https://hubsofcraftss.com/api/cashfree/redirect?order_id={order_id}",
     );
   });
 
@@ -29,8 +29,8 @@ describe("cashfree-checkout-client", () => {
       paymentSessionId: "session_abc123",
       environment: "production",
       returnUrl:
-        "https://www.hub-of-craftss.hubofcraftss.workers.dev/api/cashfree/redirect?order_id={order_id}",
-      checkoutOrigin: "https://www.hub-of-craftss.hubofcraftss.workers.dev",
+        "https://hubsofcraftss.com/api/cashfree/redirect?order_id={order_id}",
+      checkoutOrigin: "https://hubsofcraftss.com",
     });
 
     expect(parsed.paymentSessionId).toBe("session_abc123");
@@ -44,8 +44,8 @@ describe("cashfree-checkout-client", () => {
         paymentSessionId: "bad",
         environment: "production",
         returnUrl:
-          "https://www.hub-of-craftss.hubofcraftss.workers.dev/api/cashfree/redirect?order_id={order_id}",
-        checkoutOrigin: "https://www.hub-of-craftss.hubofcraftss.workers.dev",
+          "https://hubsofcraftss.com/api/cashfree/redirect?order_id={order_id}",
+        checkoutOrigin: "https://hubsofcraftss.com",
       }),
     ).toThrow("Invalid Cashfree checkout response");
   });
@@ -73,8 +73,8 @@ describe("cashfree-checkout-client", () => {
       paymentSessionId: "session_abc123",
       environment: "production" as const,
       returnUrl:
-        "https://www.hub-of-craftss.hubofcraftss.workers.dev/api/cashfree/redirect?order_id={order_id}",
-      checkoutOrigin: "https://www.hub-of-craftss.hubofcraftss.workers.dev",
+        "https://hubsofcraftss.com/api/cashfree/redirect?order_id={order_id}",
+      checkoutOrigin: "https://hubsofcraftss.com",
     };
 
     openCashfreeCheckout({ payload });

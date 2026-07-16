@@ -41,7 +41,7 @@ export const siteConfig = {
   description:
     "Terracotta raw materials and art & craft supplies — make, craft, create with Hub of craftss by Shaaru.",
   searchPlaceholder: "Search craft supplies, terracotta, collections…",
-  url: "https://hub-of-craftss.hubofcraftss.workers.dev",
+  url: "https://hubsofcraftss.com",
   addressLines: ADDRESS_LINES,
   /** Single-line address for compact UI */
   address: ADDRESS_LINES.join(", "),
