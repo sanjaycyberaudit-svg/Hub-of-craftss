@@ -129,9 +129,9 @@ async function ProductDetailPage({ params }: Props) {
           }),
         ]}
       />
-      <div className="grid grid-cols-12 gap-x-8">
-        <div className="space-y-8 relative col-span-12 md:col-span-7">
-          <div className="relative">
+      <div className="grid grid-cols-12 gap-x-8 gap-y-8">
+        <div className="space-y-8 relative col-span-12 md:col-span-7 min-w-0 overflow-hidden">
+          <div className="relative min-w-0 w-full max-w-full">
             <ProductDiscountBadge
               product={pricingProduct}
               className="absolute top-3 left-3 z-10"
@@ -140,7 +140,7 @@ async function ProductDetailPage({ params }: Props) {
           </div>
         </div>
 
-        <div className="col-span-12 md:col-span-5">
+        <div className="col-span-12 md:col-span-5 min-w-0">
           <section className="flex justify-between items-start max-w-lg">
             <div>
               <h1 className="text-4xl font-semibold tracking-wide mb-3">

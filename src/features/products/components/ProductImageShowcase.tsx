@@ -1,14 +1,10 @@
 "use client";
-import React, { useState } from "react";
-import { gql, DocumentType } from "@/gql";
 
+import React, { useCallback, useEffect, useState } from "react";
+import { gql, DocumentType } from "@/gql";
 import Image from "next/image";
-import { Icons } from "../../../components/layouts/icons";
-import { getStorefrontImageProps, keytoUrl } from "@/lib/utils";
-import {
-  productThumbnailFrameClass,
-  productThumbnailImageClass,
-} from "@/features/products/productThumbnail";
+import { Icons } from "@/components/layouts/icons";
+import { cn, getStorefrontImageProps, keytoUrl } from "@/lib/utils";
 import {
   productImageTransitionName,
   viewTransitionStyle,
@@ -42,9 +38,16 @@ const ProductImageShowcaseFragment = gql(/* GraphQL */ `
   }
 `);
 
+type GalleryImage = {
+  id: string;
+  key: string;
+  alt: string;
+};
+
 function ProductImageShowcase({
   data,
   viewTransitionKey,
+  className,
 }: ProductImageShowcaseProps) {
   const transitionName = productImageTransitionName(
     viewTransitionKey ?? data.id,
@@ -52,84 +55,180 @@ function ProductImageShowcase({
   const galleryMedias =
     data.images?.edges.map(({ node }) => node.media).filter(Boolean) || [];
   const seen = new Set<string>();
-  const allImages = [data.featuredImage, ...galleryMedias].filter((image) => {
-    if (!image?.id || seen.has(image.id)) return false;
+  const allImages: GalleryImage[] = [];
+  for (const image of [data.featuredImage, ...galleryMedias]) {
+    if (!image?.id || !image.key || seen.has(image.id)) continue;
     seen.add(image.id);
-    return true;
-  });
+    allImages.push({
+      id: image.id,
+      key: image.key,
+      alt: image.alt || "",
+    });
+  }
 
   const [activeImageIndex, setActiveImageIndex] = useState(0);
+  const safeIndex =
+    allImages.length === 0
+      ? 0
+      : Math.min(activeImageIndex, allImages.length - 1);
 
-  const nextImage = () => {
-    if (activeImageIndex < allImages.length - 1) {
-      setActiveImageIndex((prevIndex) => prevIndex + 1);
+  useEffect(() => {
+    if (activeImageIndex !== safeIndex) {
+      setActiveImageIndex(safeIndex);
     }
-  };
+  }, [activeImageIndex, safeIndex]);
 
-  // Function to navigate to the previous image
-  const prevImage = () => {
-    if (activeImageIndex > 0) {
-      setActiveImageIndex((prevIndex) => prevIndex - 1);
-    }
-  };
-  const activeImage = allImages[activeImageIndex];
-  const activeImageSrc = activeImage ? keytoUrl(activeImage.key) : null;
+  const goNext = useCallback(() => {
+    setActiveImageIndex((prev) =>
+      allImages.length === 0 ? 0 : Math.min(prev + 1, allImages.length - 1),
+    );
+  }, [allImages.length]);
+
+  const goPrev = useCallback(() => {
+    setActiveImageIndex((prev) => Math.max(prev - 1, 0));
+  }, []);
+
+  if (allImages.length === 0) {
+    return (
+      <div
+        className={cn(
+          "w-full min-w-0 overflow-hidden rounded-md bg-muted aspect-[3/4] max-h-[70vh]",
+          className,
+        )}
+      />
+    );
+  }
+
+  const activeImage = allImages[safeIndex];
+  const activeImageSrc = keytoUrl(activeImage.key);
+  const hasMultiple = allImages.length > 1;
 
   return (
-    <section className="flex md:flex-row flex-col items-center gap-x-8 gap-y-5">
-      {/* Active Image Display */}
-      <div className="w-full max-w-2xl order-1 md:order-3 grow">
-        {activeImage && activeImageSrc ? (
-          <div className={`${productThumbnailFrameClass} mb-5`}>
-            <Image
-              src={activeImageSrc}
-              alt={activeImage.alt || "Product image"}
-              fill
-              sizes="(max-width: 768px) 100vw, 50vw"
-              className={productThumbnailImageClass}
-              style={viewTransitionStyle(transitionName)}
-              priority
-              {...getStorefrontImageProps(activeImageSrc)}
-            />
-          </div>
-        ) : null}
-      </div>
-
-      {/* Thumbnails */}
-      <div className="relative order-2 overflow-x-auto w-full md:w-[100px] h-full">
-        <div className="flex overflow-x-auto gap-x-5 gapy-y-5 order-2 justify-center flex-row md:flex-col">
+    <section
+      className={cn(
+        "w-full min-w-0 max-w-full overflow-hidden",
+        "flex flex-col md:flex-row md:items-start gap-3 md:gap-4",
+        className,
+      )}
+    >
+      {/* Desktop: vertical thumb strip */}
+      {hasMultiple ? (
+        <div className="hidden md:flex md:flex-col md:gap-2 md:w-16 md:shrink-0 md:max-h-[min(70vh,36rem)] md:overflow-y-auto">
           {allImages.map((image, index) => {
             const imageSrc = keytoUrl(image.key);
+            const isActive = index === safeIndex;
             return (
-              <Image
+              <button
                 key={image.id}
-                src={imageSrc}
-                alt={image.alt || "Product image thumbnail"}
-                width={100}
-                height={100}
-                className={`aspect-[3/4] object-cover object-top cursor-pointer p-1 ${activeImageIndex === index ? "border-2 border-blue-500" : ""}`}
+                type="button"
+                aria-label={`Show image ${index + 1}`}
+                aria-pressed={isActive}
                 onClick={() => setActiveImageIndex(index)}
-                {...getStorefrontImageProps(imageSrc)}
-              />
+                className={cn(
+                  "relative h-20 w-16 shrink-0 overflow-hidden rounded-md border bg-muted",
+                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                  isActive
+                    ? "border-foreground ring-1 ring-foreground"
+                    : "border-border hover:border-foreground/40",
+                )}
+              >
+                <Image
+                  src={imageSrc}
+                  alt={image.alt || `Product thumbnail ${index + 1}`}
+                  fill
+                  sizes="64px"
+                  className="object-cover object-top"
+                  {...getStorefrontImageProps(imageSrc)}
+                />
+              </button>
             );
           })}
         </div>
+      ) : null}
 
-        <div className="md:hidden block">
-          <button
-            onClick={prevImage}
-            className="absolute left-0 top-1/2 transform -translate-y-1/2 bg-gray-800 text-white p-2"
-          >
-            <Icons.chevronLeft />
-          </button>
+      {/* Main image — constrained so it never blows past the viewport */}
+      <div className="relative w-full min-w-0 flex-1">
+        <div
+          className={cn(
+            "relative w-full overflow-hidden rounded-md bg-muted",
+            "aspect-[3/4] max-h-[min(70vh,36rem)]",
+          )}
+        >
+          <Image
+            src={activeImageSrc}
+            alt={activeImage.alt || "Product image"}
+            fill
+            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 55vw, 640px"
+            className="object-cover object-top"
+            style={viewTransitionStyle(transitionName)}
+            priority
+            {...getStorefrontImageProps(activeImageSrc)}
+          />
 
-          <button
-            onClick={nextImage}
-            className="absolute right-0 top-1/2  md:top-unset transform -translate-y-1/2 bg-gray-800 text-white p-2"
-          >
-            <Icons.chevronRight />
-          </button>
+          {hasMultiple ? (
+            <>
+              <button
+                type="button"
+                aria-label="Previous image"
+                onClick={goPrev}
+                disabled={safeIndex === 0}
+                className={cn(
+                  "absolute left-2 top-1/2 z-10 -translate-y-1/2 rounded-full bg-black/55 p-2 text-white",
+                  "disabled:opacity-30 md:hidden",
+                )}
+              >
+                <Icons.chevronLeft className="h-5 w-5" />
+              </button>
+              <button
+                type="button"
+                aria-label="Next image"
+                onClick={goNext}
+                disabled={safeIndex >= allImages.length - 1}
+                className={cn(
+                  "absolute right-2 top-1/2 z-10 -translate-y-1/2 rounded-full bg-black/55 p-2 text-white",
+                  "disabled:opacity-30 md:hidden",
+                )}
+              >
+                <Icons.chevronRight className="h-5 w-5" />
+              </button>
+            </>
+          ) : null}
         </div>
+
+        {/* Mobile: horizontal thumb strip under main */}
+        {hasMultiple ? (
+          <div className="mt-3 flex gap-2 overflow-x-auto pb-1 md:hidden [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            {allImages.map((image, index) => {
+              const imageSrc = keytoUrl(image.key);
+              const isActive = index === safeIndex;
+              return (
+                <button
+                  key={image.id}
+                  type="button"
+                  aria-label={`Show image ${index + 1}`}
+                  aria-pressed={isActive}
+                  onClick={() => setActiveImageIndex(index)}
+                  className={cn(
+                    "relative h-16 w-14 shrink-0 overflow-hidden rounded-md border bg-muted",
+                    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                    isActive
+                      ? "border-foreground ring-1 ring-foreground"
+                      : "border-border",
+                  )}
+                >
+                  <Image
+                    src={imageSrc}
+                    alt={image.alt || `Product thumbnail ${index + 1}`}
+                    fill
+                    sizes="56px"
+                    className="object-cover object-top"
+                    {...getStorefrontImageProps(imageSrc)}
+                  />
+                </button>
+              );
+            })}
+          </div>
+        ) : null}
       </div>
     </section>
   );
