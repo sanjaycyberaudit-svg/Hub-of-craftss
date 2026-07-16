@@ -17,9 +17,7 @@ export const bulkSharedInputSchema = z
     collectionId: z
       .string()
       .trim()
-      .optional()
-      .nullable()
-      .transform((value) => (value ? value : null)),
+      .min(1, "Catalog is required."),
     badge: z
       .enum(["new_product", "best_sale", "featured"])
       .optional()
@@ -54,7 +52,7 @@ export type NormalizedBulkDraftShared = {
   baseName: string;
   description: string;
   isDraft: boolean;
-  collectionId: string | null;
+  collectionId: string;
   badge: InsertProducts["badge"];
   rating: string;
   price: string;

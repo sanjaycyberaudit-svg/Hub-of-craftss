@@ -30,9 +30,7 @@ export function normalizeDecimalInput(
   const min = options.min ?? Number.NEGATIVE_INFINITY;
   const max = options.max ?? Number.POSITIVE_INFINITY;
   if (value < min || value > max) {
-    throw new Error(
-      `${options.fieldLabel} must be between ${min} and ${max}.`,
-    );
+    throw new Error(`${options.fieldLabel} must be between ${min} and ${max}.`);
   }
 
   // Keep at most 2 decimal places for money-like fields; rating uses 1.
@@ -67,6 +65,11 @@ export function normalizeProductFormPayload(
   const name = String(data.name ?? "").trim();
   if (!name) {
     throw new Error("Product name is required.");
+  }
+
+  const collectionId = String(data.collectionId ?? "").trim();
+  if (!collectionId) {
+    throw new Error("Catalog is required.");
   }
 
   const rating = normalizeDecimalInput(data.rating, {
@@ -107,7 +110,7 @@ export function normalizeProductFormPayload(
     badge,
     stock,
     tags: [],
-    collectionId: data.collectionId || null,
+    collectionId,
     discountEnabled,
     discountPercent,
   };

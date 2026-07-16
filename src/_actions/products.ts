@@ -92,9 +92,9 @@ function getFileNameBase(fileName: string) {
 
 const DEFAULT_BULK_SHARED: NormalizedBulkDraftShared = {
   baseName: "Product",
-  description: "",
+  description: "Draft product",
   isDraft: true,
-  collectionId: null,
+  collectionId: "",
   badge: null,
   rating: "4",
   price: "0",
@@ -111,6 +111,9 @@ export async function createDraftProductsFromMedia(
   if (mediaItems.length === 0) return [];
 
   const normalizedShared = shared ?? DEFAULT_BULK_SHARED;
+  if (!String(normalizedShared.collectionId ?? "").trim()) {
+    throw new Error("Catalog is required.");
+  }
 
   return db.transaction(async (tx) => {
     await tx.execute(

@@ -15,7 +15,7 @@ const base = {
   featured: false,
   badge: null as null,
   tags: [] as string[],
-  collectionId: null as null,
+  collectionId: "col-1",
   featuredImageId: "img-1",
 };
 
@@ -91,6 +91,15 @@ describe("normalizeProductFormPayload", () => {
         price: "" as never,
       }),
     ).toThrow(/Price is required/);
+  });
+
+  it("rejects missing catalog", () => {
+    expect(() =>
+      normalizeProductFormPayload({
+        ...base,
+        collectionId: "" as never,
+      }),
+    ).toThrow(/Catalog is required/);
   });
 
   it("rejects missing description", () => {

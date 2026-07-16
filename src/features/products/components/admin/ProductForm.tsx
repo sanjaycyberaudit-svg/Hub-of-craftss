@@ -178,6 +178,10 @@ const productFormSchema = createInsertSchema(products)
       if (value == null || String(value).trim() === "") return "4";
       return typeof value === "string" ? value.trim() : value;
     }, z.string().min(1)),
+    collectionId: z
+      .string({ required_error: "Catalog is required." })
+      .trim()
+      .min(1, "Catalog is required."),
   });
 
 export const ProductFormQuery = gql(/* GraphQL */ `
@@ -909,14 +913,14 @@ function ProductFrom({ product, galleryMediaIds = [] }: ProductsFormProps) {
                 name={"collectionId"}
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Category</FormLabel>
+                    <FormLabel>Catalog *</FormLabel>
                     <Select
                       value={field.value || undefined}
                       onValueChange={field.onChange}
                     >
                       <FormControl>
                         <SelectTrigger>
-                          <SelectValue placeholder="Select a category" />
+                          <SelectValue placeholder="Select a catalog" />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
@@ -933,7 +937,7 @@ function ProductFrom({ product, galleryMediaIds = [] }: ProductsFormProps) {
                       </SelectContent>
                     </Select>
                     <FormDescription>
-                      Choose which storefront category this product belongs to.
+                      Required. Product must belong to a storefront catalog.
                     </FormDescription>
                     <FormMessage />
                   </FormItem>
