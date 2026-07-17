@@ -1,32 +1,107 @@
-import { Redis } from "@upstash/redis";
+/**
+ * Minimal Upstash Redis REST client for the storefront cache.
+ *
+ * Why not @upstash/redis: the SDK forces `cache: "no-store"` on every fetch.
+ * Next.js treats a no-store fetch as "this route is dynamic", so on static/ISR
+ * pages every Redis call threw DynamicServerError (cache silently disabled)
+ * and background revalidation failed with "Page changed from static to
+ * dynamic at runtime" — burning Worker CPU until Error 1102.
+ *
+ * This client sends the same REST commands with the unpatched fetch, so cache
+ * reads/writes are invisible to Next's static rendering. That is correct:
+ * Redis here is our own cache transport, not page data fetching.
+ *
+ * Wire format stays compatible with values written by @upstash/redis
+ * (JSON.stringify on SET, JSON.parse on GET).
+ */
 
-let client: Redis | null | undefined;
+const REDIS_TIMEOUT_MS = 1500;
 
-function getRedis(): Redis | null {
-  if (client !== undefined) return client;
+type RedisRestConfig = { url: string; token: string };
+
+let config: RedisRestConfig | null | undefined;
+
+function getConfig(): RedisRestConfig | null {
+  if (config !== undefined) return config;
 
   const url = process.env.UPSTASH_REDIS_REST_URL?.trim();
   const token = process.env.UPSTASH_REDIS_REST_TOKEN?.trim();
 
-  if (!url || !token) {
-    client = null;
-    return client;
+  config = url && token ? { url: url.replace(/\/+$/, ""), token } : null;
+  return config;
+}
+
+type NextPatchedFetch = typeof fetch & { _nextOriginalFetch?: typeof fetch };
+
+/**
+ * Next.js patches global fetch to track caching; use the original it keeps on
+ * `_nextOriginalFetch` so Redis I/O never marks a page as dynamic. The plain
+ * global fetch fallback is also safe (we never pass a `cache` option).
+ */
+function resolveFetch(): typeof fetch {
+  const patched = globalThis.fetch as NextPatchedFetch;
+  const original = patched._nextOriginalFetch ?? patched;
+  return original.bind(globalThis);
+}
+
+function timeoutSignal(): AbortSignal | undefined {
+  try {
+    return AbortSignal.timeout(REDIS_TIMEOUT_MS);
+  } catch {
+    return undefined;
+  }
+}
+
+async function redisCommand(
+  command: (string | number)[],
+): Promise<unknown | null> {
+  const cfg = getConfig();
+  if (!cfg) return null;
+
+  const doFetch = resolveFetch();
+  const response = await doFetch(cfg.url, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${cfg.token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(command),
+    signal: timeoutSignal(),
+  });
+
+  if (!response.ok) {
+    const text = await response.text().catch(() => "");
+    throw new Error(
+      `Upstash ${response.status} for ${String(command[0])}: ${text.slice(0, 200)}`,
+    );
   }
 
-  client = new Redis({ url, token });
-  return client;
+  const payload = (await response.json()) as {
+    result?: unknown;
+    error?: string;
+  };
+  if (payload.error) {
+    throw new Error(`Upstash error for ${String(command[0])}: ${payload.error}`);
+  }
+  return payload.result ?? null;
 }
 
 export function isRedisCacheEnabled() {
-  return getRedis() !== null;
+  return getConfig() !== null;
 }
 
 export async function redisGet<T>(key: string): Promise<T | null> {
-  const redis = getRedis();
-  if (!redis) return null;
-
   try {
-    return (await redis.get<T>(key)) ?? null;
+    const raw = await redisCommand(["GET", key]);
+    if (raw === null || raw === undefined) return null;
+    if (typeof raw !== "string") return raw as T;
+
+    try {
+      return JSON.parse(raw) as T;
+    } catch {
+      // Value predates JSON serialization; return it as-is.
+      return raw as unknown as T;
+    }
   } catch (error) {
     console.warn("[cache] Redis GET failed:", error);
     return null;
@@ -38,24 +113,24 @@ export async function redisSet<T>(
   value: T,
   ttlSeconds: number,
 ): Promise<void> {
-  const redis = getRedis();
-  if (!redis) return;
-
   try {
-    await redis.set(key, value, { ex: Math.max(30, ttlSeconds) });
+    await redisCommand([
+      "SET",
+      key,
+      JSON.stringify(value),
+      "EX",
+      Math.max(30, Math.floor(ttlSeconds)),
+    ]);
   } catch (error) {
     console.warn("[cache] Redis SET failed:", error);
   }
 }
 
 export async function redisDelByPrefix(prefix: string): Promise<void> {
-  const redis = getRedis();
-  if (!redis) return;
-
   try {
-    const keys = await redis.keys(`${prefix}*`);
-    if (keys.length > 0) {
-      await redis.del(...keys);
+    const keys = await redisCommand(["KEYS", `${prefix}*`]);
+    if (Array.isArray(keys) && keys.length > 0) {
+      await redisCommand(["DEL", ...keys.map(String)]);
     }
   } catch (error) {
     console.warn("[cache] Redis DEL failed:", error);
