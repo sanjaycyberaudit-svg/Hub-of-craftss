@@ -6,13 +6,14 @@ import { fetchPhonePePaymentStatus } from "@/lib/payments/phonepe";
 import { fetchCashfreeOrderStatus } from "@/lib/payments/cashfree";
 import { fulfillPaidOrderInventory } from "@/lib/orders/inventory-fulfillment";
 import { mergePaymentMeta, readPaymentMeta } from "@/lib/orders/payment-meta";
+import { detectPaidAmountMismatch } from "@/lib/payments/amount-check";
 import {
   canReleaseOrphanUnpaidHold,
   isReservationExpired,
   releaseStockReservation,
   hasActiveStockReservation,
 } from "@/lib/orders/stock-reservation";
-import { eq } from "drizzle-orm";
+import { and, eq, ne } from "drizzle-orm";
 
 type SyncInput =
   | { orderId: string; merchantTransactionId?: string | null }
@@ -89,10 +90,27 @@ export async function syncPhonePeOrderPayment(input: SyncInput) {
 
   const status = await fetchPhonePePaymentStatus(merchantTransactionId);
   const state = status?.state ?? "PENDING";
-  const isPaid = state === "COMPLETED";
+  let isPaid = state === "COMPLETED";
   const isFailed = state === "FAILED";
   const existingMeta = readPaymentMeta(currentOrder.payment_meta);
 
+  // Verify the gateway-reported amount before trusting a PAID state. On
+  // mismatch, hold the order for manual review instead of marking it paid.
+  const amountCheck = detectPaidAmountMismatch(
+    currentOrder.amount,
+    typeof status?.amount === "number" ? status.amount / 100 : null,
+  );
+  const amountMismatch = isPaid && amountCheck.mismatch;
+  if (amountMismatch) {
+    console.error(
+      `[payments] PhonePe amount mismatch for order ${currentOrder.id}: expected ${amountCheck.expected}, gateway reported ${amountCheck.actual}. Holding order for manual review.`,
+    );
+    isPaid = false;
+  }
+
+  // The `payment_status != 'paid'` guard makes the unpaid->paid transition
+  // atomic: concurrent webhook + redirect syncs cannot both run side effects,
+  // and a delayed PENDING/FAILED sync can never flip a paid order back.
   const [updated] = await db
     .update(orders)
     .set({
@@ -107,10 +125,32 @@ export async function syncPhonePeOrderPayment(input: SyncInput) {
         phonepeState: state,
         responseCode: status?.responseCode ?? null,
         paymentInstrument: status?.paymentInstrument ?? null,
+        ...(amountMismatch
+          ? {
+              amountMismatch: {
+                expected: amountCheck.expected,
+                gatewayReported: amountCheck.actual,
+                detectedAt: new Date().toISOString(),
+              },
+            }
+          : {}),
       }),
     })
-    .where(eq(orders.id, currentOrder.id))
+    .where(
+      and(eq(orders.id, currentOrder.id), ne(orders.payment_status, "paid")),
+    )
     .returning();
+
+  if (!updated) {
+    // Lost the race: another sync already marked this order paid and ran the
+    // side effects. Report success without repeating them.
+    return {
+      orderId: currentOrder.id,
+      state,
+      isPaid: true,
+      alreadyPaid: true as const,
+    };
+  }
 
   if (isPaid) {
     const wa = await notifyOrderWhatsAppTargets(updated);
@@ -173,12 +213,31 @@ export async function syncCashfreeOrderPayment(orderId: string) {
 
   const status = await fetchCashfreeOrderStatus(orderId);
   const state = String(status.order_status ?? "ACTIVE").toUpperCase();
-  const isPaid = state === "PAID";
+  let isPaid = state === "PAID";
   const isTerminalFailure = ["EXPIRED", "TERMINATED", "CANCELLED"].includes(
     state,
   );
   const existingMeta = readPaymentMeta(currentOrder.payment_meta);
 
+  // Verify the gateway-reported amount before trusting a PAID state. On
+  // mismatch, hold the order for manual review instead of marking it paid.
+  const amountCheck = detectPaidAmountMismatch(
+    currentOrder.amount,
+    status.order_amount !== undefined && status.order_amount !== null
+      ? Number(status.order_amount)
+      : null,
+  );
+  const amountMismatch = isPaid && amountCheck.mismatch;
+  if (amountMismatch) {
+    console.error(
+      `[payments] Cashfree amount mismatch for order ${currentOrder.id}: expected ${amountCheck.expected}, gateway reported ${amountCheck.actual}. Holding order for manual review.`,
+    );
+    isPaid = false;
+  }
+
+  // The `payment_status != 'paid'` guard makes the unpaid->paid transition
+  // atomic: concurrent webhook + redirect syncs cannot both run side effects,
+  // and a delayed ACTIVE/EXPIRED sync can never flip a paid order back.
   const [updated] = await db
     .update(orders)
     .set({
@@ -199,10 +258,32 @@ export async function syncCashfreeOrderPayment(orderId: string) {
           ? String(status.cf_order_id)
           : null,
         cashfreeOrderStatus: state,
+        ...(amountMismatch
+          ? {
+              amountMismatch: {
+                expected: amountCheck.expected,
+                gatewayReported: amountCheck.actual,
+                detectedAt: new Date().toISOString(),
+              },
+            }
+          : {}),
       }),
     })
-    .where(eq(orders.id, currentOrder.id))
+    .where(
+      and(eq(orders.id, currentOrder.id), ne(orders.payment_status, "paid")),
+    )
     .returning();
+
+  if (!updated) {
+    // Lost the race: another sync already marked this order paid and ran the
+    // side effects. Report success without repeating them.
+    return {
+      orderId: currentOrder.id,
+      state,
+      isPaid: true,
+      alreadyPaid: true as const,
+    };
+  }
 
   if (isPaid) {
     const wa = await notifyOrderWhatsAppTargets(updated);

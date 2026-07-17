@@ -42,6 +42,7 @@
     "db:seed-testimonials": "tsx --env-file=.env.local ./scripts/seed-sakthi-testimonials.ts",
     "db:setup-velo-order-push": "node --env-file=.env.local ./scripts/setup-velo-order-push.mjs",
     "db:migrate-product-lifecycle": "node ./scripts/apply-product-lifecycle.mjs",
+    "db:migrate-api-settings-rls": "node scripts/apply-api-settings-rls.mjs",
     "make-admin": "node scripts/make-admin.mjs",
     "db:drop": "drizzle-kit drop --config=drizzle.config.ts",
     "codegen": "graphql-codegen",

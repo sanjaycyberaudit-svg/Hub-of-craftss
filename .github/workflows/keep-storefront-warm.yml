@@ -85,3 +85,36 @@ jobs:
           check_route "/api/health" '"status":"ok"'
           check_route "/"
           check_route "/shop"
+
+      - name: Release expired stock reservations
+        shell: bash
+        env:
+          SITE_ORIGIN: https://hubsofcraftss.com
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          set -euo pipefail
+
+          if [[ -z "${CRON_SECRET}" ]]; then
+            echo "::notice title=Cron skipped::CRON_SECRET repo secret is not set; expired stock holds rely on the lazy in-request sweep only."
+            exit 0
+          fi
+
+          response="$(
+            curl \
+              --fail-with-body \
+              --silent \
+              --show-error \
+              --connect-timeout 10 \
+              --max-time 60 \
+              --retry 2 \
+              --retry-delay 3 \
+              --header "Authorization: Bearer ${CRON_SECRET}" \
+              --user-agent "HubOfCraftss-Production-Warmup/1.0" \
+              "${SITE_ORIGIN}/api/cron/release-expired-stock-reservations"
+          )"
+
+          echo "${response}"
+          if ! grep -Fq '"ok":true' <<<"${response}"; then
+            echo "::error title=Stock release failed::${response}"
+            exit 1
+          fi

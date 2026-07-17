@@ -42,6 +42,7 @@ type CashfreeFetchOrderResponse = {
   cf_order_id?: string | number;
   order_id?: string;
   order_status?: string;
+  order_amount?: number | string;
   payment_session_id?: string;
   message?: string;
   code?: string;
