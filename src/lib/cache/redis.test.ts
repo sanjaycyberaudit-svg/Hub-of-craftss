@@ -29,7 +29,9 @@ describe("redis REST cache client", () => {
   });
 
   it("uses Next's unpatched fetch when the global fetch is patched", async () => {
-    const unpatched = jest.fn().mockResolvedValue(jsonResponse({ result: null }));
+    const unpatched = jest
+      .fn()
+      .mockResolvedValue(jsonResponse({ result: null }));
     const patched: FetchMock = jest.fn();
     patched._nextOriginalFetch = unpatched;
     globalThis.fetch = patched as unknown as typeof fetch;

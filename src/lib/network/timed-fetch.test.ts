@@ -27,7 +27,8 @@ describe("createTimedFetch", () => {
       return new Promise<Response>((resolve, reject) => {
         init?.signal?.addEventListener(
           "abort",
-          () => reject(Object.assign(new Error("aborted"), { name: "AbortError" })),
+          () =>
+            reject(Object.assign(new Error("aborted"), { name: "AbortError" })),
           { once: true },
         );
         hang.promise.then(resolve, reject);
@@ -50,7 +51,8 @@ describe("createTimedFetch", () => {
       return new Promise<Response>((resolve, reject) => {
         init?.signal?.addEventListener(
           "abort",
-          () => reject(Object.assign(new Error("aborted"), { name: "AbortError" })),
+          () =>
+            reject(Object.assign(new Error("aborted"), { name: "AbortError" })),
           { once: true },
         );
         hang.promise.then(resolve, reject);

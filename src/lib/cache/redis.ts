@@ -81,7 +81,9 @@ async function redisCommand(
     error?: string;
   };
   if (payload.error) {
-    throw new Error(`Upstash error for ${String(command[0])}: ${payload.error}`);
+    throw new Error(
+      `Upstash error for ${String(command[0])}: ${payload.error}`,
+    );
   }
   return payload.result ?? null;
 }
