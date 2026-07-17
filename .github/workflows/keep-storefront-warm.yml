@@ -1,0 +1,87 @@
+name: Keep storefront warm
+
+on:
+  schedule:
+    # GitHub's shortest supported schedule. Runs in UTC and may start late
+    # during periods of high Actions load.
+    - cron: "*/5 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: keep-storefront-warm
+  cancel-in-progress: true
+
+jobs:
+  warm-and-check:
+    name: Warm and verify production
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+
+    steps:
+      - name: Warm public routes
+        shell: bash
+        env:
+          SITE_ORIGIN: https://hubsofcraftss.com
+        run: |
+          set -euo pipefail
+
+          check_route() {
+            local path="$1"
+            local expected_body="${2:-}"
+            local body
+            local metadata
+            local status
+            local final_url
+
+            body="$(mktemp)"
+            metadata="$(
+              curl \
+                --fail-with-body \
+                --location \
+                --silent \
+                --show-error \
+                --connect-timeout 10 \
+                --max-time 45 \
+                --retry 3 \
+                --retry-delay 2 \
+                --retry-max-time 150 \
+                --retry-all-errors \
+                --user-agent "HubOfCraftss-Production-Warmup/1.0" \
+                --output "$body" \
+                --write-out "%{http_code} %{url_effective}" \
+                "${SITE_ORIGIN}${path}"
+            )"
+
+            status="${metadata%% *}"
+            final_url="${metadata#* }"
+
+            if [[ "$status" != "200" ]]; then
+              echo "::error title=Unexpected HTTP status::${path} returned ${status}"
+              cat "$body"
+              rm -f "$body"
+              return 1
+            fi
+
+            if [[ "$final_url" != "${SITE_ORIGIN}"* ]]; then
+              echo "::error title=Unexpected final domain::${path} ended at ${final_url}"
+              rm -f "$body"
+              return 1
+            fi
+
+            if [[ -n "$expected_body" ]] && ! grep -Fq "$expected_body" "$body"; then
+              echo "::error title=Health response mismatch::${path} did not contain ${expected_body}"
+              rm -f "$body"
+              return 1
+            fi
+
+            echo "OK ${status} ${final_url}"
+            rm -f "$body"
+          }
+
+          # Exercise both the lightweight API runtime and important rendered routes.
+          check_route "/api/health" '"status":"ok"'
+          check_route "/"
+          check_route "/shop"
