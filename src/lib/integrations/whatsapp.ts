@@ -214,6 +214,43 @@ export async function sendSellerWhatsAppBulk(params: {
   return { sent: sentCount > 0, sentCount };
 }
 
+/**
+ * Best-effort operational alert to the seller mobiles (plain text). Used for
+ * conditions that need human attention NOW (payment amount mismatch, paid
+ * order with an inventory problem). Never throws.
+ */
+export async function sendSellerOpsAlert(message: string) {
+  try {
+    const config = await getWhatsAppConfig();
+    if (!config || !config.notifySeller || config.sellerMobiles.length === 0) {
+      return { sent: false as const, reason: "seller_alerts_not_configured" };
+    }
+
+    let sentCount = 0;
+    for (const mobile of config.sellerMobiles) {
+      const to = normalizeIndianMobile(mobile);
+      if (!to) continue;
+
+      const res = await postWhatsAppMessage(
+        config.phoneNumberId,
+        config.accessToken,
+        {
+          messaging_product: "whatsapp",
+          to,
+          type: "text",
+          text: { body: `[Hub of Craftss ALERT]\n${message}` },
+        },
+      );
+      if (res.sent) sentCount += 1;
+    }
+
+    return { sent: sentCount > 0, sentCount };
+  } catch (error) {
+    console.error("[whatsapp] seller ops alert failed:", error);
+    return { sent: false as const, reason: "send_failed" };
+  }
+}
+
 export async function notifyOrderWhatsAppTargets(order: SelectOrders) {
   const result = {
     customerNotified: false,

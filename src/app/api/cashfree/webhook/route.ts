@@ -78,6 +78,15 @@ export async function POST(request: NextRequest) {
     });
 
     if (outcome.status === "skipped") {
+      // Another delivery is mid-flight. If it crashes, a 200 here would end
+      // gateway retries and the order could stay unpaid forever — ask the
+      // gateway to retry instead; the duplicate resolves to 200 once done.
+      if (outcome.reason === "in_progress") {
+        return NextResponse.json(
+          { ok: false, retry: true, reason: outcome.reason },
+          { status: 503 },
+        );
+      }
       return NextResponse.json({
         ok: true,
         duplicate: true,

@@ -16,10 +16,14 @@ describe("detectPaidAmountMismatch", () => {
     expect(detectPaidAmountMismatch("100.00", 100.02).mismatch).toBe(true);
   });
 
-  it("does not block when either side is missing or invalid", () => {
+  it("fails closed when the gateway omits the amount", () => {
+    expect(detectPaidAmountMismatch("499.00", null).mismatch).toBe(true);
+    expect(detectPaidAmountMismatch("499.00", undefined).mismatch).toBe(true);
+    expect(detectPaidAmountMismatch("499.00", NaN).mismatch).toBe(true);
+  });
+
+  it("does not block when the order has no expected amount to verify", () => {
     expect(detectPaidAmountMismatch(null, 499).mismatch).toBe(false);
-    expect(detectPaidAmountMismatch("499.00", null).mismatch).toBe(false);
-    expect(detectPaidAmountMismatch("499.00", undefined).mismatch).toBe(false);
     expect(detectPaidAmountMismatch("not-a-number", 499).mismatch).toBe(false);
     expect(detectPaidAmountMismatch("", 499).mismatch).toBe(false);
   });

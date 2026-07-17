@@ -22,9 +22,10 @@ function toFiniteNumber(value: unknown): number | null {
 
 /**
  * Compares the order amount stored in our DB with the amount reported by the
- * payment gateway (both in rupees). Only flags a mismatch when BOTH values
- * are present and differ beyond rounding tolerance — if the gateway omits the
- * amount we cannot verify, so we do not block the payment.
+ * payment gateway (both in rupees). Strict / fail-closed: when we know what
+ * the customer should have paid but the gateway does not report an amount,
+ * we cannot verify the payment, so it is treated as a mismatch and the order
+ * is held for manual review (webhook retries keep it recoverable).
  */
 export function detectPaidAmountMismatch(
   orderAmount: string | number | null | undefined,
@@ -33,8 +34,14 @@ export function detectPaidAmountMismatch(
   const expected = toFiniteNumber(orderAmount);
   const actual = toFiniteNumber(gatewayAmountRupees);
 
-  if (expected === null || actual === null) {
+  // No expected amount on the order row (should never happen: the column is
+  // NOT NULL) — nothing to verify against.
+  if (expected === null) {
     return { mismatch: false, expected, actual };
+  }
+
+  if (actual === null) {
+    return { mismatch: true, expected, actual };
   }
 
   return {

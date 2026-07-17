@@ -1,0 +1,54 @@
+name: Nightly maintenance
+
+on:
+  schedule:
+    # 21:00 UTC = 02:30 IST, quiet hours for an India-based shop.
+    - cron: "0 21 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: nightly-maintenance
+  cancel-in-progress: true
+
+jobs:
+  cleanup:
+    name: Lifecycle and guest-address cleanup
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Run lifecycle cleanup cron
+        shell: bash
+        env:
+          SITE_ORIGIN: https://hubsofcraftss.com
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          set -euo pipefail
+
+          if [[ -z "${CRON_SECRET}" ]]; then
+            echo "::error title=Missing secret::CRON_SECRET repo secret is not set."
+            exit 1
+          fi
+
+          response="$(
+            curl \
+              --fail-with-body \
+              --silent \
+              --show-error \
+              --connect-timeout 10 \
+              --max-time 120 \
+              --retry 2 \
+              --retry-delay 5 \
+              --header "Authorization: Bearer ${CRON_SECRET}" \
+              --user-agent "HubOfCraftss-Nightly-Maintenance/1.0" \
+              "${SITE_ORIGIN}/api/cron/lifecycle-cleanup"
+          )"
+
+          echo "${response}"
+          if ! grep -Fq '"ok":true' <<<"${response}"; then
+            echo "::error title=Lifecycle cleanup failed::${response}"
+            exit 1
+          fi

@@ -1,7 +1,10 @@
 import db from "@/lib/supabase/db";
-import { carts, orders } from "@/lib/supabase/schema";
+import { carts, orders, type SelectOrders } from "@/lib/supabase/schema";
 import { notifyVeloOrderPushSafe } from "@/lib/integrations/velo-order-push";
-import { notifyOrderWhatsAppTargets } from "@/lib/integrations/whatsapp";
+import {
+  notifyOrderWhatsAppTargets,
+  sendSellerOpsAlert,
+} from "@/lib/integrations/whatsapp";
 import { fetchPhonePePaymentStatus } from "@/lib/payments/phonepe";
 import { fetchCashfreeOrderStatus } from "@/lib/payments/cashfree";
 import { fulfillPaidOrderInventory } from "@/lib/orders/inventory-fulfillment";
@@ -18,6 +21,86 @@ import { and, eq, ne } from "drizzle-orm";
 type SyncInput =
   | { orderId: string; merchantTransactionId?: string | null }
   | { orderId?: string | null; merchantTransactionId: string };
+
+/**
+ * All post-payment side effects, each individually idempotent (guarded by
+ * flags on the order row / payment_meta):
+ * - WhatsApp confirmations  -> whatsapp_notified / whatsapp_seller_notified
+ * - Cart clear              -> plain DELETE, naturally idempotent
+ * - Inventory fulfillment   -> payment_meta.inventoryFulfilled
+ * - Velo push               -> payment_meta.veloPushNotified
+ *
+ * Every effect is attempted even if an earlier one fails; if anything failed
+ * we throw at the end so the webhook returns 5xx and the gateway retries.
+ * Because each effect is idempotent, the retry safely completes only the
+ * missing work instead of duplicating what already succeeded.
+ */
+async function runPaidOrderSideEffects(order: SelectOrders) {
+  const failures: string[] = [];
+
+  try {
+    const wa = await notifyOrderWhatsAppTargets(order);
+    if (wa.customerNotified || wa.sellerNotified) {
+      await db
+        .update(orders)
+        .set({
+          whatsapp_notified: wa.customerNotified ? true : order.whatsapp_notified,
+          whatsapp_notified_at: wa.customerNotified
+            ? new Date().toISOString()
+            : order.whatsapp_notified_at,
+          whatsapp_seller_notified: wa.sellerNotified
+            ? true
+            : order.whatsapp_seller_notified,
+          whatsapp_seller_notified_at: wa.sellerNotified
+            ? new Date().toISOString()
+            : order.whatsapp_seller_notified_at,
+        })
+        .where(eq(orders.id, order.id));
+    }
+  } catch (error) {
+    console.error("[payments] WhatsApp notify failed:", error);
+    failures.push("whatsapp");
+  }
+
+  try {
+    if (order.user_id) {
+      await db.delete(carts).where(eq(carts.userId, order.user_id));
+    }
+  } catch (error) {
+    console.error("[payments] cart clear failed:", error);
+    failures.push("cart_clear");
+  }
+
+  try {
+    await fulfillPaidOrderInventory(order.id);
+  } catch (error) {
+    console.error("[payments] inventory fulfillment failed:", error);
+    failures.push("inventory");
+  }
+
+  try {
+    await notifyVeloOrderPushSafe(order);
+  } catch (error) {
+    console.error("[payments] Velo push failed:", error);
+    failures.push("velo");
+  }
+
+  if (failures.length > 0) {
+    throw new Error(
+      `Paid order side effects incomplete for ${order.id}: ${failures.join(", ")}`,
+    );
+  }
+}
+
+/**
+ * For an order that was already paid when the sync started: re-run the
+ * idempotent side effects so a previous attempt that crashed midway (e.g.
+ * Worker eviction after the paid flip) is completed by the gateway retry.
+ * When everything already ran, the flag guards make this a cheap no-op.
+ */
+async function ensurePaidOrderSideEffects(order: SelectOrders) {
+  await runPaidOrderSideEffects(order);
+}
 
 async function maybeReleaseUnpaidReservation(orderId: string, reason: string) {
   await releaseStockReservation(orderId, reason, {
@@ -72,14 +155,15 @@ export async function syncPhonePeOrderPayment(input: SyncInput) {
     throw new Error("merchantTransactionId missing for PhonePe status sync");
   }
 
-  // Already paid for this merchant txn — allow gateway retries without
-  // re-running WhatsApp / cart clear / inventory side effects.
+  // Already paid for this merchant txn — complete any side effects a prior
+  // attempt missed (idempotent no-op when everything already ran).
   if (
     currentOrder.payment_status === "paid" &&
     (currentOrder.phonepe_merchant_transaction_id === merchantTransactionId ||
       currentOrder.payment_reference === merchantTransactionId ||
       currentOrder.phonepe_transaction_id)
   ) {
+    await ensurePaidOrderSideEffects(currentOrder);
     return {
       orderId: currentOrder.id,
       state: "COMPLETED",
@@ -106,6 +190,13 @@ export async function syncPhonePeOrderPayment(input: SyncInput) {
       `[payments] PhonePe amount mismatch for order ${currentOrder.id}: expected ${amountCheck.expected}, gateway reported ${amountCheck.actual}. Holding order for manual review.`,
     );
     isPaid = false;
+
+    // Alert the seller once (first detection only, not on every retry).
+    if (!existingMeta.amountMismatch) {
+      await sendSellerOpsAlert(
+        `Payment amount mismatch (PhonePe)\nOrder: #${currentOrder.id}\nExpected: INR ${amountCheck.expected}\nGateway reported: INR ${amountCheck.actual ?? "missing"}\nOrder is HELD as unpaid — review it in admin before shipping.`,
+      );
+    }
   }
 
   // The `payment_status != 'paid'` guard makes the unpaid->paid transition
@@ -153,33 +244,7 @@ export async function syncPhonePeOrderPayment(input: SyncInput) {
   }
 
   if (isPaid) {
-    const wa = await notifyOrderWhatsAppTargets(updated);
-    if (wa.customerNotified || wa.sellerNotified) {
-      await db
-        .update(orders)
-        .set({
-          whatsapp_notified: wa.customerNotified
-            ? true
-            : updated.whatsapp_notified,
-          whatsapp_notified_at: wa.customerNotified
-            ? new Date().toISOString()
-            : updated.whatsapp_notified_at,
-          whatsapp_seller_notified: wa.sellerNotified
-            ? true
-            : updated.whatsapp_seller_notified,
-          whatsapp_seller_notified_at: wa.sellerNotified
-            ? new Date().toISOString()
-            : updated.whatsapp_seller_notified_at,
-        })
-        .where(eq(orders.id, updated.id));
-    }
-
-    if (updated.user_id) {
-      await db.delete(carts).where(eq(carts.userId, updated.user_id));
-    }
-
-    await fulfillPaidOrderInventory(updated.id);
-    await notifyVeloOrderPushSafe(updated);
+    await runPaidOrderSideEffects(updated);
   } else if (isFailed) {
     await maybeReleaseUnpaidReservation(updated.id, "payment_failed");
   } else {
@@ -203,6 +268,9 @@ export async function syncCashfreeOrderPayment(orderId: string) {
   }
 
   if (currentOrder.payment_status === "paid") {
+    // Complete any side effects a prior attempt missed (idempotent no-op
+    // when everything already ran).
+    await ensurePaidOrderSideEffects(currentOrder);
     return {
       orderId: currentOrder.id,
       state: "PAID",
@@ -233,6 +301,13 @@ export async function syncCashfreeOrderPayment(orderId: string) {
       `[payments] Cashfree amount mismatch for order ${currentOrder.id}: expected ${amountCheck.expected}, gateway reported ${amountCheck.actual}. Holding order for manual review.`,
     );
     isPaid = false;
+
+    // Alert the seller once (first detection only, not on every retry).
+    if (!existingMeta.amountMismatch) {
+      await sendSellerOpsAlert(
+        `Payment amount mismatch (Cashfree)\nOrder: #${currentOrder.id}\nExpected: INR ${amountCheck.expected}\nGateway reported: INR ${amountCheck.actual ?? "missing"}\nOrder is HELD as unpaid — review it in admin before shipping.`,
+      );
+    }
   }
 
   // The `payment_status != 'paid'` guard makes the unpaid->paid transition
@@ -286,33 +361,7 @@ export async function syncCashfreeOrderPayment(orderId: string) {
   }
 
   if (isPaid) {
-    const wa = await notifyOrderWhatsAppTargets(updated);
-    if (wa.customerNotified || wa.sellerNotified) {
-      await db
-        .update(orders)
-        .set({
-          whatsapp_notified: wa.customerNotified
-            ? true
-            : updated.whatsapp_notified,
-          whatsapp_notified_at: wa.customerNotified
-            ? new Date().toISOString()
-            : updated.whatsapp_notified_at,
-          whatsapp_seller_notified: wa.sellerNotified
-            ? true
-            : updated.whatsapp_seller_notified,
-          whatsapp_seller_notified_at: wa.sellerNotified
-            ? new Date().toISOString()
-            : updated.whatsapp_seller_notified_at,
-        })
-        .where(eq(orders.id, updated.id));
-    }
-
-    if (updated.user_id) {
-      await db.delete(carts).where(eq(carts.userId, updated.user_id));
-    }
-
-    await fulfillPaidOrderInventory(updated.id);
-    await notifyVeloOrderPushSafe(updated);
+    await runPaidOrderSideEffects(updated);
   } else if (isTerminalFailure) {
     await maybeReleaseUnpaidReservation(updated.id, "payment_failed");
   } else {

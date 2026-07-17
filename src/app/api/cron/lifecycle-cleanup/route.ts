@@ -1,4 +1,5 @@
 import { runLifecycleCleanup } from "@/lib/admin/product-lifecycle";
+import { cleanupOrphanGuestAddresses } from "@/lib/orders/guest-address-cleanup";
 import { NextRequest, NextResponse } from "next/server";
 
 function isAuthorized(request: NextRequest) {
@@ -21,7 +22,13 @@ export async function GET(request: NextRequest) {
 
   try {
     const result = await runLifecycleCleanup();
-    return NextResponse.json({ ok: true, ...result });
+    const addressCleanup = await cleanupOrphanGuestAddresses().catch(
+      (error) => {
+        console.error("[cron] guest address cleanup failed:", error);
+        return { deletedGuestAddresses: 0 };
+      },
+    );
+    return NextResponse.json({ ok: true, ...result, ...addressCleanup });
   } catch (error) {
     console.error("[cron] lifecycle-cleanup failed:", error);
     return NextResponse.json({ ok: false }, { status: 500 });

@@ -3,6 +3,7 @@ import {
   getIntegrationSetting,
   INTEGRATION_KEYS,
 } from "@/lib/integrations/settings";
+import { sendSellerOpsAlert } from "@/lib/integrations/whatsapp";
 import { mergePaymentMeta, readPaymentMeta } from "@/lib/orders/payment-meta";
 import { shouldDeductStockForPaidOrder } from "@/lib/orders/payment-fulfillment";
 import {
@@ -130,19 +131,32 @@ export async function fulfillPaidOrderInventory(
   const deductResult = await deductPaidOrderStockAtomic(lines);
 
   if (!deductResult.ok) {
+    const issue = reservationWasReleased
+      ? "paid_after_reservation_released"
+      : "paid_without_active_reservation";
+
     await db
       .update(orders)
       .set({
         payment_meta: mergePaymentMeta(meta, {
           inventoryFulfilled: false,
-          inventoryIssue: reservationWasReleased
-            ? "paid_after_reservation_released"
-            : "paid_without_active_reservation",
+          inventoryIssue: issue,
           inventoryIssueAt: new Date().toISOString(),
           inventoryIssueProductId: deductResult.failedProductId ?? null,
         }),
       })
       .where(eq(orders.id, order.id));
+
+    // Paid money but stock could not be deducted — the seller must act
+    // (restock, refund, or ship from backup). Alert once, not on retries.
+    if (!meta.inventoryIssue) {
+      console.error(
+        `[inventory] ${issue} for paid order ${order.id} (product ${deductResult.failedProductId ?? "unknown"})`,
+      );
+      await sendSellerOpsAlert(
+        `Inventory problem on a PAID order\nOrder: #${order.id}\nIssue: ${issue.replaceAll("_", " ")}\nProduct: ${deductResult.failedProductId ?? "unknown"}\nStock was NOT deducted — check availability before shipping, refund if needed.`,
+      );
+    }
 
     return {
       fulfilled: false,

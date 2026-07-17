@@ -33,6 +33,25 @@ describe("order access tokens", () => {
     expect(verifyOrderAccessToken("ord_other", createdAt, token)).toBe(false);
   });
 
+  it("still verifies tokens signed with the fallback secret after rotation", () => {
+    // Simulate the pre-rotation world: only DATABASE_SERVICE_ROLE existed.
+    delete process.env.ORDER_ACCESS_SECRET;
+    process.env.DATABASE_SERVICE_ROLE = "legacy-db-secret";
+    const legacyToken = createOrderAccessToken(orderId, createdAt);
+
+    // Rotate: dedicated secret becomes primary, old secret stays as fallback.
+    process.env.ORDER_ACCESS_SECRET = "new-dedicated-secret";
+    expect(verifyOrderAccessToken(orderId, createdAt, legacyToken)).toBe(true);
+
+    const newToken = createOrderAccessToken(orderId, createdAt);
+    expect(newToken).not.toBe(legacyToken);
+    expect(verifyOrderAccessToken(orderId, createdAt, newToken)).toBe(true);
+
+    // Restore the suite's env expectations.
+    process.env.ORDER_ACCESS_SECRET = "test-order-access-secret";
+    delete process.env.DATABASE_SERVICE_ROLE;
+  });
+
   it("resolves payment return path only when token is valid", () => {
     const token = createOrderAccessToken(orderId, createdAt);
     expect(

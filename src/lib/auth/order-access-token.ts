@@ -1,30 +1,42 @@
 import crypto from "crypto";
 
-function getSigningSecret(): string {
-  const secret =
-    process.env.ORDER_ACCESS_SECRET?.trim() ||
-    process.env.DATABASE_SERVICE_ROLE?.trim();
+/**
+ * Signing secrets, primary first. New tokens are always signed with the
+ * primary (dedicated ORDER_ACCESS_SECRET when set); verification accepts any
+ * listed secret so tokens issued before a secret rotation — e.g. links
+ * already delivered to guests over WhatsApp — keep working.
+ */
+function getSigningSecrets(): string[] {
+  const secrets = [
+    process.env.ORDER_ACCESS_SECRET?.trim(),
+    process.env.DATABASE_SERVICE_ROLE?.trim(),
+  ].filter((secret): secret is string => Boolean(secret));
 
-  if (!secret) {
+  if (secrets.length === 0) {
     throw new Error("Missing order access signing secret");
   }
 
-  return secret;
+  return secrets;
 }
 
 function normalizeCreatedAt(createdAt: string | Date): string {
   return new Date(createdAt).toISOString();
 }
 
+function signOrderAccessToken(
+  orderId: string,
+  createdAt: string | Date,
+  secret: string,
+): string {
+  const payload = `${orderId}:${normalizeCreatedAt(createdAt)}`;
+  return crypto.createHmac("sha256", secret).update(payload).digest("base64url");
+}
+
 export function createOrderAccessToken(
   orderId: string,
   createdAt: string | Date,
 ): string {
-  const payload = `${orderId}:${normalizeCreatedAt(createdAt)}`;
-  return crypto
-    .createHmac("sha256", getSigningSecret())
-    .update(payload)
-    .digest("base64url");
+  return signOrderAccessToken(orderId, createdAt, getSigningSecrets()[0]);
 }
 
 export function verifyOrderAccessToken(
@@ -32,13 +44,20 @@ export function verifyOrderAccessToken(
   createdAt: string | Date,
   token: string | null | undefined,
 ): boolean {
-  if (!token?.trim()) return false;
+  const provided = token?.trim();
+  if (!provided) return false;
 
   try {
-    const expected = createOrderAccessToken(orderId, createdAt);
-    const provided = token.trim();
-    if (expected.length !== provided.length) return false;
-    return crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(provided));
+    for (const secret of getSigningSecrets()) {
+      const expected = signOrderAccessToken(orderId, createdAt, secret);
+      if (
+        expected.length === provided.length &&
+        crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(provided))
+      ) {
+        return true;
+      }
+    }
+    return false;
   } catch {
     return false;
   }

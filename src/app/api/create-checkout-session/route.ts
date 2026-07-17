@@ -35,7 +35,7 @@ import {
   resolveOfferCodesConfig,
 } from "@/lib/integrations/settings";
 import { createOrderAccessToken } from "@/lib/auth/order-access";
-import { and, eq, inArray } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 
 import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
 
@@ -96,6 +96,24 @@ export async function POST(request: Request) {
     data: { user },
   } = await supabase.auth.getUser();
 
+  // Every checkout must reference an address the caller is allowed to use:
+  // account checkouts require the signed-in user's own address, and guest
+  // checkouts may only use unowned (guest-created) addresses. Without this,
+  // anyone could bind another customer's saved address to an order and read
+  // their PII from the order page.
+  const [shippingAddress] = await db
+    .select({ id: address.id, ownerId: address.userProfileId })
+    .from(address)
+    .where(eq(address.id, checkout.shipping.addressId))
+    .limit(1);
+
+  if (!shippingAddress) {
+    return NextResponse.json(
+      { message: "Shipping address not found. Please re-enter your address." },
+      { status: 400 },
+    );
+  }
+
   if (!checkout.guest) {
     if (!user) {
       return NextResponse.json(
@@ -104,23 +122,20 @@ export async function POST(request: Request) {
       );
     }
 
-    const [ownedAddress] = await db
-      .select({ id: address.id })
-      .from(address)
-      .where(
-        and(
-          eq(address.id, checkout.shipping.addressId),
-          eq(address.userProfileId, user.id),
-        ),
-      )
-      .limit(1);
-
-    if (!ownedAddress) {
+    if (shippingAddress.ownerId !== user.id) {
       return NextResponse.json(
         { message: "Invalid shipping address for this account." },
         { status: 403 },
       );
     }
+  } else if (
+    shippingAddress.ownerId !== null &&
+    shippingAddress.ownerId !== user?.id
+  ) {
+    return NextResponse.json(
+      { message: "Invalid shipping address for guest checkout." },
+      { status: 403 },
+    );
   }
 
   let createdOrderId: string | null = null;
