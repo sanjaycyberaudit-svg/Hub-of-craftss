@@ -12,16 +12,12 @@ import {
 
 describe("cashfree-standards", () => {
   it("builds canonical Cashfree callback URLs", () => {
-    expect(
-      buildCashfreeReturnUrl(
-        "https://hubsofcraftss.com/",
-      ),
-    ).toBe(
+    expect(buildCashfreeReturnUrl("https://hubsofcraftss.com/")).toBe(
       "https://hubsofcraftss.com/api/cashfree/redirect?order_id={order_id}",
     );
-    expect(
-      buildCashfreeNotifyUrl("https://hubsofcraftss.com"),
-    ).toBe("https://hubsofcraftss.com/api/cashfree/webhook");
+    expect(buildCashfreeNotifyUrl("https://hubsofcraftss.com")).toBe(
+      "https://hubsofcraftss.com/api/cashfree/webhook",
+    );
   });
 
   it("builds hosted checkout URLs per environment", () => {

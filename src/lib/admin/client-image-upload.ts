@@ -28,7 +28,9 @@ export const CLIENT_QUALITY_STEPS = [0.84, 0.8, 0.76, 0.72, 0.68] as const;
 export const CLIENT_AGGRESSIVE_WEBP_QUALITY_STEPS = [
   0.64, 0.58, 0.52, 0.46,
 ] as const;
-export const CLIENT_JPEG_QUALITY_STEPS = [0.82, 0.72, 0.62, 0.52, 0.42] as const;
+export const CLIENT_JPEG_QUALITY_STEPS = [
+  0.82, 0.72, 0.62, 0.52, 0.42,
+] as const;
 export const CLIENT_EDGE_STEPS = [
   CLIENT_PREPROCESS_MAX_EDGE,
   CLIENT_AGGRESSIVE_MAX_EDGE,
@@ -278,7 +280,10 @@ async function canvasCompress(file: File): Promise<File | null> {
           stopAtBytes,
         );
         remember(candidate);
-        if (bestUnderCap && bestUnderCap.blob.size <= CLIENT_TARGET_IMAGE_BYTES) {
+        if (
+          bestUnderCap &&
+          bestUnderCap.blob.size <= CLIENT_TARGET_IMAGE_BYTES
+        ) {
           return true;
         }
       }

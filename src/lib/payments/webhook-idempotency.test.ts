@@ -2,14 +2,9 @@ import {
   cashfreeWebhookEventKey,
   phonePeWebhookEventKey,
   shortPayloadHash,
-  stripeWebhookEventKey,
 } from "./webhook-idempotency-keys";
 
 describe("payment webhook event keys", () => {
-  it("uses Stripe event id as-is", () => {
-    expect(stripeWebhookEventKey(" evt_123 ")).toBe("evt_123");
-  });
-
   it("keeps exact PhonePe retries identical and differs on payload change", () => {
     const merchantTransactionId = "ORD_abc";
     const bodyA = JSON.stringify({ response: "aaa", merchantTransactionId });

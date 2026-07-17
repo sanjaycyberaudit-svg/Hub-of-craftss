@@ -14,14 +14,14 @@ const id2 = `whm_${Date.now()}_b`;
 try {
   await sql`
     insert into payment_webhook_events (id, provider, event_id, status)
-    values (${id1}, 'stripe', ${eventId}, 'processed')
+    values (${id1}, 'cashfree', ${eventId}, 'processed')
   `;
 
   let blocked = false;
   try {
     await sql`
       insert into payment_webhook_events (id, provider, event_id, status)
-      values (${id2}, 'stripe', ${eventId}, 'processing')
+      values (${id2}, 'cashfree', ${eventId}, 'processing')
     `;
   } catch (error) {
     blocked = error?.code === "23505";

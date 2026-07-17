@@ -11,7 +11,6 @@ import {
   openCashfreeCheckout,
   parseCashfreeCheckoutSessionPayload,
 } from "@/lib/payments/cashfree-checkout-client";
-import { getStripe } from "@/lib/stripe/stripeClient";
 
 type StartCheckoutParams = {
   order: CartItems;
@@ -78,21 +77,5 @@ export async function startCheckout({
     return;
   }
 
-  if (payload.provider !== "stripe") {
-    throw new Error("Unsupported payment provider.");
-  }
-
-  const sessionId = String(payload.sessionId ?? "").trim();
-  if (!sessionId) {
-    throw new Error("Stripe checkout could not be started.");
-  }
-
-  onProgress?.(preparingPaymentProgress());
-  onProgress?.(openingPaymentProgress("stripe"));
-  const stripe = await getStripe();
-  const result = await stripe?.redirectToCheckout({ sessionId });
-
-  if (result?.error) {
-    throw new Error("Could not open payment checkout. Please try again.");
-  }
+  throw new Error("Unsupported payment provider.");
 }

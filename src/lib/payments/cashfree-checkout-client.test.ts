@@ -13,11 +13,7 @@ describe("cashfree-checkout-client", () => {
   });
 
   it("builds client return URLs from the current origin", () => {
-    expect(
-      buildClientCashfreeReturnUrl(
-        "https://hubsofcraftss.com",
-      ),
-    ).toBe(
+    expect(buildClientCashfreeReturnUrl("https://hubsofcraftss.com")).toBe(
       "https://hubsofcraftss.com/api/cashfree/redirect?order_id={order_id}",
     );
   });

@@ -14,10 +14,7 @@ export const bulkSharedInputSchema = z
       .max(4000)
       .default(""),
     isDraft: z.coerce.boolean().default(true),
-    collectionId: z
-      .string()
-      .trim()
-      .min(1, "Catalog is required."),
+    collectionId: z.string().trim().min(1, "Catalog is required."),
     badge: z
       .enum(["new_product", "best_sale", "featured"])
       .optional()

@@ -5,8 +5,7 @@ import { getSessionUser, isAdminUser } from "@/lib/auth/admin";
 function getSigningSecret(): string {
   const secret =
     process.env.ORDER_ACCESS_SECRET?.trim() ||
-    process.env.DATABASE_SERVICE_ROLE?.trim() ||
-    process.env.STRIPE_SECRET_KEY?.trim();
+    process.env.DATABASE_SERVICE_ROLE?.trim();
 
   if (!secret) {
     throw new Error("Missing order access signing secret");

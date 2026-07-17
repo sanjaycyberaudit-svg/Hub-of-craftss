@@ -4,7 +4,6 @@ import {
   getPhonePeConfig,
   INTEGRATION_KEYS,
 } from "@/lib/integrations/settings";
-import { isProductionStripePaymentsEnabled } from "@/lib/orders/checkout-environment";
 
 export type PaymentFulfillmentContext = {
   paymentProvider: string | null | undefined;
@@ -51,10 +50,6 @@ export async function shouldDeductStockForPaidOrder(
       !baseUrl.includes("preprod") &&
       !baseUrl.includes("uat")
     );
-  }
-
-  if (provider === "stripe") {
-    return isProductionStripePaymentsEnabled();
   }
 
   return false;

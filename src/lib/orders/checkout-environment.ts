@@ -3,10 +3,6 @@ import type {
   PhonePeConfig,
 } from "@/lib/integrations/settings";
 
-function isProductionStripeKey(secretKey: string | undefined) {
-  return Boolean(secretKey?.startsWith("sk_live_"));
-}
-
 export function resolveCheckoutPaymentEnvironment(params: {
   preferCashfree: boolean;
   preferPhonePe: boolean;
@@ -29,11 +25,5 @@ export function resolveCheckoutPaymentEnvironment(params: {
     return "production";
   }
 
-  return isProductionStripeKey(process.env.STRIPE_SECRET_KEY)
-    ? "production"
-    : "sandbox";
-}
-
-export function isProductionStripePaymentsEnabled() {
-  return isProductionStripeKey(process.env.STRIPE_SECRET_KEY);
+  return "sandbox";
 }

@@ -3,19 +3,19 @@ import type {
   PhonePeConfig,
 } from "@/lib/integrations/settings";
 
-export type CheckoutPaymentProvider = "cashfree" | "phonepe" | "stripe";
+export type CheckoutPaymentProvider = "cashfree" | "phonepe";
 
 /**
  * Checkout uses the single enabled Indian gateway. Cashfree wins if both were
- * ever enabled in legacy data.
+ * ever enabled in legacy data. Returns null when no gateway is configured.
  */
 export function resolveCheckoutPaymentProvider(input: {
   cashfreeConfig: CashfreeConfig | null;
   phonePeConfig: PhonePeConfig | null;
-}): CheckoutPaymentProvider {
+}): CheckoutPaymentProvider | null {
   if (input.cashfreeConfig) return "cashfree";
   if (input.phonePeConfig) return "phonepe";
-  return "stripe";
+  return null;
 }
 
 export function checkoutProviderLabel(
@@ -27,6 +27,6 @@ export function checkoutProviderLabel(
     case "phonepe":
       return "PhonePe";
     default:
-      return "Stripe";
+      return "payment gateway";
   }
 }

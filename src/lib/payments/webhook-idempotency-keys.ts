@@ -1,14 +1,9 @@
 import { createHash } from "node:crypto";
 
-export type PaymentWebhookProvider = "stripe" | "phonepe" | "cashfree";
+export type PaymentWebhookProvider = "phonepe" | "cashfree";
 
 export function shortPayloadHash(raw: string): string {
   return createHash("sha256").update(raw).digest("hex").slice(0, 24);
-}
-
-/** Stripe: gateway event id is globally unique per delivery semantics. */
-export function stripeWebhookEventKey(eventId: string): string {
-  return String(eventId ?? "").trim();
 }
 
 /**

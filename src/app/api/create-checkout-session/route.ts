@@ -21,7 +21,6 @@ import { createPhonePePayment } from "@/lib/payments/phonepe";
 import { createCashfreePayment } from "@/lib/payments/cashfree";
 import { validatePaymentSessionId } from "@/lib/payments/cashfree-standards";
 import { resolveCheckoutPaymentProvider } from "@/lib/payments/resolve-checkout-provider";
-import { getStripe } from "@/lib/stripe";
 import { getProductSizeConfigsByProductIds } from "@/lib/products/sizeConfig";
 import db from "@/lib/supabase/db";
 import { address, medias, orderLines, orders } from "@/lib/supabase/schema";
@@ -36,7 +35,6 @@ import {
   resolveOfferCodesConfig,
 } from "@/lib/integrations/settings";
 import { createOrderAccessToken } from "@/lib/auth/order-access";
-import { getURL } from "@/lib/utils";
 import { and, eq, inArray } from "drizzle-orm";
 
 import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
@@ -178,6 +176,15 @@ export async function POST(request: Request) {
       cashfreeConfig,
       phonePeConfig,
     });
+    if (!checkoutProvider) {
+      return NextResponse.json(
+        {
+          message:
+            "Online payment is temporarily unavailable. Please contact us on WhatsApp to complete your order.",
+        },
+        { status: 503 },
+      );
+    }
     const preferCashfree = checkoutProvider === "cashfree";
     const preferPhonePe = checkoutProvider === "phonepe";
 
@@ -329,16 +336,8 @@ export async function POST(request: Request) {
           amount: `${amount}`,
           order_status: "pending",
           payment_status: "unpaid",
-          payment_method: preferCashfree
-            ? "cashfree"
-            : preferPhonePe
-              ? "phonepe"
-              : "card",
-          payment_provider: preferCashfree
-            ? "cashfree"
-            : preferPhonePe
-              ? "phonepe"
-              : "stripe",
+          payment_method: checkoutProvider,
+          payment_provider: checkoutProvider,
           customer_mobile: checkout.shipping.mobile,
           payment_meta: basePaymentMeta,
         })
@@ -456,104 +455,33 @@ export async function POST(request: Request) {
       });
     }
 
-    if (preferPhonePe) {
-      const payment = await createPhonePePayment({
-        orderId: order.id,
-        amountInRupees: amount,
-        customerMobile: checkout.shipping.mobile,
-        customerEmail: checkout.shipping.email,
-        accessToken,
-      });
+    const payment = await createPhonePePayment({
+      orderId: order.id,
+      amountInRupees: amount,
+      customerMobile: checkout.shipping.mobile,
+      customerEmail: checkout.shipping.email,
+      accessToken,
+    });
 
-      if (!payment?.redirectUrl || !payment.merchantTransactionId) {
-        throw new Error("PhonePe payment URL could not be created");
-      }
-
-      await db
-        .update(orders)
-        .set({
-          phonepe_merchant_transaction_id: payment.merchantTransactionId,
-          payment_reference: payment.merchantTransactionId,
-        })
-        .where(eq(orders.id, order.id));
-
-      await extendStockReservationExpiry(order.id);
-
-      return NextResponse.json({
-        provider: "phonepe",
-        orderId: order.id,
-        accessToken,
-        redirectUrl: payment.redirectUrl,
-      });
+    if (!payment?.redirectUrl || !payment.merchantTransactionId) {
+      throw new Error("PhonePe payment URL could not be created");
     }
 
-    const successUrl = new URL(`${getURL()}/orders/${order.id}`);
-    successUrl.searchParams.set("token", accessToken);
-
-    const stripe = await getStripe();
-    const session = await stripe.checkout.sessions.create({
-      payment_method_types: ["card"],
-      billing_address_collection: "required",
-      customer_email: checkout.shipping.email,
-      phone_number_collection: { enabled: true },
-      metadata: {
-        customer_mobile: checkout.shipping.mobile,
-        shipping_address_id: checkout.shipping.addressId,
-      },
-      client_reference_id: order.id,
-      line_items: [
-        {
-          price_data: {
-            currency: "inr",
-            product_data: {
-              name: "Order subtotal",
-            },
-            unit_amount: Math.round(discountedSubtotal * 100),
-          },
-          quantity: 1,
-        },
-        ...(courierCharge > 0
-          ? [
-              {
-                price_data: {
-                  currency: "inr",
-                  product_data: {
-                    name: "Courier charge",
-                  },
-                  unit_amount: Math.round(courierCharge * 100),
-                },
-                quantity: 1,
-              },
-            ]
-          : []),
-        ...(gstAmount > 0
-          ? [
-              {
-                price_data: {
-                  currency: "inr",
-                  product_data: {
-                    name: `GST (${courierConfig.gstPercentage}%)`,
-                  },
-                  unit_amount: Math.round(gstAmount * 100),
-                },
-                quantity: 1,
-              },
-            ]
-          : []),
-      ],
-      mode: "payment",
-      allow_promotion_codes: true,
-      success_url: successUrl.toString(),
-      cancel_url: `${getURL()}/cart`,
-    });
+    await db
+      .update(orders)
+      .set({
+        phonepe_merchant_transaction_id: payment.merchantTransactionId,
+        payment_reference: payment.merchantTransactionId,
+      })
+      .where(eq(orders.id, order.id));
 
     await extendStockReservationExpiry(order.id);
 
     return NextResponse.json({
-      provider: "stripe",
+      provider: "phonepe",
       orderId: order.id,
       accessToken,
-      sessionId: session.id,
+      redirectUrl: payment.redirectUrl,
     });
   } catch (err) {
     if (createdOrderId) {

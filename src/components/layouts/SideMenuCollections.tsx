@@ -1,9 +1,10 @@
 "use client";
 
+import { SheetClose } from "@/components/ui/sheet";
 import {
-  SheetClose,
-} from "@/components/ui/sheet";
-import { collectionMenuHref, type MenuCollection } from "@/lib/storefront/menu-collections";
+  collectionMenuHref,
+  type MenuCollection,
+} from "@/lib/storefront/menu-collections";
 import { cn } from "@/lib/utils";
 import { ChevronDown } from "lucide-react";
 import Link from "next/link";
@@ -15,7 +16,9 @@ const childLinkBase =
 type Props = {
   collections: MenuCollection[];
   pathname: string;
-  onNavigate: (href: string) => (event: React.MouseEvent<HTMLAnchorElement>) => void;
+  onNavigate: (
+    href: string,
+  ) => (event: React.MouseEvent<HTMLAnchorElement>) => void;
 };
 
 function isCollectionPathActive(pathname: string, slug: string) {

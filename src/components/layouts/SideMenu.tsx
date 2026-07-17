@@ -148,7 +148,10 @@ export function SideMenu({
           {navItems.map((item) => {
             if (item.href === "/shop") {
               return (
-                <div key="shop-and-collections" className="flex flex-col gap-0.5">
+                <div
+                  key="shop-and-collections"
+                  className="flex flex-col gap-0.5"
+                >
                   <SideNavLink
                     item={item}
                     pathname={pathname}

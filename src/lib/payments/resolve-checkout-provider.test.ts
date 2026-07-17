@@ -36,12 +36,12 @@ describe("resolveCheckoutPaymentProvider", () => {
     ).toBe("phonepe");
   });
 
-  it("falls back to Stripe when no Indian gateway is configured", () => {
+  it("returns null when no gateway is configured", () => {
     expect(
       resolveCheckoutPaymentProvider({
         cashfreeConfig: null,
         phonePeConfig: null,
       }),
-    ).toBe("stripe");
+    ).toBeNull();
   });
 });

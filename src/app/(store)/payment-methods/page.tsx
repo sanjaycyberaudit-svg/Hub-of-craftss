@@ -22,9 +22,10 @@ export default function PaymentMethodsPage() {
           Online orders
         </h2>
         <p>
-          When you checkout on our website, you can pay securely using major
-          debit and credit cards through our payment partner (Stripe). All
-          transactions are processed in <strong>Indian Rupees (INR)</strong>.
+          When you checkout on our website, you can pay securely using UPI,
+          major debit and credit cards, and net banking through our payment
+          partners (Cashfree / PhonePe). All transactions are processed in{" "}
+          <strong>Indian Rupees (INR)</strong>.
         </p>
       </section>
 

@@ -32,9 +32,7 @@ export function openingPaymentProgress(
       ? "Cashfree"
       : provider === "phonepe"
         ? "PhonePe"
-        : provider === "stripe"
-          ? "Stripe"
-          : "payment gateway";
+        : "payment gateway";
 
   return {
     title: "Almost there",

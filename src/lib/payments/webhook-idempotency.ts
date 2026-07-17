@@ -4,14 +4,11 @@ import { paymentWebhookEvents } from "@/lib/supabase/schema";
 import { and, eq, lt } from "drizzle-orm";
 import type { PaymentWebhookProvider } from "@/lib/payments/webhook-idempotency-keys";
 
-export type {
-  PaymentWebhookProvider,
-} from "@/lib/payments/webhook-idempotency-keys";
+export type { PaymentWebhookProvider } from "@/lib/payments/webhook-idempotency-keys";
 export {
   cashfreeWebhookEventKey,
   phonePeWebhookEventKey,
   shortPayloadHash,
-  stripeWebhookEventKey,
 } from "@/lib/payments/webhook-idempotency-keys";
 
 export type WebhookClaimResult =
@@ -107,7 +104,9 @@ export async function claimPaymentWebhookEvent(input: {
     Date.now() - updatedAtMs > STALE_PROCESSING_MS;
 
   if (isStale) {
-    const staleBefore = new Date(Date.now() - STALE_PROCESSING_MS).toISOString();
+    const staleBefore = new Date(
+      Date.now() - STALE_PROCESSING_MS,
+    ).toISOString();
     const reclaimed = await db
       .update(paymentWebhookEvents)
       .set({
