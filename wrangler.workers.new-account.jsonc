@@ -13,7 +13,13 @@
   "assets": {
     "directory": ".open-next/assets",
     "binding": "ASSETS",
-    "run_worker_first": true
+    // false = static assets served directly by Cloudflare (not billed, no Worker
+    // CPU). Middleware matcher already excludes static paths, so this is safe.
+    "run_worker_first": false
+  },
+  // Run SSR close to the database (Supabase) while assets stay at the edge.
+  "placement": {
+    "mode": "smart"
   },
   "services": [
     {
