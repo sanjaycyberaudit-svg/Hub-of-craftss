@@ -1,7 +1,4 @@
-import {
-  appendOrderAccessToken,
-  verifyOrderAccessToken,
-} from "@/lib/auth/order-access";
+import { resolvePaymentReturnPath } from "@/lib/auth/order-access";
 import { syncPhonePeOrderPayment } from "@/lib/payments/orderPaymentSync";
 import db from "@/lib/supabase/db";
 import { orders } from "@/lib/supabase/schema";
@@ -42,13 +39,12 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(new URL("/orders", request.url));
   }
 
-  const redirectPath = verifyOrderAccessToken(order.id, order.createdAt, token)
-    ? `/orders/${resolvedOrderId}?token=${encodeURIComponent(token!.trim())}`
-    : appendOrderAccessToken(
-        `/orders/${resolvedOrderId}`,
-        order.id,
-        order.createdAt,
-      );
+  // Never mint a token here — only honor the checkout-issued HMAC on redirectUrl.
+  const redirectPath = resolvePaymentReturnPath({
+    orderId: order.id,
+    createdAt: order.createdAt,
+    token,
+  });
 
   return NextResponse.redirect(new URL(redirectPath, request.url));
 }

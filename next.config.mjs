@@ -1,6 +1,7 @@
 import { initOpenNextCloudflareForDev } from "@opennextjs/cloudflare";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { buildNextSecurityHeaders } from "./security-headers.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const shippingLabelPdf = path.resolve(
@@ -21,11 +22,8 @@ const nextConfig = {
     return [
       {
         source: "/:path*",
-        headers: [
-          { key: "X-Content-Type-Options", value: "nosniff" },
-          { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
-          { key: "X-Frame-Options", value: "SAMEORIGIN" },
-        ],
+        // HSTS + Permissions-Policy + CSP enforced on the Cloudflare Workers path.
+        headers: buildNextSecurityHeaders({ enforceCsp: true }),
       },
     ];
   },

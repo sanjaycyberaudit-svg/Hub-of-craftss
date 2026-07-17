@@ -1,7 +1,4 @@
-import {
-  appendOrderAccessToken,
-  verifyOrderAccessToken,
-} from "@/lib/auth/order-access";
+import { resolvePaymentReturnPath } from "@/lib/auth/order-access";
 import { syncCashfreeOrderPayment } from "@/lib/payments/orderPaymentSync";
 import db from "@/lib/supabase/db";
 import { orders } from "@/lib/supabase/schema";
@@ -30,9 +27,12 @@ export async function GET(request: NextRequest) {
     console.error("[cashfree] redirect sync failed:", error);
   }
 
-  const redirectPath = verifyOrderAccessToken(order.id, order.createdAt, token)
-    ? `/orders/${orderId}?token=${encodeURIComponent(token!.trim())}`
-    : appendOrderAccessToken(`/orders/${orderId}`, order.id, order.createdAt);
+  // Never mint a token here — only honor the checkout-issued HMAC in return_url.
+  const redirectPath = resolvePaymentReturnPath({
+    orderId: order.id,
+    createdAt: order.createdAt,
+    token,
+  });
 
   return NextResponse.redirect(new URL(redirectPath, request.url));
 }

@@ -48,6 +48,30 @@ describe("createCashfreePayment", () => {
     mockGetCashfreeConfig.mockResolvedValue(baseConfig);
   });
 
+  it("embeds the checkout access token in Cashfree return_url", async () => {
+    mockFetchWithTimeout.mockResolvedValueOnce(
+      jsonResponse({
+        order_id: "order_123",
+        payment_session_id: "session_abc123",
+      }),
+    );
+
+    await createCashfreePayment({
+      orderId: "order_123",
+      amountInRupees: 499,
+      customerMobile: "9876543210",
+      accessToken: "guest_hmac_token",
+    });
+
+    const init = mockFetchWithTimeout.mock.calls[0]?.[1];
+    const body = JSON.parse(String(init?.body)) as {
+      order_meta: { return_url: string };
+    };
+    expect(body.order_meta.return_url).toBe(
+      "https://hubsofcraftss.com/api/cashfree/redirect?order_id={order_id}&token=guest_hmac_token",
+    );
+  });
+
   it("returns a payment session on the first successful response", async () => {
     mockFetchWithTimeout.mockResolvedValueOnce(
       jsonResponse({

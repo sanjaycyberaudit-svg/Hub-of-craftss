@@ -6,18 +6,22 @@ import {
 } from "@urql/core";
 import { env } from "../env.mjs";
 import { registerUrql } from "@urql/next/rsc";
+import { createTimedFetch } from "@/lib/network/timed-fetch";
+
+const graphqlFetch = createTimedFetch();
 
 export const makeClient = (access_token?: string) => {
   return createClient({
     url: `https://${env.NEXT_PUBLIC_SUPABASE_PROJECT_REF}.supabase.co/graphql/v1`,
     exchanges: [cacheExchange, fetchExchange],
+    fetch: graphqlFetch,
     fetchOptions: () => {
-      const headers = {
+      const headers: Record<string, string> = {
         apiKey: env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
       };
 
       if (access_token) {
-        headers["Authorization"] = `Bearer ${access_token}`;
+        headers.Authorization = `Bearer ${access_token}`;
       }
 
       return {

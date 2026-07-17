@@ -48,8 +48,14 @@ function normalizeHttpsBaseUrl(url: string): string {
   return trimmed.endsWith("/") ? trimmed : `${trimmed}/`;
 }
 
-export function buildCashfreeReturnUrl(siteBaseUrl: string): string {
-  return `${normalizeHttpsBaseUrl(siteBaseUrl)}api/cashfree/redirect?order_id={order_id}`;
+export function buildCashfreeReturnUrl(
+  siteBaseUrl: string,
+  accessToken?: string | null,
+): string {
+  const base = `${normalizeHttpsBaseUrl(siteBaseUrl)}api/cashfree/redirect?order_id={order_id}`;
+  const token = String(accessToken ?? "").trim();
+  if (!token) return base;
+  return `${base}&token=${encodeURIComponent(token)}`;
 }
 
 export function buildCashfreeNotifyUrl(siteBaseUrl: string): string {

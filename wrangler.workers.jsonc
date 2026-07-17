@@ -1,17 +1,15 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  // Workers / OpenNext CLI deploy (`npm run deploy` / `npm run upload`).
+  // Legacy alias — keep ISR bindings in sync with wrangler.workers.new-account.jsonc.
+  // Production deploys must use wrangler.workers.new-account.jsonc (see package.json).
   "name": "hub-of-craftss",
   "main": ".open-next/worker.js",
-  // Keep minify on for Workers Free 3 MiB gzip limit. (Unminified ~3.4 MiB gzip fails.)
   "minify": true,
   "compatibility_date": "2025-05-05",
   "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
   "assets": {
     "directory": ".open-next/assets",
     "binding": "ASSETS",
-    // false = static assets served directly by Cloudflare (not billed, no Worker
-    // CPU). Middleware matcher already excludes static paths, so this is safe.
     "run_worker_first": false
   },
   "services": [
@@ -20,11 +18,28 @@
       "service": "hub-of-craftss"
     }
   ],
-  // Native R2 access for Worker put/get/delete (avoids S3 API 401s from aws4fetch).
   "r2_buckets": [
     {
       "binding": "MEDIA_BUCKET",
       "bucket_name": "hubofcraftss-cdn"
+    },
+    {
+      "binding": "NEXT_INC_CACHE_R2_BUCKET",
+      "bucket_name": "hubofcraftss-next-cache"
+    }
+  ],
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "NEXT_CACHE_DO_QUEUE",
+        "class_name": "DOQueueHandler"
+      }
+    ]
+  },
+  "migrations": [
+    {
+      "tag": "v1-opennext-cache-queue",
+      "new_sqlite_classes": ["DOQueueHandler"]
     }
   ],
   "observability": {

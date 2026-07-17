@@ -416,6 +416,7 @@ export async function POST(request: Request) {
         customerMobile: checkout.shipping.mobile,
         customerEmail: checkout.shipping.email,
         customerId: !checkout.guest ? user?.id : undefined,
+        accessToken,
       });
 
       if (!payment?.paymentSessionId) {

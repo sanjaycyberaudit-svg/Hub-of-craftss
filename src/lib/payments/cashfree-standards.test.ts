@@ -15,6 +15,11 @@ describe("cashfree-standards", () => {
     expect(buildCashfreeReturnUrl("https://hubsofcraftss.com/")).toBe(
       "https://hubsofcraftss.com/api/cashfree/redirect?order_id={order_id}",
     );
+    expect(
+      buildCashfreeReturnUrl("https://hubsofcraftss.com/", "tok_abc+/=_"),
+    ).toBe(
+      "https://hubsofcraftss.com/api/cashfree/redirect?order_id={order_id}&token=tok_abc%2B%2F%3D_",
+    );
     expect(buildCashfreeNotifyUrl("https://hubsofcraftss.com")).toBe(
       "https://hubsofcraftss.com/api/cashfree/webhook",
     );

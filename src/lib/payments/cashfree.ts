@@ -24,6 +24,8 @@ type CreateCashfreePaymentParams = {
   customerMobile?: string | null;
   customerEmail?: string | null;
   customerId?: string | null;
+  /** Checkout-issued HMAC; embedded in Cashfree return_url (never minted on redirect). */
+  accessToken?: string | null;
 };
 
 type CashfreeCreateOrderResponse = {
@@ -91,7 +93,7 @@ export async function createCashfreePayment(
   const customerId =
     String(params.customerId ?? "").trim() || `guest_${params.orderId}`;
   const siteBaseUrl = getURL();
-  const returnUrl = buildCashfreeReturnUrl(siteBaseUrl);
+  const returnUrl = buildCashfreeReturnUrl(siteBaseUrl, params.accessToken);
   const notifyUrl = buildCashfreeNotifyUrl(siteBaseUrl);
 
   const createOrderUrl = `${normalizeBaseUrl(config.baseUrl)}/orders`;
