@@ -14,10 +14,6 @@
     // CPU). Middleware matcher already excludes static paths, so this is safe.
     "run_worker_first": false
   },
-  // Run SSR close to the database (Supabase) while assets stay at the edge.
-  "placement": {
-    "mode": "smart"
-  },
   "services": [
     {
       "binding": "WORKER_SELF_REFERENCE",
