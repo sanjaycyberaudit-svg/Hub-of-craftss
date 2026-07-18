@@ -137,4 +137,12 @@ const nextConfig = {
 
 export default nextConfig;
 
-initOpenNextCloudflareForDev();
+// Cloudflare OpenNext local bindings — only for `next dev` on Workers tooling.
+// On Vercel this no-ops / is unused; guard so production Node never depends on it.
+if (process.env.VERCEL !== "1" && process.env.NEXT_RUNTIME !== "edge") {
+  try {
+    initOpenNextCloudflareForDev();
+  } catch {
+    // Ignore when Cloudflare tooling is unavailable (e.g. Vercel builds).
+  }
+}
