@@ -2,6 +2,7 @@ import Header from "@/components/layouts/Header";
 import ProductCard from "./ProductCard";
 import { getDraftProductIdsCached } from "@/lib/storefront/draft-product-ids";
 import { getRecommendationProductsCached } from "@/lib/storefront/recommendations";
+import { getProductPackLabelsByIds } from "@/lib/products/pack.server";
 
 type Props = {
   first?: number;
@@ -24,11 +25,19 @@ export default async function RecommendationProductsSection({
 
   if (edges.length === 0) return null;
 
+  const packLabels = await getProductPackLabelsByIds(
+    edges.map(({ node }) => node.id),
+  );
+
   return (
     <Header heading={`We Think You'll Love`}>
       <div className="container grid grid-cols-2 gap-x-8 lg:grid-cols-4">
         {edges.map(({ node }) => (
-          <ProductCard key={node.id} product={node} />
+          <ProductCard
+            key={node.id}
+            product={node}
+            packLabel={packLabels[node.id]}
+          />
         ))}
       </div>
     </Header>

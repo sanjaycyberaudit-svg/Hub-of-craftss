@@ -10,12 +10,14 @@ interface SearchProductsInifiteScrollProps {
   collectionId?: string;
   initialSearchResult?: StorefrontProductSearchResult;
   initialDraftIds?: string[];
+  initialPackLabels?: Record<string, string | null>;
 }
 
 function SearchProductsInifiteScroll({
   collectionId,
   initialSearchResult,
   initialDraftIds,
+  initialPackLabels,
 }: SearchProductsInifiteScrollProps) {
   const searchParmas = useSearchParams();
   const varaibles = searchParamsVariablesFactory(searchParmas, collectionId);
@@ -44,6 +46,7 @@ function SearchProductsInifiteScroll({
           onLoadMore={loadMoreHandler}
           initialData={i === 0 ? initialSearchResult : undefined}
           initialDraftIds={i === 0 ? initialDraftIds : undefined}
+          initialPackLabels={i === 0 ? initialPackLabels : undefined}
         />
       ))}
     </section>

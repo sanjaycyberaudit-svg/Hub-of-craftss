@@ -7,6 +7,7 @@ import {
   SearchProductsInifiteScroll,
 } from "@/features/search";
 import { STOREFRONT_REVALIDATE_SECONDS } from "@/lib/cache/constants";
+import { getProductPackLabelsByIds } from "@/lib/products/pack.server";
 import { getAllCollectionsCached } from "@/lib/storefront/collections-list";
 import { getDraftProductIdsCached } from "@/lib/storefront/draft-product-ids";
 import { fetchProductSearchCached } from "@/lib/storefront/product-queries";
@@ -51,6 +52,12 @@ async function ProductsPage({ searchParams }: ProductsPageProps) {
       getAllCollectionsCached(),
     ]);
 
+  const initialProductIds =
+    initialSearchResult?.productsCollection?.edges?.map(
+      ({ node }) => node.id,
+    ) ?? [];
+  const initialPackLabels = await getProductPackLabelsByIds(initialProductIds);
+
   const collectionsSection =
     collectionsData?.edges?.map(({ node }) => ({
       id: node.id,
@@ -83,6 +90,7 @@ async function ProductsPage({ searchParams }: ProductsPageProps) {
         <SearchProductsInifiteScroll
           initialSearchResult={initialSearchResult}
           initialDraftIds={initialDraftIds}
+          initialPackLabels={initialPackLabels}
         />
       </Suspense>
     </Shell>

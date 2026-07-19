@@ -14,6 +14,7 @@ import { getHomeBannerSlidesCached } from "@/lib/integrations/settings";
 import { getDraftProductIdsCached } from "@/lib/storefront/draft-product-ids";
 import { getLandingPageDataCached } from "@/lib/storefront/landing-data";
 import { getShopByPriceBucketsCached } from "@/lib/storefront/shop-by-price";
+import { getProductPackLabelsByIds } from "@/lib/products/pack.server";
 import { siteConfig } from "@/config/site";
 import { cn } from "@/lib/utils";
 import type { Metadata } from "next";
@@ -77,6 +78,10 @@ export default async function Home() {
   const homeTestimonials = data?.homeTestimonials;
   const slides = homeBannerSlides?.length ? homeBannerSlides : heroSlides;
 
+  const featuredPackLabels = await getProductPackLabelsByIds(
+    featuredProducts.map(({ node }) => node.id),
+  );
+
   return (
     <main className="min-h-screen w-full min-w-0 overflow-x-hidden">
       <DeferredStoreButterflies />
@@ -104,7 +109,10 @@ export default async function Home() {
         ) : null}
 
         {featuredProducts.length ? (
-          <HomeShoppableReels products={featuredProducts} />
+          <HomeShoppableReels
+            products={featuredProducts}
+            packLabels={featuredPackLabels}
+          />
         ) : null}
 
         {homeTestimonials?.edges?.length ? (

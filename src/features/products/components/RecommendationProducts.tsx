@@ -1,10 +1,11 @@
 "use client";
 import { gql } from "@/gql";
 import { useQuery } from "@urql/next";
-import React from "react";
+import React, { useMemo } from "react";
 import Header from "@/components/layouts/Header";
 import ProductCard from "./ProductCard";
 import ProductCardSkeleton from "./RecommendationProductsSkeleton";
+import { useProductPackLabels } from "@/hooks/useProductPackLabels";
 
 export type RecommendationProductsProps =
   React.HTMLAttributes<HTMLDivElement> & {};
@@ -23,12 +24,18 @@ const RecomendationProductsQuery = gql(/* GraphQL */ `
 `);
 
 function RecommendationProducts({}: RecommendationProductsProps) {
-  const [{ data, fetching, error }, refetch] = useQuery({
+  const [{ data, fetching, error }] = useQuery({
     query: RecomendationProductsQuery,
     variables: {
       first: 4,
     },
   });
+
+  const productIds = useMemo(
+    () => data?.recommendations?.edges?.map(({ node }) => node.id) ?? [],
+    [data?.recommendations?.edges],
+  );
+  const packLabels = useProductPackLabels(productIds);
 
   if (fetching)
     return (
@@ -48,7 +55,11 @@ function RecommendationProducts({}: RecommendationProductsProps) {
       <div className="container grid grid-cols-2 lg:grid-cols-4 gap-x-8 ">
         {data.recommendations &&
           data.recommendations.edges.map(({ node }) => (
-            <ProductCard key={node.id} product={node} />
+            <ProductCard
+              key={node.id}
+              product={node}
+              packLabel={packLabels[node.id] ?? null}
+            />
           ))}
       </div>
     </Header>

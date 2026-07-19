@@ -9,6 +9,7 @@ import {
   useStorefrontFeaturedProducts,
   type StorefrontProductsInitialData,
 } from "@/hooks/useStorefrontProducts";
+import { useProductPackLabels } from "@/hooks/useProductPackLabels";
 import SearchProductsGridSkeleton from "./SearchProductsGridSkeleton";
 
 type ProductNode = DocumentType<typeof ProductCardFragment>;
@@ -19,6 +20,7 @@ type Props = {
   onLoadMore: (cursor: string) => void;
   initialData?: StorefrontProductsInitialData;
   initialDraftIds?: string[];
+  initialPackLabels?: Record<string, string | null>;
 };
 
 export function FeaturedProductsResultPage({
@@ -27,6 +29,7 @@ export function FeaturedProductsResultPage({
   onLoadMore,
   initialData,
   initialDraftIds,
+  initialPackLabels,
 }: Props) {
   const { productsCollection, fetching, error } = useStorefrontFeaturedProducts(
     variables,
@@ -40,6 +43,12 @@ export function FeaturedProductsResultPage({
       [],
     [draftIds, productsCollection?.edges],
   );
+
+  const visibleIds = useMemo(
+    () => visibleEdges.map(({ node }) => node.id),
+    [visibleEdges],
+  );
+  const packLabels = useProductPackLabels(visibleIds, initialPackLabels);
 
   const showSkeleton =
     ((fetching && !productsCollection) || !draftLoaded) && !productsCollection;
@@ -67,6 +76,7 @@ export function FeaturedProductsResultPage({
               key={node.id}
               product={node as ProductNode}
               priorityImage={!variables.after && index < 2}
+              packLabel={packLabels[node.id] ?? null}
             />
           ))}
         </section>

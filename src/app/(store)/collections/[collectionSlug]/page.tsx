@@ -12,6 +12,7 @@ import { getCollectionPageCached } from "@/lib/storefront/collection-detail";
 import { getDraftProductIdsCached } from "@/lib/storefront/draft-product-ids";
 import { fetchProductSearchCached } from "@/lib/storefront/product-queries";
 import { buildShopSearchVariables } from "@/lib/storefront/search-params";
+import { getProductPackLabelsByIds } from "@/lib/products/pack.server";
 import { toTitleCase, unslugify } from "@/lib/utils";
 import { notFound, redirect } from "next/navigation";
 import { Suspense } from "react";
@@ -70,6 +71,12 @@ async function CategoryPage({ params, searchParams }: CategoryPageProps) {
     getDraftProductIdsCached(),
   ]);
 
+  const initialProductIds =
+    initialSearchResult?.productsCollection?.edges?.map(
+      ({ node }) => node.id,
+    ) ?? [];
+  const initialPackLabels = await getProductPackLabelsByIds(initialProductIds);
+
   return (
     <Shell>
       <CollectionBanner collectionBannerData={collection} />
@@ -94,6 +101,7 @@ async function CategoryPage({ params, searchParams }: CategoryPageProps) {
           collectionId={collection.id}
           initialSearchResult={initialSearchResult}
           initialDraftIds={initialDraftIds}
+          initialPackLabels={initialPackLabels}
         />
       </Suspense>
     </Shell>

@@ -9,11 +9,13 @@ const PAGE_SIZE = 12;
 type Props = {
   initialData?: StorefrontProductsInitialData;
   initialDraftIds?: string[];
+  initialPackLabels?: Record<string, string | null>;
 };
 
 export function FeaturedProductsScroll({
   initialData,
   initialDraftIds,
+  initialPackLabels,
 }: Props) {
   const [pageVariables, setPageVariables] = useState([
     { first: PAGE_SIZE, after: undefined as string | undefined },
@@ -33,6 +35,7 @@ export function FeaturedProductsScroll({
           onLoadMore={loadMoreHandler}
           initialData={i === 0 ? initialData : undefined}
           initialDraftIds={i === 0 ? initialDraftIds : undefined}
+          initialPackLabels={i === 0 ? initialPackLabels : undefined}
         />
       ))}
     </section>

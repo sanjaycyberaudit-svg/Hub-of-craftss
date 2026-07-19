@@ -9,6 +9,7 @@ import {
   useStorefrontProductSearch,
   type StorefrontProductsInitialData,
 } from "@/hooks/useStorefrontProducts";
+import { useProductPackLabels } from "@/hooks/useProductPackLabels";
 import { normalizeStorefrontSearchTerm } from "@/lib/storefront/search-utils";
 import { formatPriceRangeLabel } from "@/lib/storefront/shop-by-price-buckets";
 import { useSearchParams } from "next/navigation";
@@ -26,6 +27,7 @@ const SearchResultPage = ({
   showMatchingCollections = false,
   initialData,
   initialDraftIds,
+  initialPackLabels,
 }: {
   variables: SearchQueryVariables;
   onLoadMore: (cursor: string) => void;
@@ -34,6 +36,7 @@ const SearchResultPage = ({
   showMatchingCollections?: boolean;
   initialData?: StorefrontProductsInitialData;
   initialDraftIds?: string[];
+  initialPackLabels?: Record<string, string | null>;
 }) => {
   const searchParams = useSearchParams();
   const { productsCollection, matchingCollections, fetching, error } =
@@ -59,6 +62,12 @@ const SearchResultPage = ({
       [],
     [draftIds, productsCollection?.edges],
   );
+
+  const visibleIds = useMemo(
+    () => visibleEdges.map(({ node }) => node.id),
+    [visibleEdges],
+  );
+  const packLabels = useProductPackLabels(visibleIds, initialPackLabels);
 
   const hasCollectionMatches =
     showMatchingCollections && matchingCollections.length > 0;
@@ -105,6 +114,7 @@ const SearchResultPage = ({
                   key={node.id}
                   product={node as ProductNode}
                   priorityImage={showMatchingCollections && index < 2}
+                  packLabel={packLabels[node.id] ?? null}
                 />
               ))}
             </section>

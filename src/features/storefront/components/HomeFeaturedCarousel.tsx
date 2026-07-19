@@ -50,9 +50,16 @@ type ProductNode = DocumentType<typeof HomeFeaturedProductFragment>;
 
 type Props = {
   products: { node: ProductNode }[];
+  packLabels?: Record<string, string | null>;
 };
 
-function FeaturedSlide({ product }: { product: ProductNode }) {
+function FeaturedSlide({
+  product,
+  packLabel,
+}: {
+  product: ProductNode;
+  packLabel?: string | null;
+}) {
   const { id, name, slug, featuredImage, badge } = product;
 
   const imageSrc = keytoUrl(featuredImage?.key);
@@ -100,12 +107,17 @@ function FeaturedSlide({ product }: { product: ProductNode }) {
           </h3>
         </ViewTransitionLink>
         <ProductPriceDisplay product={product} className="mt-1" />
+        {packLabel ? (
+          <p className="mt-0.5 text-xs font-medium text-muted-foreground">
+            {packLabel}
+          </p>
+        ) : null}
       </div>
     </article>
   );
 }
 
-export function HomeFeaturedCarousel({ products }: Props) {
+export function HomeFeaturedCarousel({ products, packLabels }: Props) {
   if (!products.length) return null;
 
   return (
@@ -120,7 +132,10 @@ export function HomeFeaturedCarousel({ products }: Props) {
           <ScrollSnapItem key={node.id} className={scrollSnapFeaturedItemClass}>
             <MotionRevealItem index={index} className="group h-full">
               <MotionHoverLift className="h-full">
-                <FeaturedSlide product={node} />
+                <FeaturedSlide
+                  product={node}
+                  packLabel={packLabels?.[node.id]}
+                />
               </MotionHoverLift>
             </MotionRevealItem>
           </ScrollSnapItem>

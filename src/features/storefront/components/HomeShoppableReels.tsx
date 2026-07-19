@@ -23,9 +23,16 @@ type ProductNode = DocumentType<typeof HomeFeaturedProductFragment>;
 
 type Props = {
   products: { node: ProductNode }[];
+  packLabels?: Record<string, string | null>;
 };
 
-function ReelProductCard({ product }: { product: ProductNode }) {
+function ReelProductCard({
+  product,
+  packLabel,
+}: {
+  product: ProductNode;
+  packLabel?: string | null;
+}) {
   const { id, name, slug, featuredImage } = product;
   if (!featuredImage?.key) return null;
 
@@ -53,6 +60,11 @@ function ReelProductCard({ product }: { product: ProductNode }) {
             product={product}
             className="mt-1 craft-price-pill--frost text-white [&_span]:text-white [&_s]:text-white/70"
           />
+          {packLabel ? (
+            <p className="mt-0.5 text-xs font-medium text-white/85">
+              {packLabel}
+            </p>
+          ) : null}
           <span
             className={cn(
               "mt-2 inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-brand-rose to-brand-gold px-3 py-1.5 text-[11px] font-semibold text-white",
@@ -69,7 +81,7 @@ function ReelProductCard({ product }: { product: ProductNode }) {
 }
 
 /** Featured product clips — separate from admin testimonials. */
-export function HomeShoppableReels({ products }: Props) {
+export function HomeShoppableReels({ products, packLabels }: Props) {
   const items = products
     .map(({ node }) => node)
     .filter((node) => node.featuredImage?.key)
@@ -89,7 +101,10 @@ export function HomeShoppableReels({ products }: Props) {
         {items.map((product, index) => (
           <ScrollSnapItem key={product.id} className={scrollSnapReelItemClass}>
             <MotionRevealItem index={index} instant className="w-full">
-              <ReelProductCard product={product} />
+              <ReelProductCard
+                product={product}
+                packLabel={packLabels?.[product.id]}
+              />
             </MotionRevealItem>
           </ScrollSnapItem>
         ))}

@@ -32,6 +32,8 @@ type CardProps = React.ComponentProps<typeof Card>;
 export type ProductCardProps = CardProps & {
   product: DocumentType<typeof ProductCardFragment>;
   priorityImage?: boolean;
+  /** Compact “Set of N” under price when sold as pack. */
+  packLabel?: string | null;
 };
 
 export const ProductCardFragment = gql(/* GraphQL */ `
@@ -63,6 +65,7 @@ export function ProductCard({
   className,
   product,
   priorityImage = false,
+  packLabel = null,
   ...props
 }: ProductCardProps) {
   const { id, name, slug, featuredImage, badge, stock } = product;
@@ -109,6 +112,11 @@ export function ProductCard({
         </div>
 
         <ProductPriceDisplay product={product} />
+        {packLabel ? (
+          <p className="mt-0.5 text-xs font-medium text-muted-foreground">
+            {packLabel}
+          </p>
+        ) : null}
         <LowStockNotice stock={stock} />
         <ProductSizePreview productId={id} />
 

@@ -7,6 +7,7 @@ import { Metadata } from "next";
 import { STOREFRONT_REVALIDATE_SECONDS } from "@/lib/cache/constants";
 import { getDraftProductIdsCached } from "@/lib/storefront/draft-product-ids";
 import { fetchFeaturedProductsCached } from "@/lib/storefront/product-queries";
+import { getProductPackLabelsByIds } from "@/lib/products/pack.server";
 
 export const revalidate = 120;
 
@@ -34,6 +35,10 @@ async function FeaturedProductsPage() {
     getDraftProductIdsCached(),
   ]);
 
+  const initialProductIds =
+    productsCollection?.edges?.map(({ node }) => node.id) ?? [];
+  const initialPackLabels = await getProductPackLabelsByIds(initialProductIds);
+
   return (
     <Shell>
       <Header
@@ -45,6 +50,7 @@ async function FeaturedProductsPage() {
         <FeaturedProductsScroll
           initialData={{ productsCollection }}
           initialDraftIds={initialDraftIds}
+          initialPackLabels={initialPackLabels}
         />
       </Suspense>
     </Shell>

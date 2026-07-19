@@ -26,7 +26,10 @@ import {
 } from "@/features/products/components/ProductPriceDisplay";
 import { getEffectiveProductPrice } from "@/lib/products/discount";
 import { formatProductPackLabel } from "@/lib/products/pack";
-import { getProductPackFieldsByIds } from "@/lib/products/pack.server";
+import {
+  getProductPackFieldsByIds,
+  getProductPackLabelsByIds,
+} from "@/lib/products/pack.server";
 import { toProductDiscountFields } from "@/lib/products/pricing";
 import { getCartProductPricingByIds } from "@/lib/storefront/cart-pricing";
 import { keytoUrl } from "@/lib/utils";
@@ -89,11 +92,15 @@ async function ProductDetailPage({ params }: Props) {
     featuredImage,
   } = productEdge.node;
   const productSlug = resolvedParams.slug;
-  const [sizeConfig, livePricing, packFieldsById] = await Promise.all([
-    getProductSizeConfig(id),
-    getCartProductPricingByIds([id]),
-    getProductPackFieldsByIds([id]),
-  ]);
+  const recommendationIds =
+    data.recommendations?.edges?.map(({ node }) => node.id) ?? [];
+  const [sizeConfig, livePricing, packFieldsById, recommendationPackLabels] =
+    await Promise.all([
+      getProductSizeConfig(id),
+      getCartProductPricingByIds([id]),
+      getProductPackFieldsByIds([id]),
+      getProductPackLabelsByIds(recommendationIds),
+    ]);
   const packLabel = formatProductPackLabel(packFieldsById.get(id));
   const resolvedPricing = livePricing[id];
   const pricingProduct = resolvedPricing
@@ -235,7 +242,11 @@ async function ProductDetailPage({ params }: Props) {
       <div className="container grid grid-cols-2 lg:grid-cols-4 gap-x-8 ">
         {data.recommendations &&
           data.recommendations.edges.map(({ node }) => (
-            <ProductCard key={node.id} product={node} />
+            <ProductCard
+              key={node.id}
+              product={node}
+              packLabel={recommendationPackLabels[node.id]}
+            />
           ))}
       </div>
 
