@@ -1,10 +1,7 @@
 name: Keep storefront warm
 
+# Schedules removed after Vercel migration — run manually via workflow_dispatch if needed.
 on:
-  schedule:
-    # GitHub's shortest supported schedule. Runs in UTC and may start late
-    # during periods of high Actions load.
-    - cron: "*/5 * * * *"
   workflow_dispatch:
 
 permissions:

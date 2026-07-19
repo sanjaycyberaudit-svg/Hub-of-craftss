@@ -1,9 +1,7 @@
 name: Nightly maintenance
 
+# Schedules removed after Vercel migration — run manually via workflow_dispatch if needed.
 on:
-  schedule:
-    # 21:00 UTC = 02:30 IST, quiet hours for an India-based shop.
-    - cron: "0 21 * * *"
   workflow_dispatch:
 
 permissions:
