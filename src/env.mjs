@@ -13,6 +13,9 @@ export const env = createEnv({
     S3_ENDPOINT: z.string().url(),
     S3_ACCESS_KEY_ID: z.string(),
     S3_SECRET_ACCESS_KEY: z.string(),
+    /** Optional Worker R2 proxy for Vercel (binding path; avoids dead S3 API keys). */
+    R2_MEDIA_PROXY_URL: z.string().url().optional(),
+    R2_MEDIA_PROXY_SECRET: z.string().min(16).optional(),
   },
 
   /**
@@ -49,6 +52,8 @@ export const env = createEnv({
     S3_ENDPOINT: process.env.S3_ENDPOINT,
     S3_ACCESS_KEY_ID: process.env.S3_ACCESS_KEY_ID,
     S3_SECRET_ACCESS_KEY: process.env.S3_SECRET_ACCESS_KEY,
+    R2_MEDIA_PROXY_URL: process.env.R2_MEDIA_PROXY_URL,
+    R2_MEDIA_PROXY_SECRET: process.env.R2_MEDIA_PROXY_SECRET,
   },
   /**
    * Run `build` or `dev` with `SKIP_ENV_VALIDATION` to skip env validation.

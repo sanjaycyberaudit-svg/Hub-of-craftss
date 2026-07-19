@@ -29,7 +29,10 @@ function signOrderAccessToken(
   secret: string,
 ): string {
   const payload = `${orderId}:${normalizeCreatedAt(createdAt)}`;
-  return crypto.createHmac("sha256", secret).update(payload).digest("base64url");
+  return crypto
+    .createHmac("sha256", secret)
+    .update(payload)
+    .digest("base64url");
 }
 
 export function createOrderAccessToken(

@@ -3,10 +3,12 @@ import {
   resolveProductPricing,
   type ResolvedProductPricing,
 } from "@/lib/products/pricing";
+import type { ProductPackFields } from "@/lib/products/pack";
 
-export type CartProductPricing = ResolvedProductPricing & {
-  productId: string;
-};
+export type CartProductPricing = ResolvedProductPricing &
+  ProductPackFields & {
+    productId: string;
+  };
 
 export async function getCartProductPricingByIds(
   productIds: string[],
@@ -22,6 +24,8 @@ export async function getCartProductPricingByIds(
     pricing[row.id] = {
       productId: row.id,
       ...resolved,
+      soldAsPack: Boolean(row.soldAsPack),
+      packSize: row.packSize ?? null,
     };
   }
 

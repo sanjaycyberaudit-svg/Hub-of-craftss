@@ -28,6 +28,11 @@ export const bulkSharedInputSchema = z
       .union([z.coerce.number(), z.null()])
       .optional()
       .transform((value) => (value == null ? null : value)),
+    soldAsPack: z.coerce.boolean().default(false),
+    packSize: z
+      .union([z.coerce.number(), z.null()])
+      .optional()
+      .transform((value) => (value == null ? null : value)),
   })
   .superRefine((data, ctx) => {
     if (
@@ -40,6 +45,22 @@ export const bulkSharedInputSchema = z
           "Discount percent must be between 1 and 99 when discount is enabled.",
         path: ["discountPercent"],
       });
+    }
+    if (data.soldAsPack) {
+      const packSize = Number(data.packSize);
+      if (
+        !Number.isFinite(packSize) ||
+        !Number.isInteger(packSize) ||
+        packSize < 2 ||
+        packSize > 9999
+      ) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message:
+            "Pieces per set must be a whole number between 2 and 9999 when sold as a set/pack.",
+          path: ["packSize"],
+        });
+      }
     }
   });
 
@@ -56,6 +77,8 @@ export type NormalizedBulkDraftShared = {
   stock: number;
   discountEnabled: boolean;
   discountPercent: number | null;
+  soldAsPack: boolean;
+  packSize: number | null;
 };
 
 export function normalizeBulkDraftShared(
@@ -70,6 +93,23 @@ export function normalizeBulkDraftShared(
     throw new Error(
       "Discount percent must be between 1 and 99 when discount is enabled.",
     );
+  }
+
+  const soldAsPack = Boolean(data.soldAsPack);
+  let packSize: number | null = null;
+  if (soldAsPack) {
+    const raw = Number(data.packSize);
+    if (
+      !Number.isFinite(raw) ||
+      !Number.isInteger(raw) ||
+      raw < 2 ||
+      raw > 9999
+    ) {
+      throw new Error(
+        "Pieces per set must be a whole number between 2 and 9999 when sold as a set/pack.",
+      );
+    }
+    packSize = raw;
   }
 
   const badgeRaw = data.badge == null ? null : String(data.badge).trim();
@@ -89,6 +129,8 @@ export function normalizeBulkDraftShared(
     stock: Math.max(0, Math.round(data.stock)),
     discountEnabled,
     discountPercent,
+    soldAsPack,
+    packSize,
   };
 }
 
@@ -120,6 +162,8 @@ export function buildBulkSharedPayloadFromForm(values: {
   stock?: unknown;
   discountEnabled?: unknown;
   discountPercent?: unknown;
+  soldAsPack?: unknown;
+  packSize?: unknown;
 }): NormalizedBulkDraftShared {
   return parseBulkSharedInput({
     name: String(values.name ?? "").trim(),
@@ -145,6 +189,11 @@ export function buildBulkSharedPayloadFromForm(values: {
       values.discountPercent == null || values.discountPercent === ""
         ? null
         : Number(values.discountPercent),
+    soldAsPack: Boolean(values.soldAsPack),
+    packSize:
+      values.packSize == null || values.packSize === ""
+        ? null
+        : Number(values.packSize),
   });
 }
 
@@ -171,6 +220,8 @@ export function buildBulkProductInsertValues(params: {
     stock: shared.stock,
     discountEnabled: shared.discountEnabled,
     discountPercent: shared.discountPercent,
+    soldAsPack: shared.soldAsPack,
+    packSize: shared.packSize,
     featured: false,
     tags: [],
   };

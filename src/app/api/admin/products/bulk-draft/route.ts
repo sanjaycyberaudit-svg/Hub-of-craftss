@@ -72,6 +72,8 @@ export async function POST(request: NextRequest) {
           stock: normalized.stock,
           discountEnabled: normalized.discountEnabled,
           discountPercent: normalized.discountPercent,
+          soldAsPack: normalized.soldAsPack,
+          packSize: normalized.packSize,
         };
       } catch (error) {
         const message =

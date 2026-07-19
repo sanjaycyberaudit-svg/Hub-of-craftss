@@ -1,14 +1,12 @@
 "use client";
 
-import { relayPagination } from "@urql/exchange-graphcache/extras";
+import { cacheExchange } from "@urql/exchange-graphcache";
 import {
   UrqlProvider,
   createClient,
   fetchExchange,
   ssrExchange,
 } from "@urql/next";
-
-import { cacheExchange } from "@urql/exchange-graphcache";
 import { useMemo, useRef } from "react";
 import { useAuth } from "./AuthProvider";
 
@@ -37,11 +35,9 @@ export default function Provider({ children }: React.PropsWithChildren) {
       url: graphqlUrl(),
       exchanges: [
         cacheExchange({
-          resolvers: {
-            Query: {
-              mediasCollection: relayPagination(),
-            },
-          },
+          // mediasCollection is accumulated in the picker UI (page cursor + local
+          // state). relayPagination kept a stale connection after REST uploads,
+          // so new images only appeared on full page reload.
           keys: {
             carts: (data) => `${data.product_id}`,
           },

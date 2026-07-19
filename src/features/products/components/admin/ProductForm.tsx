@@ -108,6 +108,8 @@ const BULK_SHARED_FIELDS = [
   "stock",
   "discountEnabled",
   "discountPercent",
+  "soldAsPack",
+  "packSize",
 ] as const;
 
 type ApiSettingRecord = {
@@ -182,6 +184,25 @@ const productFormSchema = createInsertSchema(products)
       .string({ required_error: "Catalog is required." })
       .trim()
       .min(1, "Catalog is required."),
+    soldAsPack: z.coerce.boolean().default(false),
+    packSize: z.union([z.coerce.number(), z.null()]).optional().nullable(),
+  })
+  .superRefine((data, ctx) => {
+    if (!data.soldAsPack) return;
+    const packSize = Number(data.packSize);
+    if (
+      !Number.isFinite(packSize) ||
+      !Number.isInteger(packSize) ||
+      packSize < 2 ||
+      packSize > 9999
+    ) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message:
+          "Pieces per set must be a whole number between 2 and 9999 when sold as a set/pack.",
+        path: ["packSize"],
+      });
+    }
   });
 
 export const ProductFormQuery = gql(/* GraphQL */ `
@@ -265,6 +286,8 @@ function ProductFrom({ product, galleryMediaIds = [] }: ProductsFormProps) {
       featured: product?.featured ?? false,
       discountEnabled: product?.discountEnabled ?? false,
       discountPercent: product?.discountPercent ?? null,
+      soldAsPack: product?.soldAsPack ?? false,
+      packSize: product?.packSize ?? null,
       stock: typeof product?.stock === "number" ? product.stock : 1,
       featuredImageId:
         product?.featuredImageId ??
@@ -652,6 +675,8 @@ function ProductFrom({ product, galleryMediaIds = [] }: ProductsFormProps) {
             stock: shared.stock,
             discountEnabled: shared.discountEnabled,
             discountPercent: shared.discountPercent,
+            soldAsPack: shared.soldAsPack,
+            packSize: shared.packSize,
           },
           onProgress: (update) => {
             setBulkProgress(update);
@@ -1025,6 +1050,56 @@ function ProductFrom({ product, galleryMediaIds = [] }: ProductsFormProps) {
                 price={watch("price")}
                 discountPercent={watch("discountPercent")}
               />
+            </FormItem>
+          ) : null}
+
+          <FormField
+            control={control}
+            name="soldAsPack"
+            render={({ field }) => (
+              <FormItem className="flex flex-row items-start gap-3 rounded-lg border p-4">
+                <FormControl>
+                  <Checkbox
+                    checked={Boolean(field.value)}
+                    onCheckedChange={(checked) => {
+                      field.onChange(Boolean(checked));
+                      if (!checked) {
+                        form.setValue("packSize", null);
+                      } else if (!form.getValues("packSize")) {
+                        form.setValue("packSize", 50);
+                      }
+                    }}
+                  />
+                </FormControl>
+                <div className="space-y-1 leading-none">
+                  <FormLabel>Sold as set / pack</FormLabel>
+                  <FormDescription>
+                    Show “Set of N” near the price. Quantity 1 means 1 set (not
+                    one loose piece). Price and stock stay per set.
+                  </FormDescription>
+                </div>
+              </FormItem>
+            )}
+          />
+
+          {watch("soldAsPack") ? (
+            <FormItem>
+              <FormLabel className="text-sm">Pieces per set*</FormLabel>
+              <FormControl>
+                <Input
+                  type="number"
+                  min={2}
+                  max={9999}
+                  step={1}
+                  placeholder="e.g. 50"
+                  {...register("packSize", { valueAsNumber: true })}
+                />
+              </FormControl>
+              <FormDescription>
+                Customers see “Set of {watch("packSize") || "N"}” on the product
+                page.
+              </FormDescription>
+              <FormMessage />
             </FormItem>
           ) : null}
 

@@ -232,7 +232,7 @@ export async function fetchMediaLibraryPage(params: {
     })
     .from(medias)
     .where(sectionFilter)
-    .orderBy(desc(medias.createdAt))
+    .orderBy(desc(medias.createdAt), desc(medias.id))
     .limit(limit)
     .offset(offset);
 
@@ -285,5 +285,9 @@ export async function loadMediaUsageForDelete(mediaIds: string[]) {
 }
 
 export function invalidateAdminMediaCache() {
-  revalidateTag("admin-media-library");
+  try {
+    revalidateTag("admin-media-library");
+  } catch (error) {
+    console.warn("[admin-media] revalidateTag failed:", error);
+  }
 }

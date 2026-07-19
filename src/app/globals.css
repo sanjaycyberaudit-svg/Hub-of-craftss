@@ -77,6 +77,44 @@
     --admin-sidebar-width: 17rem;
   }
 
+  /*
+    Admin white theme: apply on shell AND on html/body when admin is mounted
+    so portals (dialogs/sheets) and body bg aren't stuck on storefront blush.
+    Storefront :root blush stays unchanged when .admin-shell is absent.
+  */
+  html:has(.admin-shell),
+  body:has(.admin-shell),
+  .admin-shell {
+    --background: 0 0% 100%;
+    --foreground: 222 22% 16%;
+    --card: 0 0% 100%;
+    --card-foreground: 222 22% 16%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 22% 16%;
+    --primary: 222 18% 20%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 210 16% 96%;
+    --secondary-foreground: 222 22% 18%;
+    --muted: 210 16% 96%;
+    --muted-foreground: 215 14% 38%;
+    --accent: 210 16% 96%;
+    --accent-foreground: 222 22% 18%;
+    --border: 214 16% 90%;
+    --input: 214 16% 90%;
+    --ring: 222 14% 40%;
+    --brand-cream: 0 0% 100%;
+    --brand-rose: 222 14% 35%;
+    --brand-gold: 222 10% 40%;
+    --brand-teal: 222 12% 38%;
+    --brand-magenta: 222 14% 35%;
+    color-scheme: light;
+  }
+
+  .admin-shell {
+    background-color: #ffffff;
+    color: hsl(var(--foreground));
+  }
+
   .dark {
     --background: 345 22% 9%;
     --foreground: 40 30% 95%;

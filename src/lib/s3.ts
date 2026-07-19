@@ -62,6 +62,35 @@ function objectUrl(key: string) {
   return `${endpoint}/${bucket}/${encodedKey}`;
 }
 
+function mediaProxyConfig(): { baseUrl: string; secret: string } | null {
+  const baseUrl = env.R2_MEDIA_PROXY_URL?.replace(/\/$/, "");
+  const secret = env.R2_MEDIA_PROXY_SECRET?.trim();
+  if (!baseUrl || !secret) return null;
+  return { baseUrl, secret };
+}
+
+/** True when server can stage/put via binding or authenticated media proxy. */
+export function hasServerMediaWritePath(): boolean {
+  return Boolean(mediaProxyConfig());
+}
+
+async function proxyFetch(
+  pathWithQuery: string,
+  init: RequestInit & { method: string },
+): Promise<Response> {
+  const proxy = mediaProxyConfig();
+  if (!proxy) {
+    throw new Error("R2 media proxy is not configured.");
+  }
+  return fetch(`${proxy.baseUrl}${pathWithQuery}`, {
+    ...init,
+    headers: {
+      ...(init.headers || {}),
+      Authorization: `Bearer ${proxy.secret}`,
+    },
+  });
+}
+
 function toArrayBuffer(body: Buffer | Uint8Array | string | ArrayBuffer) {
   if (typeof body === "string") {
     return new TextEncoder().encode(body);
@@ -122,12 +151,33 @@ export async function putObject(params: PutObjectParams) {
     throw missingMediaBucketError();
   }
 
-  // Local `next dev` fallback when no R2 binding is present.
   const headers: Record<string, string> = {};
   if (params.ContentType) headers["Content-Type"] = params.ContentType;
   if (params.CacheControl) headers["Cache-Control"] = params.CacheControl;
-
   const body = toArrayBuffer(params.Body);
+  // R2 S3 API requires Content-Length (411 MissingContentLength without it).
+  // Undici/aws4fetch can omit it for some ArrayBuffer bodies on Vercel.
+  const byteLength =
+    typeof body === "string" ? Buffer.byteLength(body) : body.byteLength;
+  headers["Content-Length"] = String(byteLength);
+
+  // Vercel / Node: prefer authenticated Worker+R2 binding proxy when configured.
+  // Stale R2 S3 API tokens return 401 Unauthorized against Cloudflare R2.
+  const proxy = mediaProxyConfig();
+  if (proxy) {
+    const res = await proxyFetch(
+      `/object?key=${encodeURIComponent(params.Key)}`,
+      { method: "PUT", headers, body },
+    );
+    if (!res.ok) {
+      const text = await res.text().catch(() => "");
+      throw new Error(
+        `R2 put failed (${res.status})${text ? `: ${text.slice(0, 200)}` : ""}`,
+      );
+    }
+    return { etag: res.headers.get("etag") };
+  }
+
   const res = await getAwsClient().fetch(objectUrl(params.Key), {
     method: "PUT",
     headers,
@@ -171,9 +221,12 @@ export async function getObjectBuffer(params: {
     throw missingMediaBucketError();
   }
 
-  const res = await getAwsClient().fetch(objectUrl(params.key), {
-    method: "GET",
-  });
+  const proxy = mediaProxyConfig();
+  const res = proxy
+    ? await proxyFetch(`/object?key=${encodeURIComponent(params.key)}`, {
+        method: "GET",
+      })
+    : await getAwsClient().fetch(objectUrl(params.key), { method: "GET" });
 
   if (!res.ok) {
     throw new Error(`R2 get failed (${res.status}).`);
@@ -215,6 +268,25 @@ export async function deleteObjects(params: { keys: string[] }) {
 
   if (cfEnv) {
     throw missingMediaBucketError();
+  }
+
+  const proxy = mediaProxyConfig();
+  if (proxy) {
+    // Prefer query-key DELETE — some edges reject DELETE with a JSON body.
+    await Promise.all(
+      keys.map(async (key) => {
+        const res = await proxyFetch(`/object?key=${encodeURIComponent(key)}`, {
+          method: "DELETE",
+        });
+        if (!res.ok && res.status !== 404) {
+          const text = await res.text().catch(() => "");
+          throw new Error(
+            `R2 delete failed (${res.status})${text ? `: ${text.slice(0, 200)}` : ""}`,
+          );
+        }
+      }),
+    );
+    return;
   }
 
   const client = getAwsClient();

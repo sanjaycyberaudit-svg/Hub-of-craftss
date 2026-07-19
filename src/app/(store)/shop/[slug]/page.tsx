@@ -25,6 +25,10 @@ import {
   ProductPriceDisplay,
 } from "@/features/products/components/ProductPriceDisplay";
 import { getEffectiveProductPrice } from "@/lib/products/discount";
+import {
+  formatProductPackLabel,
+  getProductPackFieldsByIds,
+} from "@/lib/products/pack";
 import { toProductDiscountFields } from "@/lib/products/pricing";
 import { getCartProductPricingByIds } from "@/lib/storefront/cart-pricing";
 import { keytoUrl } from "@/lib/utils";
@@ -87,10 +91,12 @@ async function ProductDetailPage({ params }: Props) {
     featuredImage,
   } = productEdge.node;
   const productSlug = resolvedParams.slug;
-  const [sizeConfig, livePricing] = await Promise.all([
+  const [sizeConfig, livePricing, packFieldsById] = await Promise.all([
     getProductSizeConfig(id),
     getCartProductPricingByIds([id]),
+    getProductPackFieldsByIds([id]),
   ]);
+  const packLabel = formatProductPackLabel(packFieldsById.get(id));
   const resolvedPricing = livePricing[id];
   const pricingProduct = resolvedPricing
     ? toProductDiscountFields(resolvedPricing)
@@ -152,6 +158,14 @@ async function ProductDetailPage({ params }: Props) {
                 saleClassName="text-2xl"
                 originalClassName="text-base"
               />
+              {packLabel ? (
+                <p className="mb-3 text-sm font-medium text-foreground/80">
+                  {packLabel}
+                  <span className="ml-1 font-normal text-muted-foreground">
+                    · Qty 1 = 1 set
+                  </span>
+                </p>
+              ) : null}
               <LowStockNotice
                 stock={stock}
                 className="text-sm font-medium text-destructive"

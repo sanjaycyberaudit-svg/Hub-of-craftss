@@ -146,7 +146,7 @@ function ProductImageShowcase({
         </div>
       ) : null}
 
-      {/* Main image — constrained so it never blows past the viewport */}
+      {/* Main image — full product visible (contain), not cropped */}
       <div className="relative w-full min-w-0 flex-1">
         <div
           className={cn(
@@ -159,7 +159,7 @@ function ProductImageShowcase({
             alt={activeImage.alt || "Product image"}
             fill
             sizes="(max-width: 768px) 100vw, (max-width: 1200px) 55vw, 640px"
-            className="object-cover object-top"
+            className="object-contain object-center"
             style={viewTransitionStyle(transitionName)}
             priority
             {...getStorefrontImageProps(activeImageSrc)}

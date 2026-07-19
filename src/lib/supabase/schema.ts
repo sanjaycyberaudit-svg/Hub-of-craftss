@@ -289,6 +289,10 @@ export const products = pgTable(
       .default("0.00"),
     discountEnabled: boolean("discount_enabled").notNull().default(false),
     discountPercent: integer("discount_percent"),
+    /** When true, storefront shows “Set of N”; qty 1 = 1 pack (no price math change). */
+    soldAsPack: boolean("sold_as_pack").notNull().default(false),
+    /** Pieces per pack when soldAsPack; null/ignored when off. */
+    packSize: integer("pack_size"),
     totalComments: integer("totalComments").default(0).notNull(),
     createdAt: timestamp("created_at", {
       withTimezone: true,

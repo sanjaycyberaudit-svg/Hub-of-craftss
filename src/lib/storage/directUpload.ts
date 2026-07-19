@@ -11,6 +11,7 @@ import {
   createPresignedPutUrl,
   deleteObjects,
   getObjectBuffer,
+  hasServerMediaWritePath,
   putObject,
 } from "@/lib/s3";
 import db from "@/lib/supabase/db";
@@ -76,9 +77,9 @@ export async function createDirectUploadSession(params: {
 
   const storagePath = buildStagingPath(sanitizeUploadFileName(params.fileName));
 
-  // Prefer Worker R2 binding staging — S3 presigned PUT credentials may still
-  // point at another account during cutover, and aws4fetch PUT 401s on Workers.
-  if (await hasMediaBucketBinding()) {
+  // Prefer server staging (Worker R2 binding or Vercel→media-proxy).
+  // Presigned S3 PUTs fail when R2 API tokens are stale (401 Unauthorized).
+  if ((await hasMediaBucketBinding()) || hasServerMediaWritePath()) {
     return {
       storagePath,
       uploadMode: "worker" as DirectUploadMode,

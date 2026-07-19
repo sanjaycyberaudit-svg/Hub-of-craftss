@@ -112,10 +112,11 @@ export function AdminMediaManager() {
         page: String(targetPage),
         limit: String(MEDIA_LIBRARY_PAGE_SIZE),
         section,
+        _t: String(Date.now()),
       });
       const res = await fetchWithRetry(
         `/api/admin/medias/library?${params.toString()}`,
-        { cache: "no-store" },
+        { cache: "no-store", credentials: "same-origin" },
       );
       if (!res.ok) throw new Error("Could not load media library.");
 

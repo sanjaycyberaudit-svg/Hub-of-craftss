@@ -98,6 +98,23 @@ export function normalizeProductFormPayload(
     );
   }
 
+  const soldAsPack = Boolean(data.soldAsPack);
+  let packSize: number | null = null;
+  if (soldAsPack) {
+    const raw = Number(data.packSize);
+    if (
+      !Number.isFinite(raw) ||
+      !Number.isInteger(raw) ||
+      raw < 2 ||
+      raw > 9999
+    ) {
+      throw new Error(
+        "Pieces per set must be a whole number between 2 and 9999 when sold as a set/pack.",
+      );
+    }
+    packSize = raw;
+  }
+
   return {
     ...data,
     name,
@@ -113,6 +130,8 @@ export function normalizeProductFormPayload(
     collectionId,
     discountEnabled,
     discountPercent,
+    soldAsPack,
+    packSize,
   };
 }
 

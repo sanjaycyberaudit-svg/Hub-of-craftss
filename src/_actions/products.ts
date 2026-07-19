@@ -101,6 +101,8 @@ const DEFAULT_BULK_SHARED: NormalizedBulkDraftShared = {
   stock: 0,
   discountEnabled: false,
   discountPercent: null,
+  soldAsPack: false,
+  packSize: null,
 };
 
 export async function createDraftProductsFromMedia(

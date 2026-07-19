@@ -51,6 +51,8 @@ export const UPLOAD_RETRY_DELAY_MS = 400;
 export const UPLOAD_REQUEST_TIMEOUT_MS = 45000;
 export const DIRECT_UPLOAD_COMPLETE_TIMEOUT_MS = 90000;
 export const BETWEEN_UPLOAD_DELAY_MS = 120;
+/** Parallel R2 puts for admin multi-select; keep modest to avoid browser/network contention. */
+export const UPLOAD_CONCURRENCY = 3;
 
 export type DirectUploadPurpose = "upload" | "product-draft";
 
@@ -97,6 +99,7 @@ export function uploadFileIdentityKey(file: File) {
 export type MediaUploadResult = {
   uploadedCount: number;
   uploadedNames: string[];
+  uploadedMediaIds: string[];
   failures: UploadFileFailure[];
   validationErrors: FileValidationError[];
 };
@@ -526,7 +529,10 @@ async function uploadViaDirectStorage(
         const putRes = await fetch(init.signedUrl, {
           method: "PUT",
           body: safeFile,
-          // Do not set Content-Type: presigned URL is signed without it (R2 browser PUT).
+          headers: {
+            // Signed without Content-Type; still send length — R2 returns 411 otherwise.
+            "Content-Length": String(safeFile.size),
+          },
         });
         putOk = putRes.ok;
         if (!putOk) {
@@ -735,6 +741,7 @@ export async function uploadMediaFilesQueue(
     return {
       uploadedCount: 0,
       uploadedNames: [],
+      uploadedMediaIds: [],
       failures: [],
       validationErrors: [],
     };
@@ -795,43 +802,75 @@ export async function uploadMediaFilesQueue(
   }
 
   const uploadedNames: string[] = [];
+  const uploadedMediaIds: string[] = [];
   const failures: UploadFileFailure[] = [];
   const uploadTotal = prepared.length;
+  let completed = 0;
+  let inFlight = 0;
 
-  for (let index = 0; index < prepared.length; index += 1) {
-    const item = prepared[index];
+  const reportUploadProgress = (currentFileName?: string) => {
+    const done = completed;
+    const active = inFlight;
+    const message =
+      active > 0
+        ? `Uploading ${done + active}/${uploadTotal} (${done} done${
+            currentFileName ? ` · ${currentFileName}` : ""
+          })`
+        : `Uploaded ${done}/${uploadTotal}`;
     callbacks?.onProgress?.(
       buildProgress(
         "uploading",
-        index + 1,
+        Math.min(done + active, uploadTotal),
         uploadTotal,
-        preferDirect
-          ? `Uploading ${index + 1}/${uploadTotal}: ${item.sourceName}`
-          : `Uploading ${index + 1}/${uploadTotal}: ${item.sourceName}`,
+        message,
       ),
     );
+  };
 
-    // eslint-disable-next-line no-await-in-loop
-    const result = await uploadSingleMediaFile(item.file, item.sourceName, {
-      purpose: "upload",
-      preferDirect,
-    });
-    callbacks?.onFileUploaded?.(item.sourceFile, result.ok);
-    if (result.ok && result.uploadedName) {
-      uploadedNames.push(result.uploadedName);
-    } else {
-      failures.push({
-        fileName: item.sourceName,
-        reason: result.reason ?? `${item.sourceName}: upload failed.`,
-        file: item.sourceFile,
+  const runOne = async (item: PreparedUploadItem) => {
+    inFlight += 1;
+    reportUploadProgress(item.sourceName);
+    try {
+      const result = await uploadSingleMediaFile(item.file, item.sourceName, {
+        purpose: "upload",
+        preferDirect,
       });
+      callbacks?.onFileUploaded?.(item.sourceFile, result.ok);
+      if (result.ok && result.uploadedName) {
+        uploadedNames.push(result.uploadedName);
+        if (result.mediaId) uploadedMediaIds.push(result.mediaId);
+      } else {
+        failures.push({
+          fileName: item.sourceName,
+          reason: result.reason ?? `${item.sourceName}: upload failed.`,
+          file: item.sourceFile,
+        });
+      }
+    } finally {
+      inFlight -= 1;
+      completed += 1;
+      reportUploadProgress();
     }
+  };
 
-    if (index < prepared.length - 1) {
-      // eslint-disable-next-line no-await-in-loop
-      await delay(BETWEEN_UPLOAD_DELAY_MS);
+  // R2 handles concurrent writes fine for small admin batches; parallelize
+  // to cut wall-clock time without flooding the browser.
+  const concurrency = Math.min(
+    UPLOAD_CONCURRENCY,
+    Math.max(1, prepared.length),
+  );
+  let nextIndex = 0;
+  const workers = Array.from({ length: concurrency }, async () => {
+    while (nextIndex < prepared.length) {
+      const index = nextIndex;
+      nextIndex += 1;
+      await runOne(prepared[index]);
+      if (nextIndex < prepared.length) {
+        await delay(BETWEEN_UPLOAD_DELAY_MS);
+      }
     }
-  }
+  });
+  await Promise.all(workers);
 
   callbacks?.onProgress?.(
     buildProgress(
@@ -845,6 +884,7 @@ export async function uploadMediaFilesQueue(
   return {
     uploadedCount: uploadedNames.length,
     uploadedNames,
+    uploadedMediaIds,
     failures,
     validationErrors,
   };

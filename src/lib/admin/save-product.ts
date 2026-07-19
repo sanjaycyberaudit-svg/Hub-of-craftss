@@ -62,6 +62,8 @@ function toWritableProductFields(
     collectionId: normalized.collectionId ?? null,
     discountEnabled: normalized.discountEnabled,
     discountPercent: normalized.discountPercent,
+    soldAsPack: normalized.soldAsPack,
+    packSize: normalized.packSize,
     featuredImageId,
     tags: [] as string[],
     images: Array.isArray(normalized.images) ? normalized.images : [],

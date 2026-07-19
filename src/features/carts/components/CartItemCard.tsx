@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/card";
 
 import { ProductPriceDisplay } from "@/features/products/components/ProductPriceDisplay";
+import { formatProductPackLabel } from "@/lib/products/pack";
 import { getStorefrontImageProps, keytoUrl } from "@/lib/utils";
 import { UseQueryExecute } from "@urql/next";
 import Link from "next/link";
@@ -25,7 +26,10 @@ import { Button } from "../../../components/ui/button";
 export { CartItemCardFragment };
 
 type CartItemCardProps = React.ComponentProps<typeof Card> & {
-  product: DocumentType<typeof CartItemCardFragment>;
+  product: DocumentType<typeof CartItemCardFragment> & {
+    soldAsPack?: boolean | null;
+    packSize?: number | null;
+  };
   disabled?: boolean;
   addOneHandler: () => void;
   minusOneHandler: () => void;
@@ -53,6 +57,7 @@ function CartItemCard({
     .trim()
     .toUpperCase();
   const missingRequiredSize = Boolean(sizeRequired && !normalizedSelectedSize);
+  const packLabel = formatProductPackLabel(product);
 
   const imageSrc = keytoUrl(product.featuredImage.key);
 
@@ -75,6 +80,9 @@ function CartItemCard({
             {product.name}
           </Link>
         </CardTitle>
+        {packLabel ? (
+          <p className="text-xs text-muted-foreground">{packLabel}</p>
+        ) : null}
         {sizeRequired ? (
           <div className="mt-1 space-y-1">
             <label className="text-xs text-muted-foreground">Size</label>

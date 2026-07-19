@@ -44,7 +44,9 @@ async function runPaidOrderSideEffects(order: SelectOrders) {
       await db
         .update(orders)
         .set({
-          whatsapp_notified: wa.customerNotified ? true : order.whatsapp_notified,
+          whatsapp_notified: wa.customerNotified
+            ? true
+            : order.whatsapp_notified,
           whatsapp_notified_at: wa.customerNotified
             ? new Date().toISOString()
             : order.whatsapp_notified_at,
