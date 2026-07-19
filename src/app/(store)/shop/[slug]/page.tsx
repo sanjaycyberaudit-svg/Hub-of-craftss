@@ -25,10 +25,8 @@ import {
   ProductPriceDisplay,
 } from "@/features/products/components/ProductPriceDisplay";
 import { getEffectiveProductPrice } from "@/lib/products/discount";
-import {
-  formatProductPackLabel,
-  getProductPackFieldsByIds,
-} from "@/lib/products/pack";
+import { formatProductPackLabel } from "@/lib/products/pack";
+import { getProductPackFieldsByIds } from "@/lib/products/pack.server";
 import { toProductDiscountFields } from "@/lib/products/pricing";
 import { getCartProductPricingByIds } from "@/lib/storefront/cart-pricing";
 import { keytoUrl } from "@/lib/utils";
