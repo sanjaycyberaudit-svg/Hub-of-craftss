@@ -147,7 +147,7 @@ export function HomeCategoriesCarousel({
               <MotionHoverLift className="w-full">
                 <ViewTransitionLink
                   href={`/collections/${node.slug}`}
-                  className="group block w-full overflow-hidden rounded-[1.25rem] border border-brand-teal/20 bg-muted/30 shadow-sm transition-[border-color,box-shadow] duration-300 hover:border-brand-magenta/40 hover:shadow-[0_18px_40px_-18px_rgba(192,48,120,0.35)]"
+                  className="group block w-full rounded-[1.25rem] border border-brand-teal/20 bg-card p-1.5 shadow-sm transition-[border-color,box-shadow] duration-300 hover:border-brand-magenta/40 hover:shadow-[0_18px_40px_-18px_rgba(192,48,120,0.35)] sm:overflow-hidden sm:bg-muted/30 sm:p-0"
                 >
                   <CollectionCardSurface
                     label={node.label}
@@ -155,6 +155,7 @@ export function HomeCategoriesCarousel({
                     imageAlt={node.featuredImage?.alt || node.label}
                     aspectClass="aspect-[5/3] sm:aspect-[16/10]"
                     sizes="(max-width: 640px) 48vw, (max-width: 1024px) 31vw, 260px"
+                    priority={index < 4}
                     viewTransitionName={collectionImageTransitionName(node.id)}
                   />
                 </ViewTransitionLink>

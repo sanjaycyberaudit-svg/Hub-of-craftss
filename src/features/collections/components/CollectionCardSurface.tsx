@@ -16,7 +16,9 @@ type CollectionCardSurfaceProps = {
 };
 
 /**
- * Shared category card image + label (homepage carousel & /collections grid).
+ * Shared category card.
+ * Mobile: clear photo + small label under the image.
+ * sm+: photo with overlay label (existing look).
  */
 export function CollectionCardSurface({
   label,
@@ -29,38 +31,52 @@ export function CollectionCardSurface({
   viewTransitionName,
 }: CollectionCardSurfaceProps) {
   return (
-    <div
-      className={cn("relative w-full overflow-hidden", aspectClass, className)}
-    >
-      <Image
-        src={imageSrc}
-        alt={imageAlt}
-        fill
-        priority={priority}
-        loading={priority ? undefined : "lazy"}
-        sizes={sizes}
-        className="object-cover object-center transition-transform duration-500 group-hover:scale-[1.05]"
-        style={
-          viewTransitionName
-            ? viewTransitionStyle(viewTransitionName)
-            : undefined
-        }
-        {...getStorefrontImageProps(imageSrc)}
-      />
+    <div className={cn("flex w-full flex-col", className)}>
       <div
-        className="absolute inset-0 bg-gradient-to-t from-brand-purple/95 via-brand-teal/40 to-transparent"
-        aria-hidden
-      />
-      <div className="absolute inset-x-0 bottom-0 p-3 sm:p-4">
-        <div className="inline-flex max-w-full flex-col gap-1 rounded-xl border border-white/25 bg-white/15 px-2.5 py-2 backdrop-blur-[3px] sm:px-3">
-          <p className="font-[family-name:var(--font-hero-serif)] text-sm font-semibold leading-snug text-white drop-shadow-md sm:text-base lg:text-lg">
-            {label}
-          </p>
-          <p className="inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-brand-yellow sm:text-[11px]">
-            View collection
-            <ArrowUpRight className="h-3 w-3 transition-transform duration-300 group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
-          </p>
+        className={cn(
+          "relative w-full overflow-hidden rounded-[1.1rem] sm:rounded-none",
+          aspectClass,
+        )}
+      >
+        <Image
+          src={imageSrc}
+          alt={imageAlt}
+          fill
+          priority={priority}
+          loading={priority ? undefined : "lazy"}
+          sizes={sizes}
+          className="object-cover object-center transition-transform duration-500 group-hover:scale-[1.05]"
+          style={
+            viewTransitionName
+              ? viewTransitionStyle(viewTransitionName)
+              : undefined
+          }
+          {...getStorefrontImageProps(imageSrc)}
+        />
+
+        {/* Desktop / tablet overlay — hidden on mobile so the photo stays clear */}
+        <div
+          className="absolute inset-0 hidden bg-gradient-to-t from-brand-purple/95 via-brand-teal/40 to-transparent sm:block"
+          aria-hidden
+        />
+        <div className="absolute inset-x-0 bottom-0 hidden p-3 sm:block sm:p-4">
+          <div className="inline-flex max-w-full flex-col gap-1 rounded-xl border border-white/25 bg-white/15 px-2.5 py-2 backdrop-blur-[3px] sm:px-3">
+            <p className="font-[family-name:var(--font-hero-serif)] text-sm font-semibold leading-snug text-white drop-shadow-md sm:text-base lg:text-lg">
+              {label}
+            </p>
+            <p className="inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-brand-yellow sm:text-[11px]">
+              View collection
+              <ArrowUpRight className="h-3 w-3 transition-transform duration-300 group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+            </p>
+          </div>
         </div>
+      </div>
+
+      {/* Mobile-only caption under the image */}
+      <div className="mt-2 px-0.5 sm:hidden">
+        <p className="line-clamp-2 text-xs font-semibold leading-snug text-foreground">
+          {label}
+        </p>
       </div>
     </div>
   );
