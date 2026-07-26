@@ -24,7 +24,7 @@ const LandingRouteQuery = gql(/* GraphQL */ `
     }
 
     collectionScrollCards: collectionsCollection(
-      first: 50
+      first: 8
       orderBy: [{ order: DescNullsLast }, { label: AscNullsLast }]
     ) {
       edges {
@@ -32,6 +32,10 @@ const LandingRouteQuery = gql(/* GraphQL */ `
           id
           ...CollectionCardFragment
         }
+      }
+      pageInfo {
+        hasNextPage
+        endCursor
       }
     }
 
@@ -52,7 +56,7 @@ const LandingRouteQuery = gql(/* GraphQL */ `
 
 export async function getLandingPageDataCached(): Promise<LandingRouteQueryQuery | null> {
   const data = await withStorefrontCache(
-    "sf:landing",
+    "sf:landing:v2",
     async () => {
       const { data, error } = await getClient().query(LandingRouteQuery, {});
       if (error) {

@@ -101,7 +101,15 @@ export default async function Home() {
         ) : null}
 
         {collectionScrollCards?.edges?.length ? (
-          <HomeCategoriesCarousel collections={collectionScrollCards.edges} />
+          <HomeCategoriesCarousel
+            initialEdges={collectionScrollCards.edges}
+            initialPageInfo={{
+              hasNextPage: Boolean(
+                collectionScrollCards.pageInfo?.hasNextPage,
+              ),
+              endCursor: collectionScrollCards.pageInfo?.endCursor ?? null,
+            }}
+          />
         ) : null}
 
         {priceBuckets.length ? (
