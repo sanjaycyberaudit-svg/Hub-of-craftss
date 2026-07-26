@@ -36,7 +36,12 @@ export function HomeCategoriesCarousel({ collections }: Props) {
         className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4 lg:gap-6"
       >
         {collections.map(({ node }, index) => (
-          <MotionRevealItem key={node.id} index={index} instant className="w-full">
+          <MotionRevealItem
+            key={node.id}
+            index={index}
+            instant
+            className="w-full"
+          >
             <MotionHoverLift className="w-full">
               <ViewTransitionLink
                 href={`/collections/${node.slug}`}
