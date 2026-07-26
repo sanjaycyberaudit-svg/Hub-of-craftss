@@ -1,6 +1,4 @@
-import {
-  HOME_CATEGORIES_PAGE_SIZE,
-} from "@/lib/storefront/collections-page";
+import { HOME_CATEGORIES_PAGE_SIZE } from "@/lib/storefront/collections-page";
 import { fetchCollectionsPage } from "@/lib/storefront/collections-page.server";
 import { NextRequest, NextResponse } from "next/server";
 

@@ -104,9 +104,7 @@ export default async function Home() {
           <HomeCategoriesCarousel
             initialEdges={collectionScrollCards.edges}
             initialPageInfo={{
-              hasNextPage: Boolean(
-                collectionScrollCards.pageInfo?.hasNextPage,
-              ),
+              hasNextPage: Boolean(collectionScrollCards.pageInfo?.hasNextPage),
               endCursor: collectionScrollCards.pageInfo?.endCursor ?? null,
             }}
           />
