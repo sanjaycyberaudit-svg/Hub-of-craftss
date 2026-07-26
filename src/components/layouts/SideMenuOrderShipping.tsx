@@ -30,8 +30,8 @@ function usableContacts(contacts: readonly StoreContact[]): StoreContact[] {
 }
 
 /**
- * Compact order & shipping for the menu — easy words, every key point,
- * WhatsApp + email icons (picker when more than one WhatsApp number).
+ * Menu sidebar: only main timings + contact icons.
+ * Extra notes live on Full details (/shipping-returns).
  */
 export function SideMenuOrderShipping({ className }: Props) {
   const contact = useStorefrontContact();
@@ -78,54 +78,58 @@ export function SideMenuOrderShipping({ className }: Props) {
 
   return (
     <section
-      className={cn("space-y-2.5", className)}
+      className={cn("space-y-2", className)}
       aria-labelledby="side-menu-shipping-title"
     >
-      <h2
-        id="side-menu-shipping-title"
-        className="text-[10px] font-semibold uppercase tracking-wide text-primary/70"
-      >
-        {ORDER_SHIPPING.title}
-      </h2>
-
-      <div className="space-y-1.5 rounded-xl border border-primary/10 bg-card/80 px-2.5 py-2 text-[11px] leading-snug">
-        <p>
-          <span className="font-semibold text-foreground">
-            {ORDER_SHIPPING.processingLabel}:{" "}
-          </span>
-          <span className="text-muted-foreground">
-            {ORDER_SHIPPING.processing}. {ORDER_SHIPPING.processingNote}
-          </span>
-        </p>
-
-        <div>
-          <p className="font-semibold text-foreground">
-            {ORDER_SHIPPING.deliveryLabel}
-          </p>
-          <ul className="mt-0.5 space-y-0.5 text-muted-foreground">
-            {ORDER_SHIPPING.regions.map((row) => (
-              <li key={row.place}>
-                <span className="text-foreground/90">{row.place}</span>
-                {" — "}
-                {row.time}
-              </li>
-            ))}
-          </ul>
-        </div>
-
-        <p className="text-muted-foreground">{ORDER_SHIPPING.readyStock}</p>
-        <p className="text-muted-foreground">{ORDER_SHIPPING.tracking}</p>
-        <p className="text-muted-foreground">{ORDER_SHIPPING.wholesale}</p>
-        <p className="font-medium text-foreground/90">
-          {ORDER_SHIPPING.contactPrompt}
-        </p>
+      <div className="flex items-center justify-between gap-2">
+        <h2
+          id="side-menu-shipping-title"
+          className="text-[10px] font-semibold uppercase tracking-wide text-primary/70"
+        >
+          {ORDER_SHIPPING.title}
+        </h2>
+        <SheetClose asChild>
+          <Link
+            href={ORDER_SHIPPING.fullDetailsHref}
+            className="shrink-0 text-[10px] font-semibold text-primary underline-offset-2 hover:underline"
+          >
+            {ORDER_SHIPPING.fullDetailsLabel}
+          </Link>
+        </SheetClose>
       </div>
 
-      <div className="flex items-end gap-3">
-        <div
-          className="relative flex flex-col items-center"
-          ref={pickerRef}
-        >
+      <dl className="rounded-xl border border-primary/10 bg-card/80 px-2.5 py-2 text-[11px] leading-snug">
+        <div className="flex items-baseline justify-between gap-2 border-b border-primary/10 pb-1.5">
+          <dt className="font-semibold text-foreground">
+            {ORDER_SHIPPING.processingLabel}
+          </dt>
+          <dd className="text-right text-muted-foreground">
+            {ORDER_SHIPPING.processing}
+          </dd>
+        </div>
+
+        <div className="pt-1.5">
+          <dt className="mb-1 font-semibold text-foreground">
+            {ORDER_SHIPPING.deliveryLabel}
+          </dt>
+          <dd>
+            <ul className="space-y-1">
+              {ORDER_SHIPPING.regions.map((row) => (
+                <li
+                  key={row.place}
+                  className="flex items-baseline justify-between gap-2 text-muted-foreground"
+                >
+                  <span className="text-foreground/90">{row.placeShort}</span>
+                  <span className="shrink-0 tabular-nums">{row.time}</span>
+                </li>
+              ))}
+            </ul>
+          </dd>
+        </div>
+      </dl>
+
+      <div className="flex items-end gap-3 pt-0.5">
+        <div className="relative flex flex-col items-center" ref={pickerRef}>
           {multiWhatsApp ? (
             <>
               <div
@@ -213,15 +217,6 @@ export function SideMenuOrderShipping({ className }: Props) {
             {ORDER_SHIPPING.contactEmail}
           </span>
         </div>
-
-        <SheetClose asChild>
-          <Link
-            href={ORDER_SHIPPING.fullDetailsHref}
-            className="mb-4 ml-auto text-[10px] font-semibold text-primary underline-offset-2 hover:underline"
-          >
-            {ORDER_SHIPPING.fullDetailsLabel}
-          </Link>
-        </SheetClose>
       </div>
     </section>
   );
