@@ -17,6 +17,7 @@ import { Check, Menu } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useMobileMenu } from "./MobileMenuContext";
 import { SideMenuCollections } from "./SideMenuCollections";
+import { SideMenuOrderShipping } from "./SideMenuOrderShipping";
 import SocialMedias from "./SocialMedias";
 import { cn } from "@/lib/utils";
 import { useRobustNavigate } from "@/hooks/useRobustNavigate";
@@ -177,11 +178,14 @@ export function SideMenu({
           })}
         </nav>
 
-        <div className="shrink-0 border-t border-primary/15 bg-muted/30 px-4 py-4">
-          <p className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-primary/70">
-            Follow us
-          </p>
-          <SocialMedias variant="compact" colored />
+        <div className="shrink-0 space-y-4 border-t border-primary/15 bg-muted/30 px-4 py-4">
+          <SideMenuOrderShipping />
+          <div>
+            <p className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-primary/70">
+              Follow us
+            </p>
+            <SocialMedias variant="compact" colored />
+          </div>
         </div>
       </SheetContent>
     </Sheet>

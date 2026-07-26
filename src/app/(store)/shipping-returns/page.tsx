@@ -3,16 +3,21 @@ import {
   resolveStorefrontContact,
   resolveStorefrontSocial,
 } from "@/lib/integrations/settings";
+import { ORDER_SHIPPING } from "@/lib/storefront/order-shipping";
+import { whatsAppHrefFromPhone } from "@/lib/contact/links";
 import Link from "next/link";
 import { Metadata } from "next";
-import { STOREFRONT_STATIC_REVALIDATE_SECONDS } from "@/lib/cache/constants";
 
 export const revalidate = 3600;
 
 export const metadata: Metadata = {
   title: "Shipping & Returns | Hub of craftss",
-  description: "Delivery and return policy for Hub of craftss craft supplies",
+  description:
+    "Simple order processing and delivery times for Hub of craftss — Tamil Nadu, India, and international.",
 };
+
+const FALLBACK_EMAIL = "artbyshaaru@gmail.com";
+const FALLBACK_WHATSAPP = "https://wa.me/918870669160";
 
 export default async function ShippingReturnsPage() {
   const [contact, social] = await Promise.all([
@@ -20,26 +25,92 @@ export default async function ShippingReturnsPage() {
     resolveStorefrontSocial(),
   ]);
 
+  const email = (contact.email || FALLBACK_EMAIL).trim();
+  const whatsappHref =
+    social.whatsapp ||
+    (contact.phoneHref
+      ? whatsAppHrefFromPhone(contact.phoneHref)
+      : FALLBACK_WHATSAPP);
+
   return (
     <InfoPage
-      heading="Shipping & Returns"
-      description="How we deliver across Tamil Nadu and India, and our exchange policy for craft supplies."
+      heading="Order processing & shipping"
+      description="Simple guide to how long orders take — so every buyer knows what to expect."
     >
       <section className="space-y-3">
-        <h2 className="text-base font-semibold text-foreground">Shipping</h2>
+        <h2 className="text-base font-semibold text-foreground">
+          Getting your order ready
+        </h2>
         <p>
-          We ship craft supplies across Tamil Nadu and throughout India.
-          Delivery time is typically 3–7 business days depending on your
-          location. For bulk orders, please contact us on WhatsApp for a custom
-          quote and timeline.
+          We need <strong>{ORDER_SHIPPING.processing}</strong> to prepare your
+          order. {ORDER_SHIPPING.processingNote}
         </p>
+        <p>{ORDER_SHIPPING.readyStock}</p>
+      </section>
+
+      <section className="space-y-3">
+        <h2 className="text-base font-semibold text-foreground">
+          Delivery time
+        </h2>
+        <ul className="list-disc space-y-1.5 pl-5">
+          {ORDER_SHIPPING.regions.map((row) => (
+            <li key={row.place}>
+              <strong>{row.place}:</strong> {row.time}
+            </li>
+          ))}
+        </ul>
+      </section>
+
+      <section className="space-y-3">
+        <h2 className="text-base font-semibold text-foreground">
+          Tracking your order
+        </h2>
+        <p>{ORDER_SHIPPING.tracking}</p>
         <p>
-          Free delivery may apply on selected orders — message us on{" "}
-          <Link href={social.whatsapp} className="text-primary hover:underline">
-            WhatsApp
-          </Link>{" "}
-          before placing your order.
+          If you do not get a dispatch email within{" "}
+          <strong>10–15 working days</strong>, please contact us:
         </p>
+        <ul className="list-disc space-y-1.5 pl-5">
+          <li>
+            Email:{" "}
+            <Link
+              href={`mailto:${email}`}
+              className="text-primary hover:underline"
+            >
+              {email}
+            </Link>
+          </li>
+          <li>
+            WhatsApp:{" "}
+            <Link
+              href={whatsappHref}
+              className="text-primary hover:underline"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Chat with us
+            </Link>
+            {contact.phone ? ` (${contact.phone})` : " (8870669160)"}
+          </li>
+          {contact.phone ? (
+            <li>
+              Call:{" "}
+              <Link
+                href={contact.phoneHref}
+                className="text-primary hover:underline"
+              >
+                {contact.phone}
+              </Link>
+            </li>
+          ) : null}
+        </ul>
+      </section>
+
+      <section className="space-y-3">
+        <h2 className="text-base font-semibold text-foreground">
+          Wholesale orders
+        </h2>
+        <p>{ORDER_SHIPPING.wholesale}</p>
       </section>
 
       <section className="space-y-3">
@@ -58,14 +129,6 @@ export default async function ShippingReturnsPage() {
           </li>
         </ul>
       </section>
-
-      <p>
-        Questions? Call{" "}
-        <Link href={contact.phoneHref} className="text-primary hover:underline">
-          {contact.phone}
-        </Link>
-        .
-      </p>
     </InfoPage>
   );
 }
