@@ -24,8 +24,8 @@ const LandingRouteQuery = gql(/* GraphQL */ `
     }
 
     collectionScrollCards: collectionsCollection(
-      first: 10
-      orderBy: [{ order: DescNullsLast }]
+      first: 50
+      orderBy: [{ order: DescNullsLast }, { label: AscNullsLast }]
     ) {
       edges {
         node {

@@ -9603,7 +9603,7 @@ export const LandingRouteQueryDocument = {
               {
                 kind: "Argument",
                 name: { kind: "Name", value: "first" },
-                value: { kind: "IntValue", value: "10" },
+                value: { kind: "IntValue", value: "50" },
               },
               {
                 kind: "Argument",
@@ -9618,6 +9618,16 @@ export const LandingRouteQueryDocument = {
                           kind: "ObjectField",
                           name: { kind: "Name", value: "order" },
                           value: { kind: "EnumValue", value: "DescNullsLast" },
+                        },
+                      ],
+                    },
+                    {
+                      kind: "ObjectValue",
+                      fields: [
+                        {
+                          kind: "ObjectField",
+                          name: { kind: "Name", value: "label" },
+                          value: { kind: "EnumValue", value: "AscNullsLast" },
                         },
                       ],
                     },
