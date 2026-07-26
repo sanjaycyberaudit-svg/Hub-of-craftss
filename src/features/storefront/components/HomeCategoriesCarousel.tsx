@@ -153,7 +153,6 @@ export function HomeCategoriesCarousel({
                     label={node.label}
                     imageSrc={keytoUrl(imageKey)}
                     imageAlt={node.featuredImage?.alt || node.label}
-                    aspectClass="aspect-[5/3] sm:aspect-[16/10]"
                     sizes="(max-width: 640px) 48vw, (max-width: 1024px) 31vw, 260px"
                     priority={index < 4}
                     viewTransitionName={collectionImageTransitionName(node.id)}
