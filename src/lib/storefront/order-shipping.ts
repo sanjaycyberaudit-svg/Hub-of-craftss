@@ -1,23 +1,27 @@
-/** Shared order / shipping copy — keep wording short and plain for all buyers. */
+/** Shared order / shipping copy — short, plain words every buyer can follow. */
 
 export const ORDER_SHIPPING = {
   title: "Order & shipping",
-  processingLabel: "Getting your order ready",
+  processingLabel: "We prepare your order",
   processing: "4–5 working days",
-  processingNote: "May take longer for large orders.",
-  deliveryLabel: "Delivery time",
+  processingNote: "Large orders may take a little longer.",
+  deliveryLabel: "Then delivery takes",
   regions: [
     { place: "Tamil Nadu", time: "2–3 working days" },
-    { place: "Other states (India)", time: "5–6 working days" },
+    { place: "Other states in India", time: "5–6 working days" },
     { place: "Outside India", time: "15–20 working days" },
   ] as const,
-  readyStock:
-    "Items already in stock ship sooner after we confirm your order.",
-  tracking:
-    "After we ship, you get an email with tracking details.",
-  noEmail:
-    "No email in 10–15 working days? Message us on WhatsApp or email.",
-  wholesale: "Wholesale orders may take longer.",
+  readyStock: "In-stock items usually ship sooner after we confirm.",
+  tracking: "When we ship, you get an email with tracking.",
+  contactPrompt: "No email in 10–15 working days? Contact us:",
+  wholesale: "Wholesale: timing depends on order size.",
   fullDetailsHref: "/shipping-returns",
-  fullDetailsLabel: "Full shipping details",
+  fullDetailsLabel: "Full details",
+  contactWhatsApp: "WhatsApp",
+  contactEmail: "Email",
+} as const;
+
+export const ORDER_SHIPPING_FALLBACK = {
+  email: "artbyshaaru@gmail.com",
+  whatsappPhoneDigits: "918870669160",
 } as const;

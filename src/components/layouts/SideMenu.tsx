@@ -178,7 +178,7 @@ export function SideMenu({
           })}
         </nav>
 
-        <div className="shrink-0 space-y-4 border-t border-primary/15 bg-muted/30 px-4 py-4">
+        <div className="max-h-[min(48vh,22rem)] shrink-0 space-y-4 overflow-y-auto border-t border-primary/15 bg-muted/30 px-4 py-4">
           <SideMenuOrderShipping />
           <div>
             <p className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-primary/70">

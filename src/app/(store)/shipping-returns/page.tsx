@@ -3,7 +3,10 @@ import {
   resolveStorefrontContact,
   resolveStorefrontSocial,
 } from "@/lib/integrations/settings";
-import { ORDER_SHIPPING } from "@/lib/storefront/order-shipping";
+import {
+  ORDER_SHIPPING,
+  ORDER_SHIPPING_FALLBACK,
+} from "@/lib/storefront/order-shipping";
 import { whatsAppHrefFromPhone } from "@/lib/contact/links";
 import Link from "next/link";
 import { Metadata } from "next";
@@ -16,21 +19,18 @@ export const metadata: Metadata = {
     "Simple order processing and delivery times for Hub of craftss — Tamil Nadu, India, and international.",
 };
 
-const FALLBACK_EMAIL = "artbyshaaru@gmail.com";
-const FALLBACK_WHATSAPP = "https://wa.me/918870669160";
-
 export default async function ShippingReturnsPage() {
   const [contact, social] = await Promise.all([
     resolveStorefrontContact(),
     resolveStorefrontSocial(),
   ]);
 
-  const email = (contact.email || FALLBACK_EMAIL).trim();
+  const email = (contact.email || ORDER_SHIPPING_FALLBACK.email).trim();
   const whatsappHref =
     social.whatsapp ||
-    (contact.phoneHref
+    (contact.phoneHref && contact.phoneHref !== "tel:"
       ? whatsAppHrefFromPhone(contact.phoneHref)
-      : FALLBACK_WHATSAPP);
+      : `https://wa.me/${ORDER_SHIPPING_FALLBACK.whatsappPhoneDigits}`);
 
   return (
     <InfoPage
@@ -39,7 +39,7 @@ export default async function ShippingReturnsPage() {
     >
       <section className="space-y-3">
         <h2 className="text-base font-semibold text-foreground">
-          Getting your order ready
+          {ORDER_SHIPPING.processingLabel}
         </h2>
         <p>
           We need <strong>{ORDER_SHIPPING.processing}</strong> to prepare your
@@ -50,7 +50,7 @@ export default async function ShippingReturnsPage() {
 
       <section className="space-y-3">
         <h2 className="text-base font-semibold text-foreground">
-          Delivery time
+          {ORDER_SHIPPING.deliveryLabel}
         </h2>
         <ul className="list-disc space-y-1.5 pl-5">
           {ORDER_SHIPPING.regions.map((row) => (
@@ -66,10 +66,7 @@ export default async function ShippingReturnsPage() {
           Tracking your order
         </h2>
         <p>{ORDER_SHIPPING.tracking}</p>
-        <p>
-          If you do not get a dispatch email within{" "}
-          <strong>10–15 working days</strong>, please contact us:
-        </p>
+        <p>{ORDER_SHIPPING.contactPrompt}</p>
         <ul className="list-disc space-y-1.5 pl-5">
           <li>
             Email:{" "}
