@@ -17,7 +17,10 @@ import {
 } from "@/features/products";
 import { AddToWishListButton } from "@/features/wishlists";
 import { STOREFRONT_REVALIDATE_SECONDS } from "@/lib/cache/constants";
-import { getProductSizeConfig } from "@/lib/products/sizeConfig";
+import {
+  getProductOptionDisplayName,
+  getProductSizeConfig,
+} from "@/lib/products/sizeConfig";
 import { buildBreadcrumbJsonLd, buildProductJsonLd } from "@/lib/seo/json-ld";
 import { getPublishedProductDetailCached } from "@/lib/storefront/product-detail";
 import {
@@ -109,16 +112,17 @@ async function ProductDetailPage({ params }: Props) {
   const hasConfiguredSizes =
     sizeConfig.enabled &&
     sizeConfig.options.some((option) => Number(option.qty ?? 0) > 0);
+  const optionName = getProductOptionDisplayName(sizeConfig);
 
   const storefrontSizeLabels = sizeConfig.options
     .filter((option) => Number(option.qty ?? 0) > 0)
     .map((option) => {
-      const size = String(option.size ?? "")
+      const value = String(option.value ?? option.size ?? "")
         .trim()
         .toUpperCase();
-      if (!size) return `${option.qty}`;
-      if (/^[A-Z]+$/.test(size)) return `${size} : ${option.qty}`;
-      return size;
+      if (!value) return `${option.qty}`;
+      if (/^[A-Z]+$/.test(value)) return `${value} : ${option.qty}`;
+      return value;
     });
 
   return (
@@ -177,7 +181,8 @@ async function ProductDetailPage({ params }: Props) {
               />
               {hasConfiguredSizes ? (
                 <p className="text-sm text-muted-foreground">
-                  Available sizes: {storefrontSizeLabels.join(", ")}
+                  Available {optionName.toLowerCase()}:{" "}
+                  {storefrontSizeLabels.join(", ")}
                 </p>
               ) : null}
             </div>

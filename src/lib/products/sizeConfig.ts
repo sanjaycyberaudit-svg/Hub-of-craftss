@@ -4,54 +4,18 @@ import { withStorefrontCache } from "@/lib/cache/storefront-cache";
 import db from "@/lib/supabase/db";
 import { apiSettings } from "@/lib/supabase/schema";
 import { eq, inArray } from "drizzle-orm";
+import {
+  normalizeProductSizeConfig,
+  serializeProductSizeConfig,
+  type ProductSizeConfig,
+} from "./sizeConfig-shared";
 
-export type ProductSizeOption = {
-  size: string;
-  qty: number;
-};
-
-export type ProductSizeConfig = {
-  enabled: boolean;
-  options: ProductSizeOption[];
-};
+export * from "./sizeConfig-shared";
 
 const KEY_PREFIX = "product_size_";
 
 export function getProductSizeConfigKey(productId: string) {
   return `${KEY_PREFIX}${productId}`;
-}
-
-function normalizeSizeLabel(raw: unknown) {
-  return String(raw ?? "")
-    .trim()
-    .slice(0, 8);
-}
-
-function normalizeQty(raw: unknown) {
-  const parsed = Number(raw);
-  if (!Number.isFinite(parsed)) return 0;
-  return Math.max(0, Math.round(parsed * 100) / 100);
-}
-
-export function normalizeProductSizeConfig(raw: unknown): ProductSizeConfig {
-  const source = (raw ?? {}) as Record<string, unknown>;
-  const enabled = Boolean(source.enabled ?? false);
-  const optionsRaw = Array.isArray(source.options) ? source.options : [];
-  const dedup = new Map<string, ProductSizeOption>();
-
-  for (const item of optionsRaw) {
-    const row = item as Record<string, unknown>;
-    const size = normalizeSizeLabel(row.size).toUpperCase();
-    const qty = normalizeQty(row.qty);
-    if (!size && qty <= 0) continue;
-    const dedupKey = size || "__NO_LABEL__";
-    dedup.set(dedupKey, { size, qty });
-  }
-
-  return {
-    enabled,
-    options: Array.from(dedup.values()),
-  };
 }
 
 async function loadProductSizeConfig(
@@ -115,11 +79,12 @@ export async function upsertProductSizeConfig(params: {
 }) {
   const key = getProductSizeConfigKey(params.productId);
   const normalized = normalizeProductSizeConfig(params.config);
+  const value = serializeProductSizeConfig(normalized);
   await db
     .insert(apiSettings)
     .values({
       key,
-      value: normalized,
+      value,
       isEnabled: normalized.enabled,
       updatedBy: params.updatedBy ?? null,
       updatedAt: new Date().toISOString(),
@@ -127,7 +92,7 @@ export async function upsertProductSizeConfig(params: {
     .onConflictDoUpdate({
       target: apiSettings.key,
       set: {
-        value: normalized,
+        value,
         isEnabled: normalized.enabled,
         updatedBy: params.updatedBy ?? null,
         updatedAt: new Date().toISOString(),

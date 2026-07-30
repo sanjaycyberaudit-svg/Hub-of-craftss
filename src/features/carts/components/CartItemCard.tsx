@@ -37,6 +37,7 @@ type CartItemCardProps = React.ComponentProps<typeof Card> & {
   quantity: number;
   selectedSize?: string;
   sizeRequired?: boolean;
+  optionName?: string;
   sizeOptions?: { value: string; label: string }[];
   onSizeChange?: (size: string) => void;
 };
@@ -50,6 +51,7 @@ function CartItemCard({
   quantity,
   selectedSize,
   sizeRequired,
+  optionName = "Size",
   sizeOptions = [],
   onSizeChange,
 }: CartItemCardProps) {
@@ -85,14 +87,16 @@ function CartItemCard({
         ) : null}
         {sizeRequired ? (
           <div className="mt-1 space-y-1">
-            <label className="text-xs text-muted-foreground">Size</label>
+            <label className="text-xs text-muted-foreground">
+              {optionName}
+            </label>
             <select
               value={normalizedSelectedSize}
               disabled={disabled || sizeOptions.length === 0}
               className="h-8 w-full max-w-[220px] rounded border bg-background px-2 text-xs"
               onChange={(event) => onSizeChange?.(event.target.value)}
             >
-              <option value="">Select size</option>
+              <option value="">Select {optionName.toLowerCase()}</option>
               {sizeOptions.map((option) => (
                 <option
                   key={`${option.value}-${option.label}`}
@@ -104,12 +108,14 @@ function CartItemCard({
             </select>
             {missingRequiredSize ? (
               <p className="text-[11px] text-destructive">
-                Please select size to continue checkout.
+                Please select {optionName.toLowerCase()} to continue checkout.
               </p>
             ) : null}
           </div>
         ) : selectedSize ? (
-          <p className="text-xs text-muted-foreground">Size: {selectedSize}</p>
+          <p className="text-xs text-muted-foreground">
+            {optionName}: {selectedSize}
+          </p>
         ) : null}
 
         <QuantityInput

@@ -1,4 +1,5 @@
 import {
+  DEFAULT_PRODUCT_OPTION_NAME,
   getProductSizeConfig,
   getProductSizeConfigsByProductIds,
   type ProductSizeConfig,
@@ -15,9 +16,21 @@ function toApiPayload(config: ProductSizeConfig) {
   );
   return {
     enabled: config.enabled && configuredOptions.length > 0,
-    options: configuredOptions,
+    name: config.name || DEFAULT_PRODUCT_OPTION_NAME,
+    options: configuredOptions.map((option) => ({
+      value: option.value,
+      // Legacy alias for older cart clients.
+      size: option.value,
+      qty: option.qty,
+    })),
   };
 }
+
+const emptyPayload = {
+  enabled: false,
+  name: DEFAULT_PRODUCT_OPTION_NAME,
+  options: [] as { value: string; size: string; qty: number }[],
+};
 
 export async function GET(request: NextRequest) {
   try {
@@ -46,7 +59,11 @@ export async function GET(request: NextRequest) {
       const payload: Record<string, ReturnType<typeof toApiPayload>> = {};
       productIds.forEach((id) => {
         payload[id] = toApiPayload(
-          configs.get(id) ?? { enabled: false, options: [] },
+          configs.get(id) ?? {
+            enabled: false,
+            name: DEFAULT_PRODUCT_OPTION_NAME,
+            options: [],
+          },
         );
       });
       return NextResponse.json(payload, {
@@ -71,6 +88,6 @@ export async function GET(request: NextRequest) {
     });
   } catch (error) {
     console.error("[size-config] GET failed:", error);
-    return NextResponse.json({ enabled: false, options: [] }, { status: 200 });
+    return NextResponse.json(emptyPayload, { status: 200 });
   }
 }

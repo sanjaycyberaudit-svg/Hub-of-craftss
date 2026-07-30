@@ -10,6 +10,7 @@ import type {
 } from "@/gql/graphql";
 import { getSessionUser } from "@/lib/auth/admin";
 import {
+  DEFAULT_PRODUCT_OPTION_NAME,
   getProductSizeConfigsByProductIds,
   type ProductSizeConfig,
 } from "@/lib/products/sizeConfig";
@@ -22,7 +23,8 @@ import {
 
 export type CartSizeConfigPayload = {
   enabled: boolean;
-  options: { size: string; qty: number }[];
+  name: string;
+  options: { value: string; size: string; qty: number }[];
 };
 
 function toApiSizePayload(config: ProductSizeConfig): CartSizeConfigPayload {
@@ -31,7 +33,12 @@ function toApiSizePayload(config: ProductSizeConfig): CartSizeConfigPayload {
   );
   return {
     enabled: config.enabled && configuredOptions.length > 0,
-    options: configuredOptions,
+    name: config.name || DEFAULT_PRODUCT_OPTION_NAME,
+    options: configuredOptions.map((option) => ({
+      value: option.value,
+      size: option.value,
+      qty: option.qty,
+    })),
   };
 }
 
@@ -45,7 +52,11 @@ export async function prefetchCartSizeConfigs(
   const payload: Record<string, CartSizeConfigPayload> = {};
   unique.forEach((id) => {
     payload[id] = toApiSizePayload(
-      configs.get(id) ?? { enabled: false, options: [] },
+      configs.get(id) ?? {
+        enabled: false,
+        name: DEFAULT_PRODUCT_OPTION_NAME,
+        options: [],
+      },
     );
   });
   return payload;

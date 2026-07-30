@@ -3,6 +3,8 @@ import { deleteOrArchiveProducts } from "@/lib/admin/product-lifecycle";
 import {
   getProductSizeConfigsByProductIds,
   normalizeProductSizeConfig,
+  PRODUCT_OPTION_NAME_MAX,
+  PRODUCT_OPTION_VALUE_MAX,
   upsertProductSizeConfig,
 } from "@/lib/products/sizeConfig";
 import { uploadMediaToSupabase } from "@/lib/storage/uploadMedia";
@@ -55,9 +57,11 @@ const draftFlagSchema = z
 const sizeConfigSchema = z
   .object({
     enabled: z.boolean(),
+    name: z.string().trim().max(PRODUCT_OPTION_NAME_MAX).optional(),
     options: z.array(
       z.object({
-        size: z.string().trim().max(8),
+        value: z.string().trim().max(PRODUCT_OPTION_VALUE_MAX).optional(),
+        size: z.string().trim().max(PRODUCT_OPTION_VALUE_MAX).optional(),
         qty: z.number().min(0),
       }),
     ),
@@ -330,10 +334,11 @@ async function saveSizeConfig(productId: string, sizeConfig: unknown) {
 function normalizeIncomingSizeConfig(sizeConfig: unknown) {
   const normalized = normalizeProductSizeConfig(sizeConfig);
   if (normalized.enabled && normalized.options.length === 0) {
-    return {
+    return normalizeProductSizeConfig({
       enabled: true,
+      name: normalized.name,
       options: [...DEFAULT_SIZES],
-    };
+    });
   }
   return normalized;
 }
@@ -636,7 +641,11 @@ async function handleList(
       price: row.price,
       stock: row.stock,
       isDraft: row.isDraft,
-      sizeConfig: sizeConfigs.get(row.id) ?? { enabled: false, options: [] },
+      sizeConfig: sizeConfigs.get(row.id) ?? {
+        enabled: false,
+        name: "Size",
+        options: [],
+      },
       updatedAt: row.createdAt,
     })),
     page,

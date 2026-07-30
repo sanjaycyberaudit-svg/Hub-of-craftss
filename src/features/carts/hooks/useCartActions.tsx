@@ -43,9 +43,9 @@ function useCartActions(
     if (size && currentQuantity > 0 && currentSize && currentSize !== size) {
       if (!opts.silent) {
         toast({
-          title: "Size mismatch",
+          title: "Option mismatch",
           description:
-            "This product is already in cart with a different size. Remove it first, then add the new size.",
+            "This product is already in cart with a different option. Remove it first, then add the new choice.",
           variant: "destructive",
         });
       }
@@ -110,9 +110,9 @@ function useCartActions(
     if (size && currentQuantity > 0 && currentSize && currentSize !== size) {
       if (!opts.silent) {
         toast({
-          title: "Size mismatch",
+          title: "Option mismatch",
           description:
-            "This product is already in cart with a different size. Remove it first, then add the new size.",
+            "This product is already in cart with a different option. Remove it first, then add the new choice.",
           variant: "destructive",
         });
       }

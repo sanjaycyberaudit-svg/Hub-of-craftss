@@ -22,7 +22,11 @@ import { isBulkOrderQuantity } from "../constants/bulkOrder";
 import useCartActions from "../hooks/useCartActions";
 import { AddProductCartData, AddProductToCartSchema } from "../validations";
 import { useToast } from "@/components/ui/use-toast";
-import type { ProductSizeConfig } from "@/lib/products/sizeConfig";
+import {
+  DEFAULT_PRODUCT_OPTION_NAME,
+  getProductOptionDisplayName,
+  type ProductSizeConfig,
+} from "@/lib/products/sizeConfig-shared";
 
 interface AddProductToCartFormProps {
   productId: string;
@@ -42,18 +46,18 @@ function AddProductToCartForm({
   const { addProductToCart } = useCartActions(user, productId, stock ?? null);
   const [bulkGuardOpen, setBulkGuardOpen] = useState(false);
   const [selectedOptionKey, setSelectedOptionKey] = useState<string>("");
+  const optionName = getProductOptionDisplayName(sizeConfig);
   const selectableSizeOptions = (sizeConfig?.options ?? [])
-    .map((option, index) => ({
-      key: `${index}-${
-        String(option.size ?? "")
-          .trim()
-          .toUpperCase() || "NO_LABEL"
-      }`,
-      size: String(option.size ?? "")
+    .map((option, index) => {
+      const value = String(option.value ?? option.size ?? "")
         .trim()
-        .toUpperCase(),
-      qty: Math.max(0, Number(option.qty ?? 0)),
-    }))
+        .toUpperCase();
+      return {
+        key: `${index}-${value || "NO_LABEL"}`,
+        size: value,
+        qty: Math.max(0, Number(option.qty ?? 0)),
+      };
+    })
     .filter((option) => option.qty > 0);
   const hasSizeOptions =
     Boolean(sizeConfig?.enabled) && selectableSizeOptions.length > 0;
@@ -86,8 +90,8 @@ function AddProductToCartForm({
   async function onSubmit(values: AddProductCartData) {
     if (hasSizeOptions && !selectedOption) {
       toast({
-        title: "Select size",
-        description: "Please choose an available size before adding to cart.",
+        title: `Select ${optionName}`,
+        description: `Please choose an available ${optionName.toLowerCase()} before adding to cart.`,
         variant: "destructive",
       });
       return;
@@ -162,7 +166,7 @@ function AddProductToCartForm({
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
         {hasSizeOptions ? (
           <FormItem>
-            <FormLabel>Size</FormLabel>
+            <FormLabel>{optionName || DEFAULT_PRODUCT_OPTION_NAME}</FormLabel>
             <FormControl>
               <div className="flex flex-wrap gap-2">
                 {selectableSizeOptions.map((option) => (
@@ -181,7 +185,7 @@ function AddProductToCartForm({
                 ))}
                 {selectableSizeOptions.length === 0 ? (
                   <p className="text-xs text-muted-foreground">
-                    No size stock available right now.
+                    No {optionName.toLowerCase()} stock available right now.
                   </p>
                 ) : null}
               </div>

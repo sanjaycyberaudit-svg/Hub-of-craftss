@@ -29,12 +29,14 @@ type OfferFormItem = {
 };
 
 type FormState = {
-  enabled: boolean;
+  commonEnabled: boolean;
+  welcomeOffer: OfferFormItem;
   codes: OfferFormItem[];
 };
 
 const DEFAULT_FORM: FormState = {
-  enabled: true,
+  commonEnabled: true,
+  welcomeOffer: { code: "", percentage: 10, enabled: false },
   codes: [{ code: "", percentage: 10, enabled: true }],
 };
 
@@ -85,10 +87,38 @@ export function OfferCodesForm() {
             } satisfies OfferFormItem;
           })
           .filter((item): item is OfferFormItem => Boolean(item));
+        const hasDedicatedWelcome = Object.prototype.hasOwnProperty.call(
+          value,
+          "welcomeOffer",
+        );
+        const rawWelcome = (value.welcomeOffer ?? {}) as Record<
+          string,
+          unknown
+        >;
+        const legacyWelcomeIndex = hasDedicatedWelcome
+          ? -1
+          : parsed.findIndex((item) => item.enabled);
+        const legacyWelcome =
+          legacyWelcomeIndex >= 0 ? parsed[legacyWelcomeIndex] : null;
+        const welcomeOffer = hasDedicatedWelcome
+          ? {
+              code: normalizeCode(String(rawWelcome.code ?? "")),
+              percentage: Math.min(
+                90,
+                Math.max(1, Math.round(Number(rawWelcome.percentage) || 10)),
+              ),
+              enabled: Boolean(rawWelcome.enabled),
+            }
+          : legacyWelcome ?? DEFAULT_FORM.welcomeOffer;
+        const commonCodes = parsed.filter(
+          (item, index) =>
+            index !== legacyWelcomeIndex && item.code !== welcomeOffer.code,
+        );
 
         setForm({
-          enabled: payload.offerCodes?.isEnabled ?? true,
-          codes: parsed.length > 0 ? parsed : DEFAULT_FORM.codes,
+          commonEnabled: payload.offerCodes?.isEnabled ?? true,
+          welcomeOffer,
+          codes: commonCodes.length > 0 ? commonCodes : DEFAULT_FORM.codes,
         });
       } catch (error) {
         toast({
@@ -139,6 +169,19 @@ export function OfferCodesForm() {
   const onSave = async () => {
     setIsSaving(true);
     try {
+      const welcomeCode = normalizeCode(form.welcomeOffer.code);
+      if (form.welcomeOffer.enabled && welcomeCode.length < 3) {
+        throw new Error(
+          "Add a popup offer code with at least 3 characters, or disable the popup.",
+        );
+      }
+      if (
+        !Number.isFinite(form.welcomeOffer.percentage) ||
+        form.welcomeOffer.percentage < 1
+      ) {
+        throw new Error("Popup offer discount must be at least 1%.");
+      }
+
       const dedup = new Map<string, OfferFormItem>();
       form.codes.forEach((item) => {
         const code = normalizeCode(item.code);
@@ -153,8 +196,15 @@ export function OfferCodesForm() {
         });
       });
 
-      if (dedup.size === 0) {
-        throw new Error("Add at least one valid offer code.");
+      if (welcomeCode && dedup.has(welcomeCode)) {
+        throw new Error(
+          "Use different codes for the popup offer and common offers.",
+        );
+      }
+      if (form.commonEnabled && dedup.size === 0) {
+        throw new Error(
+          "Add at least one common offer code, or disable common offers.",
+        );
       }
 
       const response = await fetchWithTimeout("/api/admin/integrations", {
@@ -162,8 +212,16 @@ export function OfferCodesForm() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           key: "offer_codes",
-          isEnabled: form.enabled,
+          isEnabled: form.commonEnabled,
           value: {
+            welcomeOffer: {
+              code: welcomeCode,
+              percentage: Math.min(
+                90,
+                Math.max(1, Math.round(form.welcomeOffer.percentage)),
+              ),
+              enabled: form.welcomeOffer.enabled,
+            },
             codes: Array.from(dedup.values()),
           },
         }),
@@ -175,8 +233,8 @@ export function OfferCodesForm() {
       }
 
       toast({
-        title: "Offer codes saved",
-        description: "Promo code discounts are now active in checkout.",
+        title: "Offer settings saved",
+        description: "Popup and common offer settings have been updated.",
       });
     } catch (error) {
       toast({
@@ -189,12 +247,6 @@ export function OfferCodesForm() {
     }
   };
 
-  const welcomeIndex = form.enabled
-    ? form.codes.findIndex(
-        (item) => item.enabled && Number(item.percentage) > 0,
-      )
-    : -1;
-
   return (
     <Card>
       <CardHeader>
@@ -204,103 +256,201 @@ export function OfferCodesForm() {
         {isLoading ? (
           <AdminLoadingState message="Loading offer codes..." />
         ) : null}
-        <label className="flex items-center gap-2 text-sm">
-          <input
-            type="checkbox"
-            checked={form.enabled}
-            onChange={(event) =>
-              setForm((prev) => ({ ...prev, enabled: event.target.checked }))
-            }
-          />
-          Enable promo code discounts in checkout
-        </label>
+        <section className="space-y-3 rounded-lg border border-primary/20 bg-primary/[0.03] p-4">
+          <div>
+            <h3 className="font-semibold">Welcome popup offer</h3>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Shown when visitors open the store. This dedicated code requires
+              an account and is accepted only on the customer&apos;s first
+              completed order.
+            </p>
+          </div>
 
-        <p className="text-xs text-muted-foreground">
-          The first active code is the welcome offer. It is shown in the
-          storefront popup and checkout accepts it only on a customer&apos;s
-          first order, so it needs an account. Every other code works for any
-          order.
-        </p>
+          <label className="flex items-center gap-2 text-sm font-medium">
+            <input
+              type="checkbox"
+              checked={form.welcomeOffer.enabled}
+              onChange={(event) =>
+                setForm((prev) => ({
+                  ...prev,
+                  welcomeOffer: {
+                    ...prev.welcomeOffer,
+                    enabled: event.target.checked,
+                  },
+                }))
+              }
+            />
+            Enable welcome offer popup
+          </label>
 
-        <div className="space-y-3">
-          {form.codes.map((item, index) => (
-            <div key={index} className="rounded-md border p-3">
-              {index === welcomeIndex ? (
-                <p className="mb-2 inline-flex rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-semibold text-primary">
-                  Welcome offer — first order only
-                </p>
-              ) : null}
-              <div className="grid gap-3 md:grid-cols-[1.2fr,0.8fr,0.8fr,auto]">
-                <div className="space-y-1">
-                  <Label htmlFor={`offer-code-${index}`}>Code</Label>
-                  <Input
-                    id={`offer-code-${index}`}
-                    value={item.code}
-                    onChange={(event) =>
-                      updateCode(
-                        index,
-                        "code",
-                        normalizeCode(event.target.value),
-                      )
-                    }
-                    placeholder="WELCOME10"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <Label htmlFor={`offer-pct-${index}`}>Discount %</Label>
-                  <Input
-                    id={`offer-pct-${index}`}
-                    type="text"
-                    inputMode="numeric"
-                    min={1}
-                    max={90}
-                    value={item.percentage === 0 ? "" : item.percentage}
-                    onChange={(event) =>
-                      updateCode(
-                        index,
-                        "percentage",
-                        parsePercentageInput(event.target.value),
-                      )
-                    }
-                    onBlur={() =>
-                      updateCode(
-                        index,
-                        "percentage",
-                        Math.min(90, Math.max(1, Number(item.percentage) || 1)),
-                      )
-                    }
-                    placeholder="5"
-                  />
-                </div>
-                <label className="flex items-end gap-2 text-sm pb-2">
-                  <input
-                    type="checkbox"
-                    checked={item.enabled}
-                    onChange={(event) =>
-                      updateCode(index, "enabled", event.target.checked)
-                    }
-                  />
-                  Active
-                </label>
-                <div className="flex items-end">
-                  <Button
-                    type="button"
-                    variant="destructive"
-                    onClick={() => removeCode(index)}
-                    disabled={form.codes.length <= 1}
-                  >
-                    Remove
-                  </Button>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="space-y-1">
+              <Label htmlFor="welcome-offer-code">Popup offer code</Label>
+              <Input
+                id="welcome-offer-code"
+                value={form.welcomeOffer.code}
+                disabled={!form.welcomeOffer.enabled}
+                onChange={(event) =>
+                  setForm((prev) => ({
+                    ...prev,
+                    welcomeOffer: {
+                      ...prev.welcomeOffer,
+                      code: normalizeCode(event.target.value),
+                    },
+                  }))
+                }
+                placeholder="WELCOME10"
+              />
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="welcome-offer-pct">Discount %</Label>
+              <Input
+                id="welcome-offer-pct"
+                type="text"
+                inputMode="numeric"
+                disabled={!form.welcomeOffer.enabled}
+                value={
+                  form.welcomeOffer.percentage === 0
+                    ? ""
+                    : form.welcomeOffer.percentage
+                }
+                onChange={(event) =>
+                  setForm((prev) => ({
+                    ...prev,
+                    welcomeOffer: {
+                      ...prev.welcomeOffer,
+                      percentage: parsePercentageInput(event.target.value),
+                    },
+                  }))
+                }
+                onBlur={() =>
+                  setForm((prev) => ({
+                    ...prev,
+                    welcomeOffer: {
+                      ...prev.welcomeOffer,
+                      percentage: Math.min(
+                        90,
+                        Math.max(1, Number(prev.welcomeOffer.percentage) || 1),
+                      ),
+                    },
+                  }))
+                }
+                placeholder="10"
+              />
+            </div>
+          </div>
+        </section>
+
+        <section className="space-y-3 rounded-lg border p-4">
+          <div>
+            <h3 className="font-semibold">Common offer codes</h3>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Normal checkout promotions. These are separate from the welcome
+              popup and can be used on later orders.
+            </p>
+          </div>
+
+          <label className="flex items-center gap-2 text-sm font-medium">
+            <input
+              type="checkbox"
+              checked={form.commonEnabled}
+              onChange={(event) =>
+                setForm((prev) => ({
+                  ...prev,
+                  commonEnabled: event.target.checked,
+                }))
+              }
+            />
+            Enable common offer codes
+          </label>
+
+          <div className="space-y-3">
+            {form.codes.map((item, index) => (
+              <div key={index} className="rounded-md border p-3">
+                <div className="grid gap-3 md:grid-cols-[1.2fr,0.8fr,0.8fr,auto]">
+                  <div className="space-y-1">
+                    <Label htmlFor={`offer-code-${index}`}>Code</Label>
+                    <Input
+                      id={`offer-code-${index}`}
+                      disabled={!form.commonEnabled}
+                      value={item.code}
+                      onChange={(event) =>
+                        updateCode(
+                          index,
+                          "code",
+                          normalizeCode(event.target.value),
+                        )
+                      }
+                      placeholder="WELCOME10"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label htmlFor={`offer-pct-${index}`}>Discount %</Label>
+                    <Input
+                      id={`offer-pct-${index}`}
+                      type="text"
+                      inputMode="numeric"
+                      min={1}
+                      max={90}
+                      disabled={!form.commonEnabled}
+                      value={item.percentage === 0 ? "" : item.percentage}
+                      onChange={(event) =>
+                        updateCode(
+                          index,
+                          "percentage",
+                          parsePercentageInput(event.target.value),
+                        )
+                      }
+                      onBlur={() =>
+                        updateCode(
+                          index,
+                          "percentage",
+                          Math.min(
+                            90,
+                            Math.max(1, Number(item.percentage) || 1),
+                          ),
+                        )
+                      }
+                      placeholder="5"
+                    />
+                  </div>
+                  <label className="flex items-end gap-2 text-sm pb-2">
+                    <input
+                      type="checkbox"
+                      disabled={!form.commonEnabled}
+                      checked={item.enabled}
+                      onChange={(event) =>
+                        updateCode(index, "enabled", event.target.checked)
+                      }
+                    />
+                    Active
+                  </label>
+                  <div className="flex items-end">
+                    <Button
+                      type="button"
+                      variant="destructive"
+                      onClick={() => removeCode(index)}
+                      disabled={!form.commonEnabled || form.codes.length <= 1}
+                    >
+                      Remove
+                    </Button>
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
 
-        <div className="flex gap-2">
-          <Button type="button" variant="outline" onClick={addCode}>
-            Add code
+          <Button
+            type="button"
+            variant="outline"
+            onClick={addCode}
+            disabled={!form.commonEnabled}
+          >
+            Add common code
           </Button>
+        </section>
+
+        <div className="flex justify-end">
           <Button onClick={onSave} disabled={disabled}>
             <LoadingButtonLabel
               isLoading={isSaving}

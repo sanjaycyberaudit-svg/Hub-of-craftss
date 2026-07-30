@@ -5,6 +5,11 @@ import { createContext, useContext, type ReactNode } from "react";
 
 const defaultConfig: OfferCodesConfig = {
   enabled: true,
+  welcomeOffer: {
+    code: "",
+    percentage: 10,
+    enabled: false,
+  },
   codes: [],
 };
 

@@ -3,21 +3,30 @@ import { getSessionUser, isAdminUser } from "@/lib/auth/admin";
 import {
   getProductSizeConfig,
   normalizeProductSizeConfig,
+  PRODUCT_OPTION_NAME_MAX,
+  PRODUCT_OPTION_VALUE_MAX,
   upsertProductSizeConfig,
 } from "@/lib/products/sizeConfig";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 
+const optionSchema = z
+  .object({
+    value: z.string().trim().max(PRODUCT_OPTION_VALUE_MAX).optional(),
+    size: z.string().trim().max(PRODUCT_OPTION_VALUE_MAX).optional(),
+    qty: z.number().min(0),
+  })
+  .transform((row) => ({
+    value: (row.value ?? row.size ?? "").trim(),
+    qty: row.qty,
+  }));
+
 const saveSchema = z.object({
   productId: z.string().trim().min(1),
   config: z.object({
     enabled: z.boolean(),
-    options: z.array(
-      z.object({
-        size: z.string().trim().max(8),
-        qty: z.number().min(0),
-      }),
-    ),
+    name: z.string().trim().max(PRODUCT_OPTION_NAME_MAX).optional(),
+    options: z.array(optionSchema),
   }),
 });
 

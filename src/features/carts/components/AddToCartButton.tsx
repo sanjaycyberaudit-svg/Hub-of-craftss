@@ -48,12 +48,14 @@ function AddToCartButton({
           if (sizeConfigRes.ok) {
             const sizeConfig = (await sizeConfigRes.json()) as {
               enabled?: boolean;
+              name?: string;
             };
             if (sizeConfig.enabled) {
+              const optionName =
+                String(sizeConfig.name ?? "").trim() || "option";
               toast({
-                title: "Select size first",
-                description:
-                  "This product has size options. Open product page and choose size before adding to cart.",
+                title: `Select ${optionName} first`,
+                description: `This product has ${optionName.toLowerCase()} options. Open the product page and choose before adding to cart.`,
               });
               return;
             }

@@ -118,7 +118,28 @@ const offerCodeItemSchema = z.object({
   enabled: z.boolean().default(true),
 });
 
+const welcomeOfferSchema = z
+  .object({
+    code: z
+      .string()
+      .trim()
+      .max(32)
+      .transform((value) => value.toUpperCase().replace(/\s+/g, "")),
+    percentage: z.number().int().min(1).max(90),
+    enabled: z.boolean(),
+  })
+  .superRefine((value, ctx) => {
+    if (value.enabled && value.code.length < 3) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Enabled popup offer code must be at least 3 characters.",
+        path: ["code"],
+      });
+    }
+  });
+
 const offerCodesPayloadSchema = z.object({
+  welcomeOffer: welcomeOfferSchema,
   codes: z.array(offerCodeItemSchema).max(200),
 });
 
@@ -431,7 +452,10 @@ export async function POST(request: NextRequest) {
       const rawCodes = Array.isArray(incomingValue.codes)
         ? incomingValue.codes
         : [];
-      const parsed = offerCodesPayloadSchema.safeParse({ codes: rawCodes });
+      const parsed = offerCodesPayloadSchema.safeParse({
+        welcomeOffer: incomingValue.welcomeOffer,
+        codes: rawCodes,
+      });
       if (!parsed.success) {
         const parseError = parsed as z.SafeParseError<
           z.infer<typeof offerCodesPayloadSchema>
@@ -449,6 +473,19 @@ export async function POST(request: NextRequest) {
       parsed.data.codes.forEach((item) => {
         dedup.set(item.code, item);
       });
+      if (
+        parsed.data.welcomeOffer.enabled &&
+        dedup.has(parsed.data.welcomeOffer.code)
+      ) {
+        return NextResponse.json(
+          {
+            message:
+              "The popup offer code must be different from common offer codes.",
+          },
+          { status: 400 },
+        );
+      }
+      normalizedValue.welcomeOffer = parsed.data.welcomeOffer;
       normalizedValue.codes = Array.from(dedup.values());
     }
 

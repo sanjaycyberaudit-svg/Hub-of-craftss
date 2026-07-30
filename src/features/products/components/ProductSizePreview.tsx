@@ -2,19 +2,22 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { fetchWithTimeout } from "@/lib/network/fetchWithTimeout";
+import { DEFAULT_PRODUCT_OPTION_NAME } from "@/lib/products/sizeConfig-shared";
 
 type SizeOption = {
-  size: string;
+  value?: string;
+  size?: string;
   qty: number;
 };
 
 type SizeConfigResponse = {
   enabled: boolean;
+  name?: string;
   options: SizeOption[];
 };
 
 function formatSizeLabel(option: SizeOption) {
-  const size = String(option.size ?? "")
+  const size = String(option.value ?? option.size ?? "")
     .trim()
     .toUpperCase();
   const qty = Number(option.qty ?? 0);
@@ -43,7 +46,7 @@ export default function ProductSizePreview({
         if (!mounted) return;
         setData(payload);
       } catch {
-        // Size preview should not break product card UI.
+        // Option preview should not break product card UI.
       }
     };
     void load();
@@ -51,6 +54,9 @@ export default function ProductSizePreview({
       mounted = false;
     };
   }, [productId]);
+
+  const optionName =
+    String(data?.name ?? "").trim() || DEFAULT_PRODUCT_OPTION_NAME;
 
   const labels = useMemo(() => {
     if (!data?.enabled) return [];
@@ -64,7 +70,7 @@ export default function ProductSizePreview({
   return (
     <div
       className="craft-size-pills"
-      aria-label={`Sizes: ${labels.join(", ")}`}
+      aria-label={`${optionName}: ${labels.join(", ")}`}
     >
       {labels.map((label) => (
         <span key={label} className="craft-size-pill">

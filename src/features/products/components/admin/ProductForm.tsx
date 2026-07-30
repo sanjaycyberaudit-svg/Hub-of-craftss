@@ -62,6 +62,11 @@ import {
   getSaleProductPrice,
   isProductDiscountActive,
 } from "@/lib/products/discount";
+import {
+  DEFAULT_PRODUCT_OPTION_NAME,
+  PRODUCT_OPTION_NAME_MAX,
+  PRODUCT_OPTION_VALUE_MAX,
+} from "@/lib/products/sizeConfig-shared";
 import { formatPrice } from "@/lib/utils";
 import { ProductPriceDisplay } from "@/features/products/components/ProductPriceDisplay";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -123,21 +128,22 @@ type IntegrationsPayload = {
 };
 
 type SizeOptionForm = {
-  size: string;
+  value: string;
   qty: string;
 };
 
 type ProductSizeConfigForm = {
   enabled: boolean;
+  name: string;
   options: SizeOptionForm[];
 };
 
 const DEFAULT_SIZE_OPTIONS: SizeOptionForm[] = [
-  { size: "36", qty: "1" },
-  { size: "38", qty: "1" },
-  { size: "40", qty: "1" },
-  { size: "42", qty: "1" },
-  { size: "44", qty: "1" },
+  { value: "36", qty: "1" },
+  { value: "38", qty: "1" },
+  { value: "40", qty: "1" },
+  { value: "42", qty: "1" },
+  { value: "44", qty: "1" },
 ];
 
 function normalizeSizeQtyInput(raw: unknown) {
@@ -148,9 +154,9 @@ function normalizeSizeQtyInput(raw: unknown) {
 
 function hasAnySizeOptionConfigured(options: SizeOptionForm[]) {
   return options.some((option) => {
-    const size = String(option.size ?? "").trim();
+    const value = String(option.value ?? "").trim();
     const qty = normalizeSizeQtyInput(option.qty);
-    return size.length > 0 || qty > 0;
+    return value.length > 0 || qty > 0;
   });
 }
 
@@ -271,7 +277,8 @@ function ProductFrom({ product, galleryMediaIds = [] }: ProductsFormProps) {
   });
   const [sizeConfig, setSizeConfig] = useState<ProductSizeConfigForm>({
     enabled: false,
-    options: [{ size: "", qty: "" }],
+    name: DEFAULT_PRODUCT_OPTION_NAME,
+    options: [{ value: "", qty: "" }],
   });
   const localFileInputRef = useRef<HTMLInputElement>(null);
 
@@ -374,16 +381,21 @@ function ProductFrom({ product, galleryMediaIds = [] }: ProductsFormProps) {
         if (!config) return;
         setSizeConfig({
           enabled: Boolean(config.enabled),
+          name: String(config.name ?? "").trim() || DEFAULT_PRODUCT_OPTION_NAME,
           options:
             Array.isArray(config.options) && config.options.length > 0
-              ? config.options.map((item) => ({
-                  size: String(item.size ?? "")
+              ? config.options.map((item) => {
+                  const raw = item as Record<string, unknown>;
+                  const value = String(raw.value ?? raw.size ?? "")
                     .trim()
-                    .slice(0, 8)
-                    .toUpperCase(),
-                  qty: String(item.qty ?? ""),
-                }))
-              : [{ size: "", qty: "" }],
+                    .slice(0, PRODUCT_OPTION_VALUE_MAX)
+                    .toUpperCase();
+                  return {
+                    value,
+                    qty: String(raw.qty ?? ""),
+                  };
+                })
+              : [{ value: "", qty: "" }],
         });
       } catch {
         // keep default config
@@ -396,22 +408,30 @@ function ProductFrom({ product, galleryMediaIds = [] }: ProductsFormProps) {
   }, [product?.id]);
 
   const normalizedSizeConfig = useMemo(() => {
-    const dedup = new Map<string, { size: string; qty: number }>();
+    const dedup = new Map<string, { value: string; qty: number }>();
     for (const option of sizeConfig.options) {
-      const size = String(option.size ?? "")
+      const value = String(option.value ?? "")
         .trim()
-        .slice(0, 8)
+        .slice(0, PRODUCT_OPTION_VALUE_MAX)
         .toUpperCase();
       const qty = normalizeSizeQtyInput(option.qty);
-      if (!size && qty <= 0) continue;
-      const key = size || "__NO_LABEL__";
-      dedup.set(key, { size, qty });
+      if (!value && qty <= 0) continue;
+      const key = value || "__NO_LABEL__";
+      dedup.set(key, { value, qty });
     }
     return {
       enabled: sizeConfig.enabled,
-      options: Array.from(dedup.values()),
+      name:
+        String(sizeConfig.name ?? "")
+          .trim()
+          .slice(0, PRODUCT_OPTION_NAME_MAX) || DEFAULT_PRODUCT_OPTION_NAME,
+      options: Array.from(dedup.values()).map((option) => ({
+        value: option.value,
+        size: option.value,
+        qty: option.qty,
+      })),
     };
-  }, [sizeConfig.enabled, sizeConfig.options]);
+  }, [sizeConfig.enabled, sizeConfig.name, sizeConfig.options]);
 
   const inBulkMode = !product && createMode === "bulk";
   const totalBulkImages = bulkFiles.length + selectedMediaIds.length;
@@ -755,7 +775,7 @@ function ProductFrom({ product, galleryMediaIds = [] }: ProductsFormProps) {
   const addSizeOption = () => {
     setSizeConfig((prev) => ({
       ...prev,
-      options: [...prev.options, { size: "", qty: "" }],
+      options: [...prev.options, { value: "", qty: "" }],
     }));
   };
 
@@ -764,7 +784,7 @@ function ProductFrom({ product, galleryMediaIds = [] }: ProductsFormProps) {
       ...prev,
       options:
         prev.options.length <= 1
-          ? [{ size: "", qty: "" }]
+          ? [{ value: "", qty: "" }]
           : prev.options.filter((_, i) => i !== index),
     }));
   };
@@ -1138,7 +1158,7 @@ function ProductFrom({ product, galleryMediaIds = [] }: ProductsFormProps) {
           />
 
           <FormItem>
-            <FormLabel className="text-sm">Enable Size</FormLabel>
+            <FormLabel className="text-sm">Enable options / variants</FormLabel>
             <FormControl>
               <label className="flex items-center gap-2 text-sm">
                 <input
@@ -1148,6 +1168,7 @@ function ProductFrom({ product, galleryMediaIds = [] }: ProductsFormProps) {
                     setSizeConfig((prev) => ({
                       ...prev,
                       enabled: event.target.checked,
+                      name: prev.name.trim() || DEFAULT_PRODUCT_OPTION_NAME,
                       options:
                         event.target.checked &&
                         !hasAnySizeOptionConfigured(prev.options)
@@ -1156,18 +1177,47 @@ function ProductFrom({ product, galleryMediaIds = [] }: ProductsFormProps) {
                     }))
                   }
                 />
-                Allow customers to select available sizes.
+                Allow customers to choose one option (Size, Magnet, Colour,
+                etc.).
               </label>
             </FormControl>
             <FormDescription>
-              Size label supports up to 8 characters. Leave label empty to show
-              only the number.
+              Set a custom option name, then add values with their own stock.
+              Value labels support up to {PRODUCT_OPTION_VALUE_MAX} characters.
+              Leave a value empty to show stock only.
             </FormDescription>
           </FormItem>
 
           {sizeConfig.enabled ? (
             <FormItem>
-              <FormLabel className="text-sm">Size options</FormLabel>
+              <FormLabel className="text-sm">Option name</FormLabel>
+              <FormControl>
+                <Input
+                  value={sizeConfig.name}
+                  maxLength={PRODUCT_OPTION_NAME_MAX}
+                  placeholder="Size / Magnet / Colour"
+                  onChange={(event) =>
+                    setSizeConfig((prev) => ({
+                      ...prev,
+                      name: event.target.value.slice(
+                        0,
+                        PRODUCT_OPTION_NAME_MAX,
+                      ),
+                    }))
+                  }
+                />
+              </FormControl>
+              <FormDescription>
+                Shown on the product page (e.g. &quot;Select Magnet&quot;).
+              </FormDescription>
+            </FormItem>
+          ) : null}
+
+          {sizeConfig.enabled ? (
+            <FormItem>
+              <FormLabel className="text-sm">
+                Option values &amp; stock
+              </FormLabel>
               <FormControl>
                 <div className="space-y-2">
                   {sizeConfig.options.map((option, index) => (
@@ -1176,14 +1226,17 @@ function ProductFrom({ product, galleryMediaIds = [] }: ProductsFormProps) {
                       className="grid grid-cols-[1fr,1fr,auto] gap-2"
                     >
                       <Input
-                        value={option.size}
-                        maxLength={8}
-                        placeholder="Size (e.g. 6.2 / S / XL)"
+                        value={option.value}
+                        maxLength={PRODUCT_OPTION_VALUE_MAX}
+                        placeholder="Value (e.g. XL / WITH MAGNET)"
                         onChange={(event) =>
                           updateSizeOption(
                             index,
-                            "size",
-                            event.target.value.trimStart().toUpperCase(),
+                            "value",
+                            event.target.value
+                              .trimStart()
+                              .slice(0, PRODUCT_OPTION_VALUE_MAX)
+                              .toUpperCase(),
                           )
                         }
                       />
@@ -1191,7 +1244,7 @@ function ProductFrom({ product, galleryMediaIds = [] }: ProductsFormProps) {
                         type="text"
                         inputMode="decimal"
                         value={option.qty}
-                        placeholder="Value / Stock (e.g. 32 or 6.2)"
+                        placeholder="Stock qty"
                         onChange={(event) =>
                           updateSizeOption(
                             index,
@@ -1221,7 +1274,7 @@ function ProductFrom({ product, galleryMediaIds = [] }: ProductsFormProps) {
                     variant="outline"
                     onClick={addSizeOption}
                   >
-                    Add size
+                    Add option
                   </Button>
                 </div>
               </FormControl>

@@ -62,12 +62,14 @@ type UserCartSectionProps = {
 };
 
 type CartSizeConfigOption = {
+  value?: string;
   size: string;
   qty: number;
 };
 
 type CartSizeConfig = {
   enabled: boolean;
+  name?: string;
   options: CartSizeConfigOption[];
 };
 
@@ -153,13 +155,16 @@ function UserCartSection({
   const courierCharge = courierBreakdown?.charge ?? 0;
   const activeOfferCodes = useMemo(() => {
     const map = new Map<string, number>();
-    if (!offerCodesConfig.enabled) return map;
-    offerCodesConfig.codes.forEach((item) => {
-      if (!item.enabled) return;
-      map.set(item.code, item.percentage);
-    });
+    if (offerCodesConfig.enabled) {
+      offerCodesConfig.codes.forEach((item) => {
+        if (!item.enabled) return;
+        map.set(item.code, item.percentage);
+      });
+    }
+    const welcome = getWelcomeOfferCode(offerCodesConfig);
+    if (welcome) map.set(welcome.code, welcome.percentage);
     return map;
-  }, [offerCodesConfig.codes, offerCodesConfig.enabled]);
+  }, [offerCodesConfig]);
   const promoPercentage = appliedPromoCode
     ? activeOfferCodes.get(appliedPromoCode) ?? 0
     : 0;
@@ -167,7 +172,7 @@ function UserCartSection({
   const discountedSubtotal = Math.max(0, subtotal - discountAmount);
   const hasDeliveryStateSelected = deliveryState.trim().length > 0;
   const courierEnabled = courierConfig.enabled;
-  const offerCodesEnabled = offerCodesConfig.enabled;
+  const offerCodesEnabled = activeOfferCodes.size > 0;
   const checkoutTotalReady = !courierEnabled || Boolean(courierBreakdown);
   const gstAmount = calculateGstAmount({
     taxableAmount: discountedSubtotal + courierCharge,
@@ -274,7 +279,11 @@ function UserCartSection({
           (productId) =>
             [
               productId,
-              payload[productId] ?? { enabled: false, options: [] },
+              payload[productId] ?? {
+                enabled: false,
+                name: "Size",
+                options: [],
+              },
             ] as const,
         );
         setSizeConfigsByProductId(Object.fromEntries(entries));
@@ -298,7 +307,8 @@ function UserCartSection({
           const hasLabeledOptions = Boolean(
             config?.enabled &&
               config.options.some(
-                (option) => String(option.size ?? "").trim().length > 0,
+                (option) =>
+                  String(option.value ?? option.size ?? "").trim().length > 0,
               ),
           );
           const selected = String(localCart[node.product_id]?.size ?? "")
@@ -469,16 +479,19 @@ function UserCartSection({
             {cart.map(({ node }) =>
               (() => {
                 const config = sizeConfigsByProductId[node.product_id];
+                const optionName = String(config?.name ?? "").trim() || "Size";
                 const hasLabeledOptions = Boolean(
                   config?.enabled &&
                     config.options.some(
-                      (option) => String(option.size ?? "").trim().length > 0,
+                      (option) =>
+                        String(option.value ?? option.size ?? "").trim()
+                          .length > 0,
                     ),
                 );
                 const sizeOptions = (config?.options ?? [])
                   .filter((option) => Number(option.qty ?? 0) > 0)
                   .map((option) => {
-                    const normalized = String(option.size ?? "")
+                    const normalized = String(option.value ?? option.size ?? "")
                       .trim()
                       .toUpperCase();
                     const label = normalized || `${option.qty}`;
@@ -497,6 +510,7 @@ function UserCartSection({
                     quantity={node.quantity}
                     selectedSize={localCart[node.product_id]?.size}
                     sizeRequired={hasLabeledOptions}
+                    optionName={optionName}
                     sizeOptions={sizeOptions}
                     onSizeChange={(size) =>
                       setProductSize(node.product_id, size)

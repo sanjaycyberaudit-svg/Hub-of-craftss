@@ -7,7 +7,10 @@ import {
 } from "@/lib/checkout/build-checkout-lines";
 import { resolveOrderUserId } from "@/lib/orders/resolve-order-user-id";
 import { isFirstOrderForUser } from "@/lib/orders/first-order";
-import { isWelcomeOfferCode } from "@/lib/offers/welcome-code";
+import {
+  isWelcomeOfferCode,
+  selectActiveOfferCodes,
+} from "@/lib/offers/welcome-code";
 import { resolveCheckoutPaymentEnvironment } from "@/lib/orders/checkout-environment";
 import { mergePaymentMeta } from "@/lib/orders/payment-meta";
 import {
@@ -23,7 +26,10 @@ import { createPhonePePayment } from "@/lib/payments/phonepe";
 import { createCashfreePayment } from "@/lib/payments/cashfree";
 import { validatePaymentSessionId } from "@/lib/payments/cashfree-standards";
 import { resolveCheckoutPaymentProvider } from "@/lib/payments/resolve-checkout-provider";
-import { getProductSizeConfigsByProductIds } from "@/lib/products/sizeConfig";
+import {
+  getProductOptionDisplayName,
+  getProductSizeConfigsByProductIds,
+} from "@/lib/products/sizeConfig";
 import db from "@/lib/supabase/db";
 import { address, medias, orderLines, orders } from "@/lib/supabase/schema";
 import {
@@ -57,7 +63,7 @@ const orderProductsSchema = z.object({
   orderProducts: z.record(
     z.object({
       quantity: z.number().min(1),
-      size: z.string().trim().max(8).optional(),
+      size: z.string().trim().max(24).optional(),
     }),
   ),
   guest: z.boolean(),
@@ -229,6 +235,7 @@ export async function POST(request: Request) {
         .trim()
         .toUpperCase();
       const sizeConfig = sizeConfigs.get(line.id);
+      const optionName = getProductOptionDisplayName(sizeConfig);
       const selectableOptions =
         sizeConfig?.options.filter((option) => Number(option.qty ?? 0) > 0) ??
         [];
@@ -236,20 +243,29 @@ export async function POST(request: Request) {
         Boolean(sizeConfig?.enabled) && selectableOptions.length > 0;
       if (hasConfiguredSizes) {
         const emptyLabelOption = selectableOptions.find(
-          (option) => !String(option.size ?? "").trim(),
+          (option) => !String(option.value ?? option.size ?? "").trim(),
         );
         if (!selectedSize && !emptyLabelOption) {
           return NextResponse.json(
-            { message: `${line.name}: please select a size.` },
+            {
+              message: `${line.name}: please select a ${optionName.toLowerCase()}.`,
+            },
             { status: 400 },
           );
         }
         const sizeOption = selectedSize
-          ? selectableOptions.find((option) => option.size === selectedSize)
+          ? selectableOptions.find(
+              (option) =>
+                String(option.value ?? option.size ?? "")
+                  .trim()
+                  .toUpperCase() === selectedSize,
+            )
           : emptyLabelOption ?? null;
         if (!sizeOption) {
           return NextResponse.json(
-            { message: `${line.name}: selected size is unavailable.` },
+            {
+              message: `${line.name}: selected ${optionName.toLowerCase()} is unavailable.`,
+            },
             { status: 400 },
           );
         }
@@ -269,12 +285,11 @@ export async function POST(request: Request) {
       .trim()
       .toUpperCase()
       .replace(/\s+/g, "");
-    const matchedOffer =
-      offerCodesConfig.enabled && normalizedPromoCode
-        ? offerCodesConfig.codes.find(
-            (item) => item.enabled && item.code === normalizedPromoCode,
-          ) ?? null
-        : null;
+    const matchedOffer = normalizedPromoCode
+      ? selectActiveOfferCodes(offerCodesConfig).find(
+          (item) => item.code === normalizedPromoCode,
+        ) ?? null
+      : null;
     if (normalizedPromoCode && !matchedOffer) {
       return NextResponse.json(
         { message: "Invalid or inactive promo code." },

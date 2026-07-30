@@ -151,7 +151,10 @@ export type OfferCodeItem = {
   enabled: boolean;
 };
 export type OfferCodesConfig = {
+  /** Enables ordinary promo codes listed in `codes`. */
   enabled: boolean;
+  /** Dedicated first-order popup offer, independent of ordinary promo codes. */
+  welcomeOffer: OfferCodeItem;
   codes: OfferCodeItem[];
 };
 
@@ -196,6 +199,11 @@ const DEFAULT_COURIER_CONFIG: Omit<CourierChargesConfig, "enabled"> = {
 };
 const DEFAULT_OFFER_CODES_CONFIG: OfferCodesConfig = {
   enabled: true,
+  welcomeOffer: {
+    code: "",
+    percentage: 10,
+    enabled: false,
+  },
   codes: [],
 };
 
@@ -324,6 +332,63 @@ function normalizeOfferCode(raw: unknown) {
     .replace(/\s+/g, "");
 }
 
+function parseOfferCodeItem(
+  raw: unknown,
+  fallbackPercentage = 10,
+  fallbackEnabled = false,
+): OfferCodeItem | null {
+  const item = (raw ?? {}) as Record<string, unknown>;
+  const code = normalizeOfferCode(item.code);
+  const percentageRaw = Number(item.percentage ?? fallbackPercentage);
+  const percentage = Number.isFinite(percentageRaw)
+    ? Math.min(90, Math.max(1, Math.round(percentageRaw)))
+    : fallbackPercentage;
+
+  return {
+    code,
+    percentage,
+    enabled: Boolean(item.enabled ?? fallbackEnabled),
+  };
+}
+
+function parseOfferCodesValue(
+  value: Record<string, unknown>,
+  commonEnabled: boolean,
+): OfferCodesConfig {
+  const rawCodes = Array.isArray(value.codes) ? value.codes : [];
+  const parsedCodes = rawCodes
+    .map((item) => parseOfferCodeItem(item, 1, true))
+    .filter((item): item is OfferCodeItem => Boolean(item?.code));
+
+  // Backward-compatible migration: before dedicated popup settings existed,
+  // the first active common code was implicitly the welcome offer.
+  const hasDedicatedWelcome = Object.prototype.hasOwnProperty.call(
+    value,
+    "welcomeOffer",
+  );
+  const legacyWelcomeIndex = hasDedicatedWelcome
+    ? -1
+    : parsedCodes.findIndex((item) => item.enabled);
+  const welcomeOffer = hasDedicatedWelcome
+    ? parseOfferCodeItem(value.welcomeOffer) ??
+      DEFAULT_OFFER_CODES_CONFIG.welcomeOffer
+    : legacyWelcomeIndex >= 0
+      ? parsedCodes[legacyWelcomeIndex]
+      : DEFAULT_OFFER_CODES_CONFIG.welcomeOffer;
+
+  const dedup = new Map<string, OfferCodeItem>();
+  parsedCodes.forEach((item, index) => {
+    if (index === legacyWelcomeIndex || item.code === welcomeOffer.code) return;
+    dedup.set(item.code, item);
+  });
+
+  return {
+    enabled: commonEnabled,
+    welcomeOffer,
+    codes: Array.from(dedup.values()),
+  };
+}
+
 export async function resolveOfferCodesConfig(): Promise<OfferCodesConfig> {
   try {
     const setting = await getIntegrationSettingCached(
@@ -332,25 +397,7 @@ export async function resolveOfferCodesConfig(): Promise<OfferCodesConfig> {
     if (!setting) return DEFAULT_OFFER_CODES_CONFIG;
 
     const value = setting.value as Record<string, unknown>;
-    const rawCodes = Array.isArray(value.codes) ? value.codes : [];
-    const dedup = new Map<string, OfferCodeItem>();
-
-    for (const rawCode of rawCodes) {
-      const item = rawCode as Record<string, unknown>;
-      const code = normalizeOfferCode(item.code);
-      if (!code) continue;
-      const percentageRaw = Number(item.percentage ?? 0);
-      const percentage = Number.isFinite(percentageRaw)
-        ? Math.min(90, Math.max(1, Math.round(percentageRaw)))
-        : 1;
-      const enabled = Boolean(item.enabled ?? true);
-      dedup.set(code, { code, percentage, enabled });
-    }
-
-    return {
-      enabled: setting.isEnabled,
-      codes: Array.from(dedup.values()),
-    };
+    return parseOfferCodesValue(value, setting.isEnabled);
   } catch (error) {
     console.error("[settings] resolveOfferCodesConfig failed:", error);
     return DEFAULT_OFFER_CODES_CONFIG;
@@ -560,26 +607,7 @@ function parseOfferCodesFromRow(
 ): OfferCodesConfig {
   if (!setting) return DEFAULT_OFFER_CODES_CONFIG;
   const value = setting.value as Record<string, unknown>;
-  const rawCodes = Array.isArray(value.codes) ? value.codes : [];
-  const dedup = new Map<string, OfferCodeItem>();
-  for (const rawCode of rawCodes) {
-    const item = rawCode as Record<string, unknown>;
-    const code = normalizeOfferCode(item.code);
-    if (!code) continue;
-    const percentageRaw = Number(item.percentage ?? 0);
-    const percentage = Number.isFinite(percentageRaw)
-      ? Math.min(90, Math.max(1, Math.round(percentageRaw)))
-      : 1;
-    dedup.set(code, {
-      code,
-      percentage,
-      enabled: Boolean(item.enabled ?? true),
-    });
-  }
-  return {
-    enabled: setting.isEnabled,
-    codes: Array.from(dedup.values()),
-  };
+  return parseOfferCodesValue(value, setting.isEnabled);
 }
 
 export type StorefrontRuntimeBundle = {

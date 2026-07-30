@@ -114,8 +114,8 @@ function CheckoutButton({
           }
           if (missingSizeProductNames.length > 0) {
             toast({
-              title: "Select size in cart",
-              description: `${missingSizeProductNames[0]}: please select a size before checkout.`,
+              title: "Select option in cart",
+              description: `${missingSizeProductNames[0]}: please select an option before checkout.`,
               variant: "destructive",
             });
             return;
@@ -147,9 +147,9 @@ function CheckoutButton({
             const requiredMissing = results.find((result) => result.required);
             if (requiredMissing) {
               toast({
-                title: "Select size in cart",
+                title: "Select option in cart",
                 description:
-                  "Please select size for all size-enabled products before checkout.",
+                  "Please select the required option for all products before checkout.",
                 variant: "destructive",
               });
               return;

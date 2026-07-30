@@ -3,18 +3,24 @@ import type {
   OfferCodesConfig,
 } from "@/lib/integrations/settings";
 
-/**
- * The welcome offer is always the first enabled code in admin order, so the
- * shop owner picks it by ordering codes on the offer codes settings page.
- * This code is reserved for a customer's first order and is enforced at checkout.
- */
+/** Returns the dedicated, admin-controlled first-order popup offer. */
 export function selectWelcomeOfferCode(
   config: OfferCodesConfig,
 ): OfferCodeItem | null {
-  if (!config.enabled) return null;
-  return (
-    config.codes.find((item) => item.enabled && item.percentage > 0) ?? null
-  );
+  const offer = config.welcomeOffer;
+  if (!offer.enabled || !offer.code || offer.percentage <= 0) return null;
+  return offer;
+}
+
+/** All currently usable codes, with the dedicated welcome code kept separate. */
+export function selectActiveOfferCodes(
+  config: OfferCodesConfig,
+): OfferCodeItem[] {
+  const common = config.enabled
+    ? config.codes.filter((item) => item.enabled && item.percentage > 0)
+    : [];
+  const welcome = selectWelcomeOfferCode(config);
+  return welcome ? [welcome, ...common] : common;
 }
 
 export function normalizeOfferCode(value: string | null | undefined): string {

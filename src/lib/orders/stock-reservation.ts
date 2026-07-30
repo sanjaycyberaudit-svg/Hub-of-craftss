@@ -3,6 +3,7 @@ import { mergePaymentMeta, readPaymentMeta } from "@/lib/orders/payment-meta";
 import {
   getProductSizeConfigKey,
   normalizeProductSizeConfig,
+  serializeProductSizeConfig,
   type ProductSizeConfig,
 } from "@/lib/products/sizeConfig";
 import db from "@/lib/supabase/db";
@@ -144,21 +145,23 @@ async function lockAndDecrementSizeStock(
 
   const normalized = normalizeProductSizeConfig({
     enabled: config.enabled,
+    name: config.name,
     options: nextOptions,
   });
+  const value = serializeProductSizeConfig(normalized);
 
   await tx
     .insert(apiSettings)
     .values({
       key,
-      value: normalized,
+      value,
       isEnabled: normalized.enabled,
       updatedAt: new Date().toISOString(),
     })
     .onConflictDoUpdate({
       target: apiSettings.key,
       set: {
-        value: normalized,
+        value,
         isEnabled: normalized.enabled,
         updatedAt: new Date().toISOString(),
       },
@@ -215,21 +218,23 @@ async function incrementSizeStock(
 
   const normalized = normalizeProductSizeConfig({
     enabled: config.enabled,
+    name: config.name,
     options: nextOptions,
   });
+  const value = serializeProductSizeConfig(normalized);
 
   await tx
     .insert(apiSettings)
     .values({
       key,
-      value: normalized,
+      value,
       isEnabled: normalized.enabled,
       updatedAt: new Date().toISOString(),
     })
     .onConflictDoUpdate({
       target: apiSettings.key,
       set: {
-        value: normalized,
+        value,
         isEnabled: normalized.enabled,
         updatedAt: new Date().toISOString(),
       },

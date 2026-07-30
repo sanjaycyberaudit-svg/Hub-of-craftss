@@ -3,7 +3,7 @@
 export const ORDER_SHIPPING = {
   title: "Order & shipping",
   /** Sidebar + page: main timings */
-  processingLabel: "Prepare",
+  processingLabel: "Processing time",
   processing: "4–5 working days",
   processingNote: "Large orders may take a little longer.",
   deliveryLabel: "Delivery",
