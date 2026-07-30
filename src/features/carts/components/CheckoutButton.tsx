@@ -9,6 +9,7 @@ import type { CartItems } from "@/features/carts";
 import { CheckoutAddressDialog } from "@/features/addresses";
 import type { SavedShippingAddress } from "@/features/addresses";
 import { clearCheckoutAddressDraft } from "@/features/addresses/lib/checkoutAddressDraft";
+import { clearClaimedOfferCode } from "@/features/offers/lib/welcomeOffer";
 import { startCheckout } from "@/features/checkout/startCheckout";
 import { useCheckoutProgress } from "@/features/checkout/useCheckoutProgress";
 import BulkOrderGuardDialog from "@/features/carts/components/BulkOrderGuardDialog";
@@ -79,6 +80,7 @@ function CheckoutButton({
         onProgress: beginProgress,
       });
       clearCheckoutAddressDraft();
+      if (promoCode) clearClaimedOfferCode();
     } catch (err) {
       clearProgress();
       toast({

@@ -35,6 +35,10 @@ import {
 } from "@/features/addresses/lib/checkoutAddressDraft";
 import CheckoutButton from "./CheckoutButton";
 import BulkOrderGuardDialog from "./BulkOrderGuardDialog";
+import {
+  clearClaimedOfferCode,
+  loadClaimedOfferCode,
+} from "@/features/offers/lib/welcomeOffer";
 import EmptyCart from "@/features/carts/components/EmptyCart";
 import { RemoveCartsMutation, updateCartsMutation } from "../query";
 import useCartStore, { CartItems } from "../useCartStore";
@@ -106,6 +110,7 @@ function UserCartSection({
   const skippedSizePrefetchRef = useRef(
     Boolean(initialSizeConfigs && prefetchedIdsKey),
   );
+  const autoAppliedRef = useRef(false);
 
   const cart: CartEdge[] =
     cartData?.cartsCollection?.edges?.filter((edge) => edge.node.product) ?? [];
@@ -203,7 +208,21 @@ function UserCartSection({
   const onRemovePromo = () => {
     setAppliedPromoCode(null);
     setPromoInput("");
+    clearClaimedOfferCode();
   };
+
+  // Welcome offer claimed before signing up applies itself on the first checkout.
+  useEffect(() => {
+    if (autoAppliedRef.current) return;
+    if (appliedPromoCode || activeOfferCodes.size === 0) return;
+
+    const claimed = loadClaimedOfferCode();
+    if (!claimed || !activeOfferCodes.has(claimed)) return;
+
+    autoAppliedRef.current = true;
+    setAppliedPromoCode(claimed);
+    setPromoInput(claimed);
+  }, [activeOfferCodes, appliedPromoCode]);
 
   useEffect(() => {
     let active = true;
