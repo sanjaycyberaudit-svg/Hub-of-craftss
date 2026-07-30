@@ -189,6 +189,12 @@ export function OfferCodesForm() {
     }
   };
 
+  const welcomeIndex = form.enabled
+    ? form.codes.findIndex(
+        (item) => item.enabled && Number(item.percentage) > 0,
+      )
+    : -1;
+
   return (
     <Card>
       <CardHeader>
@@ -209,9 +215,21 @@ export function OfferCodesForm() {
           Enable promo code discounts in checkout
         </label>
 
+        <p className="text-xs text-muted-foreground">
+          The first active code is the welcome offer. It is shown in the
+          storefront popup and checkout accepts it only on a customer&apos;s
+          first order, so it needs an account. Every other code works for any
+          order.
+        </p>
+
         <div className="space-y-3">
           {form.codes.map((item, index) => (
             <div key={index} className="rounded-md border p-3">
+              {index === welcomeIndex ? (
+                <p className="mb-2 inline-flex rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-semibold text-primary">
+                  Welcome offer — first order only
+                </p>
+              ) : null}
               <div className="grid gap-3 md:grid-cols-[1.2fr,0.8fr,0.8fr,auto]">
                 <div className="space-y-1">
                   <Label htmlFor={`offer-code-${index}`}>Code</Label>

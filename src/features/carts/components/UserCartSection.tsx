@@ -37,8 +37,10 @@ import CheckoutButton from "./CheckoutButton";
 import BulkOrderGuardDialog from "./BulkOrderGuardDialog";
 import {
   clearClaimedOfferCode,
+  getWelcomeOfferCode,
   loadClaimedOfferCode,
 } from "@/features/offers/lib/welcomeOffer";
+import { useWelcomeOfferEligibility } from "@/features/offers/hooks/useWelcomeOfferEligibility";
 import EmptyCart from "@/features/carts/components/EmptyCart";
 import { RemoveCartsMutation, updateCartsMutation } from "../query";
 import useCartStore, { CartItems } from "../useCartStore";
@@ -111,6 +113,10 @@ function UserCartSection({
     Boolean(initialSizeConfigs && prefetchedIdsKey),
   );
   const autoAppliedRef = useRef(false);
+  const welcomeCode = getWelcomeOfferCode(offerCodesConfig)?.code ?? null;
+  const { eligible: welcomeEligible } = useWelcomeOfferEligibility(
+    Boolean(welcomeCode),
+  );
 
   const cart: CartEdge[] =
     cartData?.cartsCollection?.edges?.filter((edge) => edge.node.product) ?? [];
@@ -198,6 +204,14 @@ function UserCartSection({
       });
       return;
     }
+    if (normalized === welcomeCode && welcomeEligible === false) {
+      toast({
+        title: "Welcome offer used",
+        description: `${normalized} is only valid on your first order.`,
+        variant: "destructive",
+      });
+      return;
+    }
     setAppliedPromoCode(normalized);
     toast({
       title: "Offer applied",
@@ -213,16 +227,23 @@ function UserCartSection({
 
   // Welcome offer claimed before signing up applies itself on the first checkout.
   useEffect(() => {
-    if (autoAppliedRef.current) return;
+    if (autoAppliedRef.current || welcomeEligible === null) return;
     if (appliedPromoCode || activeOfferCodes.size === 0) return;
 
     const claimed = loadClaimedOfferCode();
     if (!claimed || !activeOfferCodes.has(claimed)) return;
 
     autoAppliedRef.current = true;
+
+    // Checkout rejects the welcome code after a first order, so drop it here too.
+    if (!welcomeEligible) {
+      clearClaimedOfferCode();
+      return;
+    }
+
     setAppliedPromoCode(claimed);
     setPromoInput(claimed);
-  }, [activeOfferCodes, appliedPromoCode]);
+  }, [activeOfferCodes, appliedPromoCode, welcomeEligible]);
 
   useEffect(() => {
     let active = true;

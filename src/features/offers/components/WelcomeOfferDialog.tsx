@@ -21,6 +21,7 @@ import {
   markWelcomeOfferDismissed,
   saveClaimedOfferCode,
 } from "@/features/offers/lib/welcomeOffer";
+import { useWelcomeOfferEligibility } from "@/features/offers/hooks/useWelcomeOfferEligibility";
 
 /** Let the page paint before the offer interrupts the visitor. */
 const OPEN_DELAY_MS = 1400;
@@ -36,18 +37,26 @@ export function WelcomeOfferDialog() {
   const pathname = usePathname();
   const { toast } = useToast();
   const [open, setOpen] = useState(false);
+  const [unseen, setUnseen] = useState(false);
 
   const offer = getWelcomeOfferCode(offerCodesConfig);
   const code = offer?.code ?? null;
+  // Only visitors who have not seen or claimed the offer cost an eligibility call.
+  const { eligible } = useWelcomeOfferEligibility(unseen);
 
   useEffect(() => {
     if (!code) return;
-    if (isWelcomeOfferDismissed(code)) return;
-    if (loadClaimedOfferCode() === code) return;
+    setUnseen(
+      !isWelcomeOfferDismissed(code) && loadClaimedOfferCode() !== code,
+    );
+  }, [code]);
+
+  useEffect(() => {
+    if (!unseen || eligible !== true) return;
 
     const timer = window.setTimeout(() => setOpen(true), OPEN_DELAY_MS);
     return () => window.clearTimeout(timer);
-  }, [code]);
+  }, [unseen, eligible]);
 
   const handleOpenChange = useCallback(
     (next: boolean) => {

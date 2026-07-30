@@ -1,20 +1,9 @@
 "use client";
 
-import type { OfferCodeItem, OfferCodesConfig } from "@/lib/integrations/settings";
+export { selectWelcomeOfferCode as getWelcomeOfferCode } from "@/lib/offers/welcome-code";
 
 const DISMISSED_KEY = "hoc:welcome-offer-dismissed";
 const CLAIMED_KEY = "hoc:welcome-offer-claimed";
-
-/**
- * The welcome popup always advertises the first enabled code in admin order,
- * so shop owners control the offer by ordering codes on the settings page.
- */
-export function getWelcomeOfferCode(
-  config: OfferCodesConfig,
-): OfferCodeItem | null {
-  if (!config.enabled) return null;
-  return config.codes.find((item) => item.enabled && item.percentage > 0) ?? null;
-}
 
 function readStorage(key: string): string | null {
   try {

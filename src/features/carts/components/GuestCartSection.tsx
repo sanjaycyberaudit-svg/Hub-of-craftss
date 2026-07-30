@@ -33,6 +33,7 @@ import useCartStore, {
 import { useBulkOrderGuardConfig } from "@/providers/BulkOrderGuardProvider";
 import { useCourierChargesConfig } from "@/providers/CourierChargesProvider";
 import { useOfferCodesConfig } from "@/providers/OfferCodesProvider";
+import { getWelcomeOfferCode } from "@/features/offers/lib/welcomeOffer";
 import { useStockControlConfig } from "@/providers/StockControlProvider";
 import {
   loadCheckoutAddressDraft,
@@ -131,6 +132,7 @@ function GuestCartSection({
     });
     return map;
   }, [offerCodesConfig.codes, offerCodesConfig.enabled]);
+  const welcomeCode = getWelcomeOfferCode(offerCodesConfig)?.code ?? null;
   const promoPercentage = appliedPromoCode
     ? activeOfferCodes.get(appliedPromoCode) ?? 0
     : 0;
@@ -171,6 +173,14 @@ function GuestCartSection({
       toast({
         title: "Invalid code",
         description: "Offer code not found or disabled.",
+        variant: "destructive",
+      });
+      return;
+    }
+    if (normalized === welcomeCode) {
+      toast({
+        title: "Account needed",
+        description: `${normalized} is a welcome offer. Sign in or create an account to use it.`,
         variant: "destructive",
       });
       return;

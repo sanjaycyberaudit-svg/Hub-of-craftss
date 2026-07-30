@@ -6,6 +6,8 @@ import {
   calcCheckoutSubtotal,
 } from "@/lib/checkout/build-checkout-lines";
 import { resolveOrderUserId } from "@/lib/orders/resolve-order-user-id";
+import { isFirstOrderForUser } from "@/lib/orders/first-order";
+import { isWelcomeOfferCode } from "@/lib/offers/welcome-code";
 import { resolveCheckoutPaymentEnvironment } from "@/lib/orders/checkout-environment";
 import { mergePaymentMeta } from "@/lib/orders/payment-meta";
 import {
@@ -279,6 +281,32 @@ export async function POST(request: Request) {
         { status: 400 },
       );
     }
+
+    // The welcome code is reserved for a customer's very first order, so it has
+    // to be checked here rather than trusted from the browser.
+    if (
+      matchedOffer &&
+      isWelcomeOfferCode(offerCodesConfig, matchedOffer.code)
+    ) {
+      if (!user) {
+        return NextResponse.json(
+          {
+            message: `${matchedOffer.code} is a welcome offer. Please sign in or create an account to use it.`,
+          },
+          { status: 400 },
+        );
+      }
+
+      if (!(await isFirstOrderForUser(user.id))) {
+        return NextResponse.json(
+          {
+            message: `${matchedOffer.code} is only valid on your first order.`,
+          },
+          { status: 400 },
+        );
+      }
+    }
+
     const discountPercentage = matchedOffer?.percentage ?? 0;
     const discountAmount =
       Math.round(subtotalAmount * discountPercentage * 100) / 10000;
