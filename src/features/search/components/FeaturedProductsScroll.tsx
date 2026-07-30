@@ -1,7 +1,8 @@
 "use client";
 
 import type { StorefrontProductsInitialData } from "@/hooks/useStorefrontProducts";
-import { useState } from "react";
+import { useListingNavigationState } from "@/hooks/useListingNavigationState";
+import { usePathname } from "next/navigation";
 import FeaturedProductsResultPage from "./FeaturedProductsResultPage";
 
 const PAGE_SIZE = 12;
@@ -17,9 +18,11 @@ export function FeaturedProductsScroll({
   initialDraftIds,
   initialPackLabels,
 }: Props) {
-  const [pageVariables, setPageVariables] = useState([
-    { first: PAGE_SIZE, after: undefined as string | undefined },
-  ]);
+  const pathname = usePathname();
+  const [pageVariables, setPageVariables] = useListingNavigationState(
+    pathname,
+    () => [{ first: PAGE_SIZE, after: undefined as string | undefined }],
+  );
 
   const loadMoreHandler = (after: string) => {
     setPageVariables((prev) => {

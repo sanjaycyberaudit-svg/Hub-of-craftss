@@ -1,5 +1,4 @@
 import React, { Suspense } from "react";
-import Link from "next/link";
 import { DocumentType, gql } from "@/gql";
 import { cn } from "@/lib/utils";
 import { ProductThumbnail } from "@/features/products/components/ProductThumbnail";
@@ -22,6 +21,7 @@ import { Button } from "@/components/ui/button";
 import { Icons } from "@/components/layouts/icons";
 import LowStockNotice from "./LowStockNotice";
 import ProductSizePreview from "./ProductSizePreview";
+import { ListingProductLink } from "./ListingProductLink";
 import {
   ProductDiscountBadge,
   ProductPriceDisplay,
@@ -76,14 +76,18 @@ export function ProductCard({
       {...props}
     >
       <CardContent className="relative p-0 mb-5">
-        <Link href={`/shop/${slug}`} className="block">
+        <ListingProductLink
+          href={`/shop/${slug}`}
+          productId={id}
+          className="block"
+        >
           <ProductThumbnail
             imageKey={featuredImage.key}
             alt={featuredImage.alt || name}
             imageClassName={productThumbnailImageHoverClass}
             priority={priorityImage}
           />
-        </Link>
+        </ListingProductLink>
         <ProductDiscountBadge
           product={product}
           className="absolute top-2 left-2 z-[1]"
@@ -100,9 +104,13 @@ export function ProductCard({
 
       <CardHeader className="p-0 mb-3 md:mb-5">
         <CardTitle>
-          <Link href={`/shop/${slug}`} className="hover:underline">
+          <ListingProductLink
+            href={`/shop/${slug}`}
+            productId={id}
+            className="hover:underline"
+          >
             {name}
-          </Link>
+          </ListingProductLink>
         </CardTitle>
 
         <div className="hidden md:block">

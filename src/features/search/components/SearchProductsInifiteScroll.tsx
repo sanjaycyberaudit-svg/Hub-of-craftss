@@ -2,8 +2,12 @@
 
 import type { StorefrontProductSearchResult } from "@/lib/storefront/product-queries";
 import { buildShopSearchVariables } from "@/lib/storefront/search-params";
-import { ReadonlyURLSearchParams, useSearchParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useListingNavigationState } from "@/hooks/useListingNavigationState";
+import {
+  ReadonlyURLSearchParams,
+  usePathname,
+  useSearchParams,
+} from "next/navigation";
 import SearchResultPage from "./SearchResultPage";
 
 interface SearchProductsInifiteScrollProps {
@@ -20,15 +24,14 @@ function SearchProductsInifiteScroll({
   initialPackLabels,
 }: SearchProductsInifiteScrollProps) {
   const searchParmas = useSearchParams();
+  const pathname = usePathname();
   const varaibles = searchParamsVariablesFactory(searchParmas, collectionId);
+  const listingKey = `${pathname}?${searchParmas.toString()}`;
 
-  const [pageVariables, setPageVariables] = useState([varaibles]);
-
-  useEffect(() => {
-    setPageVariables([
-      searchParamsVariablesFactory(searchParmas, collectionId),
-    ]);
-  }, [searchParmas, collectionId]);
+  const [pageVariables, setPageVariables] = useListingNavigationState(
+    listingKey,
+    () => [varaibles],
+  );
 
   const loadMoreHandler = (after: string) => {
     setPageVariables((prev) => {
