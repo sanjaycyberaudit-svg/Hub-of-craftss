@@ -4,8 +4,10 @@ import { SearchProductsGridSkeleton } from "@/features/products";
 import { FeaturedProductsScroll } from "@/features/search";
 import { Suspense } from "react";
 import { Metadata } from "next";
+import { SectionErrorNotice } from "@/components/errors/SectionErrorNotice";
 import { STOREFRONT_REVALIDATE_SECONDS } from "@/lib/cache/constants";
-import { getDraftProductIdsCached } from "@/lib/storefront/draft-product-ids";
+import { withFallback } from "@/lib/resilience";
+import { getDraftProductIdsSafe } from "@/lib/storefront/draft-product-ids";
 import { fetchFeaturedProductsCached } from "@/lib/storefront/product-queries";
 import { getProductPackLabelsByIds } from "@/lib/products/pack.server";
 
@@ -30,11 +32,19 @@ const FEATURED_PAGE_SIZE = 12;
 
 async function FeaturedProductsPage() {
   const variables = { first: FEATURED_PAGE_SIZE, after: undefined };
-  const [productsCollection, initialDraftIds] = await Promise.all([
-    fetchFeaturedProductsCached(variables),
-    getDraftProductIdsCached(),
+  const [featured, initialDraftIds] = await Promise.all([
+    withFallback<Awaited<
+      ReturnType<typeof fetchFeaturedProductsCached>
+    > | null>(
+      "featured:products",
+      () => fetchFeaturedProductsCached(variables),
+      null,
+    ),
+    getDraftProductIdsSafe(),
   ]);
 
+  const featuredUnavailable = featured === null || initialDraftIds === null;
+  const productsCollection = featured ?? null;
   const initialProductIds =
     productsCollection?.edges?.map(({ node }) => node.id) ?? [];
   const initialPackLabels = await getProductPackLabelsByIds(initialProductIds);
@@ -46,13 +56,20 @@ async function FeaturedProductsPage() {
         description="Our handpicked craft supplies — materials for make, craft, create"
       />
 
-      <Suspense fallback={<SearchProductsGridSkeleton />}>
-        <FeaturedProductsScroll
-          initialData={{ productsCollection }}
-          initialDraftIds={initialDraftIds}
-          initialPackLabels={initialPackLabels}
+      {featuredUnavailable ? (
+        <SectionErrorNotice
+          title="We could not load featured products"
+          description="This is usually temporary. Please try again in a moment."
         />
-      </Suspense>
+      ) : (
+        <Suspense fallback={<SearchProductsGridSkeleton />}>
+          <FeaturedProductsScroll
+            initialData={{ productsCollection }}
+            initialDraftIds={initialDraftIds ?? []}
+            initialPackLabels={initialPackLabels}
+          />
+        </Suspense>
+      )}
     </Shell>
   );
 }

@@ -6,11 +6,16 @@ import {
   FilterSelections,
   SearchProductsInifiteScroll,
 } from "@/features/search";
+import { SectionErrorNotice } from "@/components/errors/SectionErrorNotice";
 import { STOREFRONT_REVALIDATE_SECONDS } from "@/lib/cache/constants";
 import { getProductPackLabelsByIds } from "@/lib/products/pack.server";
+import { withFallback } from "@/lib/resilience";
 import { getAllCollectionsCached } from "@/lib/storefront/collections-list";
-import { getDraftProductIdsCached } from "@/lib/storefront/draft-product-ids";
-import { fetchProductSearchCached } from "@/lib/storefront/product-queries";
+import { getDraftProductIdsSafe } from "@/lib/storefront/draft-product-ids";
+import {
+  fetchProductSearchCached,
+  type StorefrontProductSearchResult,
+} from "@/lib/storefront/product-queries";
 import {
   buildShopSearchVariables,
   formatShopPriceRangeHeading,
@@ -45,13 +50,21 @@ async function ProductsPage({ searchParams }: ProductsPageProps) {
   const resolvedSearchParams = await searchParams;
   const variables = buildShopSearchVariables(resolvedSearchParams);
   const priceHeading = formatShopPriceRangeHeading(resolvedSearchParams);
-  const [initialSearchResult, initialDraftIds, collectionsData] =
-    await Promise.all([
-      fetchProductSearchCached(variables),
-      getDraftProductIdsCached(),
-      getAllCollectionsCached(),
-    ]);
+  const [searchResult, initialDraftIds, collectionsData] = await Promise.all([
+    withFallback<StorefrontProductSearchResult | null>(
+      "shop:search",
+      () => fetchProductSearchCached(variables),
+      null,
+    ),
+    getDraftProductIdsSafe(),
+    withFallback("shop:collections", () => getAllCollectionsCached(), null),
+  ]);
 
+  const productsUnavailable = searchResult === null || initialDraftIds === null;
+  const initialSearchResult = searchResult ?? {
+    productsCollection: null,
+    matchingCollections: [],
+  };
   const initialProductIds =
     initialSearchResult?.productsCollection?.edges?.map(
       ({ node }) => node.id,
@@ -86,13 +99,20 @@ async function ProductsPage({ searchParams }: ProductsPageProps) {
         <FilterSelections collectionsSection={collectionsSection} />
       </Suspense>
 
-      <Suspense fallback={<SearchProductsGridSkeleton />}>
-        <SearchProductsInifiteScroll
-          initialSearchResult={initialSearchResult}
-          initialDraftIds={initialDraftIds}
-          initialPackLabels={initialPackLabels}
+      {productsUnavailable ? (
+        <SectionErrorNotice
+          title="We could not load products right now"
+          description="Our catalogue is briefly unavailable. Please try again in a moment."
         />
-      </Suspense>
+      ) : (
+        <Suspense fallback={<SearchProductsGridSkeleton />}>
+          <SearchProductsInifiteScroll
+            initialSearchResult={initialSearchResult}
+            initialDraftIds={initialDraftIds ?? []}
+            initialPackLabels={initialPackLabels}
+          />
+        </Suspense>
+      )}
     </Shell>
   );
 }

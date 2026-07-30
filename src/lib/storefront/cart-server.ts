@@ -14,6 +14,7 @@ import {
   getProductSizeConfigsByProductIds,
   type ProductSizeConfig,
 } from "@/lib/products/sizeConfig";
+import { withFallback } from "@/lib/resilience";
 import { getClient } from "@/lib/urql";
 import { cookies } from "next/headers";
 import {
@@ -48,7 +49,15 @@ export async function prefetchCartSizeConfigs(
   const unique = [...new Set(productIds.filter(Boolean))];
   if (unique.length === 0) return {};
 
-  const configs = await getProductSizeConfigsByProductIds(unique);
+  // Hydration shortcut only — the cart refetches these from /api/products/size-config,
+  // so an empty prefetch degrades to a brief loading state instead of a crash.
+  const configs = await withFallback(
+    "cart:size-configs",
+    () => getProductSizeConfigsByProductIds(unique),
+    new Map<string, ProductSizeConfig>(),
+    { attempts: 1 },
+  );
+
   const payload: Record<string, CartSizeConfigPayload> = {};
   unique.forEach((id) => {
     payload[id] = toApiSizePayload(

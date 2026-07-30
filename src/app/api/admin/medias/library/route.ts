@@ -47,9 +47,8 @@ export async function GET(request: NextRequest) {
     searchParams.get("section") === "banner" ? "banner" : "product";
 
   try {
-    const payload = await withDbAsync(() =>
-      fetchMediaLibraryPage({ page, limit, section }),
-    );
+    // Page payload is cached inside fetchMediaLibraryPage with its own DB scope.
+    const payload = await fetchMediaLibraryPage({ page, limit, section });
     return NextResponse.json(payload, {
       headers: {
         "Cache-Control": "private, no-store",

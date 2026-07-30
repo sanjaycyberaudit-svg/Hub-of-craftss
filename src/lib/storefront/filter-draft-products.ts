@@ -1,4 +1,4 @@
-import { getDraftProductIdsCached } from "@/lib/storefront/draft-product-ids";
+import { getDraftProductIdsSafe } from "@/lib/storefront/draft-product-ids";
 
 type ProductEdge = {
   node: { id: string };
@@ -9,15 +9,23 @@ type ProductsCollection = {
   pageInfo?: unknown;
 } | null;
 
-export async function getDraftProductIdSet(): Promise<Set<string>> {
-  return new Set(await getDraftProductIdsCached());
+/** `null` means the draft list is unavailable; treat every product as unsafe. */
+export async function getDraftProductIdSet(): Promise<Set<string> | null> {
+  const ids = await getDraftProductIdsSafe();
+  return ids === null ? null : new Set(ids);
 }
 
 export function filterDraftEdges<T extends ProductsCollection>(
   collection: T,
-  draftIds: Set<string>,
+  draftIds: Set<string> | null,
 ): T {
-  if (!collection?.edges?.length || draftIds.size === 0) return collection;
+  if (!collection?.edges?.length) return collection;
+
+  if (draftIds === null) {
+    return { ...collection, edges: [] } as T;
+  }
+
+  if (draftIds.size === 0) return collection;
 
   return {
     ...collection,

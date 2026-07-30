@@ -28,11 +28,15 @@ import {
   ProductPriceDisplay,
 } from "@/features/products/components/ProductPriceDisplay";
 import { getEffectiveProductPrice } from "@/lib/products/discount";
-import { formatProductPackLabel } from "@/lib/products/pack";
+import {
+  formatProductPackLabel,
+  type ProductPackFields,
+} from "@/lib/products/pack";
 import {
   getProductPackFieldsByIds,
   getProductPackLabelsByIds,
 } from "@/lib/products/pack.server";
+import { withFallback } from "@/lib/resilience";
 import { toProductDiscountFields } from "@/lib/products/pricing";
 import { getCartProductPricingByIds } from "@/lib/storefront/cart-pricing";
 import { keytoUrl } from "@/lib/utils";
@@ -99,9 +103,15 @@ async function ProductDetailPage({ params }: Props) {
     data.recommendations?.edges?.map(({ node }) => node.id) ?? [];
   const [sizeConfig, livePricing, packFieldsById, recommendationPackLabels] =
     await Promise.all([
+      // Variant data gates add-to-cart, so it must not silently degrade.
       getProductSizeConfig(id),
-      getCartProductPricingByIds([id]),
-      getProductPackFieldsByIds([id]),
+      // Presentation-only enrichment: fall back to the values already in `node`.
+      withFallback("pdp:pricing", () => getCartProductPricingByIds([id]), {}),
+      withFallback(
+        "pdp:pack-fields",
+        () => getProductPackFieldsByIds([id]),
+        new Map<string, ProductPackFields>(),
+      ),
       getProductPackLabelsByIds(recommendationIds),
     ]);
   const packLabel = formatProductPackLabel(packFieldsById.get(id));

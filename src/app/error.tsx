@@ -1,6 +1,8 @@
 "use client";
 
 import { ErrorPageShell } from "@/components/errors/ErrorPageShell";
+import { ErrorRetrying } from "@/components/errors/ErrorRetrying";
+import { useErrorAutoRetry } from "@/components/errors/useErrorAutoRetry";
 import { publicErrorMessage } from "@/lib/api/public-error";
 import { useEffect } from "react";
 
@@ -14,6 +16,9 @@ export default function RootError({
   useEffect(() => {
     console.error("[app/error]", error.digest, error);
   }, [error]);
+
+  const isRetrying = useErrorAutoRetry(error, reset);
+  if (isRetrying) return <ErrorRetrying />;
 
   return (
     <ErrorPageShell

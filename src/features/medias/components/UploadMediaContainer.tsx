@@ -8,12 +8,16 @@ import {
   uploadFileIdentityKey,
   uploadMediaFilesQueue,
 } from "@/lib/admin/client-image-upload";
-import { fetchWithTimeout } from "@/lib/network/fetchWithTimeout";
+import { fetchWithRetry } from "@/lib/network/fetchWithTimeout";
 import { FileWithPreview } from "@/types";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { FileWithPath, useDropzone } from "react-dropzone";
 import ImagesGrid from "./ImageGrid";
 import ImageGridSkeleton from "./ImageGridSkeleton";
+import {
+  galleryLoadErrorMessage,
+  isAbortLikeError,
+} from "../lib/gallery-load-error";
 
 interface UploadMediaContainerProps {
   onClickItemsHandler: (mediaId: string) => void;
@@ -81,6 +85,8 @@ function UploadMediaContainer({
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const loadInFlightRef = useRef(false);
+  const loadAbortRef = useRef<AbortController | null>(null);
+  const loadGenerationRef = useRef(0);
 
   const removeUploadingPreviews = useCallback((files: File[]) => {
     if (files.length === 0) return;
@@ -112,11 +118,18 @@ function UploadMediaContainer({
       const reset = options?.reset ?? targetPage === 1;
       const soft = Boolean(options?.soft);
       if (loadInFlightRef.current && !reset) return;
+
+      loadAbortRef.current?.abort();
+      const controller = new AbortController();
+      loadAbortRef.current = controller;
+      const generation = loadGenerationRef.current + 1;
+      loadGenerationRef.current = generation;
+
       loadInFlightRef.current = true;
+      setLoadError(null);
 
       if (reset && !soft) {
         setIsLoading(true);
-        setLoadError(null);
       } else if (!reset) {
         setIsLoadingMore(true);
       }
@@ -126,12 +139,16 @@ function UploadMediaContainer({
           page: String(targetPage),
           limit: String(GALLERY_PAGE_SIZE),
           section: "product",
-          _t: String(Date.now()),
         });
-        const res = await fetchWithTimeout(
+        const res = await fetchWithRetry(
           `/api/admin/medias/library?${params.toString()}`,
-          { cache: "no-store", credentials: "same-origin" },
+          {
+            cache: "no-store",
+            credentials: "same-origin",
+            signal: controller.signal,
+          },
         );
+        if (generation !== loadGenerationRef.current) return;
         if (!res.ok) {
           throw new Error("Could not load media library.");
         }
@@ -140,6 +157,8 @@ function UploadMediaContainer({
           medias: { id: string; key: string; alt: string }[];
           pageInfo: { page: number; hasNextPage: boolean };
         };
+
+        if (generation !== loadGenerationRef.current) return;
 
         const edges: MediaEdge[] = (payload.medias ?? []).map((media) => ({
           node: {
@@ -177,14 +196,19 @@ function UploadMediaContainer({
         });
         setLoadError(null);
       } catch (error) {
-        const message =
-          error instanceof Error ? error.message : "Could not load images.";
-        setLoadError(message);
+        if (generation !== loadGenerationRef.current) return;
+        // Remount / superseded request — not a user-facing failure.
+        if (controller.signal.aborted && isAbortLikeError(error)) {
+          return;
+        }
+        setLoadError(galleryLoadErrorMessage(error));
         if (reset && !soft) setAccumulatedEdges([]);
       } finally {
-        setIsLoading(false);
-        setIsLoadingMore(false);
-        loadInFlightRef.current = false;
+        if (generation === loadGenerationRef.current) {
+          setIsLoading(false);
+          setIsLoadingMore(false);
+          loadInFlightRef.current = false;
+        }
       }
     },
     [],
@@ -197,6 +221,12 @@ function UploadMediaContainer({
       page: 1,
       soft: Boolean(readGalleryCache()),
     });
+
+    return () => {
+      loadGenerationRef.current += 1;
+      loadAbortRef.current?.abort();
+      loadInFlightRef.current = false;
+    };
   }, [loadLibrary]);
 
   const loadMore = useCallback(() => {
@@ -316,10 +346,33 @@ function UploadMediaContainer({
 
   const isInitialLoading = isLoading && accumulatedEdges.length === 0;
 
+  const statusLabel = (() => {
+    if (isInitialLoading) return "Loading gallery...";
+    if (accumulatedEdges.length > 0) {
+      return `${accumulatedEdges.length} image(s) loaded`;
+    }
+    if (loadError) return "Gallery unavailable";
+    return "No images yet";
+  })();
+
   return (
     <div className="flex min-h-0 flex-col">
       {loadError ? (
-        <p className="mb-2 text-sm text-destructive">{loadError}</p>
+        <div className="mb-2 flex items-center justify-between gap-2">
+          <p className="text-sm text-destructive">{loadError}</p>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="h-7 shrink-0 px-2 text-xs"
+            disabled={isLoading || isLoadingMore}
+            onClick={() =>
+              void loadLibrary({ reset: true, page: 1, soft: false })
+            }
+          >
+            Try again
+          </Button>
+        </div>
       ) : null}
 
       {uploadMessage ? (
@@ -327,11 +380,7 @@ function UploadMediaContainer({
       ) : null}
 
       <div className="mb-2 flex items-center justify-between gap-2 text-xs text-muted-foreground">
-        <span>
-          {accumulatedEdges.length > 0
-            ? `${accumulatedEdges.length} image(s) loaded`
-            : "Loading gallery..."}
-        </span>
+        <span>{statusLabel}</span>
         {hasNextPage ? (
           <Button
             type="button"

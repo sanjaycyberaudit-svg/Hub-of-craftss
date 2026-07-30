@@ -1,4 +1,4 @@
-import db from "@/lib/supabase/db";
+import db, { withDbAsync } from "@/lib/supabase/db";
 import {
   apiSettings,
   collections,
@@ -39,6 +39,18 @@ export type MediaLibraryRow = {
   usage: MediaUsageSummary;
 };
 
+export type MediaLibraryPagePayload = {
+  medias: MediaLibraryRow[];
+  pageInfo: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+    hasNextPage: boolean;
+  };
+  counts: { total: number; banner: number; product: number };
+};
+
 export function parseBannerMediaIds(settingValue: unknown): Set<string> {
   const value = (settingValue ?? {}) as Record<string, unknown>;
   const slides = Array.isArray(value.slides) ? value.slides : [];
@@ -50,38 +62,52 @@ export function parseBannerMediaIds(settingValue: unknown): Set<string> {
   return new Set(ids);
 }
 
-const getBannerMediaIdsCached = unstable_cache(
-  async () => {
-    const bannerSetting = await db.query.apiSettings.findFirst({
-      where: eq(apiSettings.key, "home_banner_slides"),
-    });
-    return [...parseBannerMediaIds(bannerSetting?.value)];
-  },
-  ["admin-media-banner-ids"],
-  { revalidate: ADMIN_MEDIA_CACHE_SECONDS, tags: ["admin-media-library"] },
-);
+type BannerMeta = {
+  bannerIdList: string[];
+  slides: unknown[];
+  settingRow: typeof apiSettings.$inferSelect | null;
+};
 
-export async function getMediaSectionCounts() {
-  const bannerIds = await getBannerMediaIdsCached();
+/** One read of home_banner_slides for ids + slide usage. */
+async function loadBannerMeta(): Promise<BannerMeta> {
+  const settingRow =
+    (await db.query.apiSettings.findFirst({
+      where: eq(apiSettings.key, "home_banner_slides"),
+    })) ?? null;
+  const value = (settingRow?.value ?? {}) as Record<string, unknown>;
+  const slides = Array.isArray(value.slides) ? value.slides : [];
+  const bannerIdList = [...parseBannerMediaIds(settingRow?.value)];
+  return { bannerIdList, slides, settingRow };
+}
+
+async function loadSectionCounts(bannerIdList: string[]) {
   const [totalRow] = await db.select({ value: count() }).from(medias);
   const total = Number(totalRow?.value ?? 0);
 
-  if (bannerIds.length === 0) {
+  if (bannerIdList.length === 0) {
     return { total, banner: 0, product: total };
   }
 
   const [bannerRow] = await db
     .select({ value: count() })
     .from(medias)
-    .where(inArray(medias.id, bannerIds));
+    .where(inArray(medias.id, bannerIdList));
 
   const banner = Number(bannerRow?.value ?? 0);
   return { total, banner, product: Math.max(0, total - banner) };
 }
 
+export async function getMediaSectionCounts() {
+  return withDbAsync(async () => {
+    const { bannerIdList } = await loadBannerMeta();
+    return loadSectionCounts(bannerIdList);
+  });
+}
+
 async function loadUsageForMediaIds(
   mediaIds: string[],
   bannerIds: Set<string>,
+  slides: unknown[],
 ) {
   const usageByMedia = new Map<
     string,
@@ -92,22 +118,13 @@ async function loadUsageForMediaIds(
     return usageByMedia;
   }
 
+  const mediaIdSet = new Set(mediaIds);
   const bannerSlideCountMap = new Map<string, number>();
-
-  const bannerSetting = await db.query.apiSettings.findFirst({
-    where: eq(apiSettings.key, "home_banner_slides"),
-  });
-  const slides = Array.isArray(
-    (bannerSetting?.value as Record<string, unknown>)?.slides,
-  )
-    ? ((bannerSetting?.value as Record<string, unknown>).slides as unknown[]) ??
-      []
-    : [];
   for (const slide of slides) {
     const id = String(
       (slide as Record<string, unknown>).imageMediaId ?? "",
     ).trim();
-    if (!id || !mediaIds.includes(id)) continue;
+    if (!id || !mediaIdSet.has(id)) continue;
     bannerSlideCountMap.set(id, (bannerSlideCountMap.get(id) ?? 0) + 1);
   }
 
@@ -185,24 +202,24 @@ async function loadUsageForMediaIds(
   return usageByMedia;
 }
 
-export async function fetchMediaLibraryPage(params: {
+async function loadMediaLibraryPageUncached(params: {
   page: number;
   limit: number;
   section: MediaSection;
-}) {
+}): Promise<MediaLibraryPagePayload> {
   const page = Math.max(1, params.page);
   const limit = Math.min(ADMIN_MEDIA_PAGE_SIZE, Math.max(12, params.limit));
   const offset = (page - 1) * limit;
 
-  const bannerIdList = await getBannerMediaIdsCached();
+  const { bannerIdList, slides } = await loadBannerMeta();
   const bannerIds = new Set(bannerIdList);
-  const counts = await getMediaSectionCounts();
+  const counts = await loadSectionCounts(bannerIdList);
   const sectionTotal =
     params.section === "banner" ? counts.banner : counts.product;
 
   if (sectionTotal === 0) {
     return {
-      medias: [] as MediaLibraryRow[],
+      medias: [],
       pageInfo: {
         page,
         limit,
@@ -237,7 +254,7 @@ export async function fetchMediaLibraryPage(params: {
     .offset(offset);
 
   const mediaIds = mediaRows.map((row) => row.id);
-  const usageByMedia = await loadUsageForMediaIds(mediaIds, bannerIds);
+  const usageByMedia = await loadUsageForMediaIds(mediaIds, bannerIds, slides);
 
   const totalPages = Math.ceil(sectionTotal / limit);
 
@@ -267,19 +284,41 @@ export async function fetchMediaLibraryPage(params: {
   };
 }
 
+/**
+ * Cached page payload. Loader opens its own request-scoped DB so Next Data Cache
+ * misses never share a TCP client across isolates/requests.
+ */
+export async function fetchMediaLibraryPage(params: {
+  page: number;
+  limit: number;
+  section: MediaSection;
+}): Promise<MediaLibraryPagePayload> {
+  const page = Math.max(1, params.page);
+  const limit = Math.min(ADMIN_MEDIA_PAGE_SIZE, Math.max(12, params.limit));
+  const section = params.section;
+
+  const cachedLoader = unstable_cache(
+    () =>
+      withDbAsync(() => loadMediaLibraryPageUncached({ page, limit, section })),
+    ["admin-media-page", section, String(page), String(limit)],
+    {
+      revalidate: ADMIN_MEDIA_CACHE_SECONDS,
+      tags: ["admin-media-library"],
+    },
+  );
+
+  return cachedLoader();
+}
+
 /** Full usage map for delete validation (batch by media ids). */
 export async function loadMediaUsageForDelete(mediaIds: string[]) {
-  const bannerIdList = await getBannerMediaIdsCached();
+  const { bannerIdList, slides, settingRow } = await loadBannerMeta();
   const bannerIds = new Set(bannerIdList);
-  const usageByMedia = await loadUsageForMediaIds(mediaIds, bannerIds);
-
-  const bannerSetting = await db.query.apiSettings.findFirst({
-    where: eq(apiSettings.key, "home_banner_slides"),
-  });
+  const usageByMedia = await loadUsageForMediaIds(mediaIds, bannerIds, slides);
 
   return {
     usageByMedia,
-    bannerSetting,
+    bannerSetting: settingRow,
     bannerIds,
   };
 }

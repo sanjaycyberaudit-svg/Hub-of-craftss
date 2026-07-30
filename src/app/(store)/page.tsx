@@ -11,7 +11,8 @@ import {
 } from "@/features/storefront/components";
 import { heroSlides } from "@/config/heroSlides";
 import { getHomeBannerSlidesCached } from "@/lib/integrations/settings";
-import { getDraftProductIdsCached } from "@/lib/storefront/draft-product-ids";
+import { withTimeoutFallback } from "@/lib/resilience";
+import { getDraftProductIdsSafe } from "@/lib/storefront/draft-product-ids";
 import { getLandingPageDataCached } from "@/lib/storefront/landing-data";
 import { getShopByPriceBucketsCached } from "@/lib/storefront/shop-by-price";
 import { getProductPackLabelsByIds } from "@/lib/products/pack.server";
@@ -36,44 +37,50 @@ export const metadata: Metadata = {
   },
 };
 
-async function withTimeout<T>(
-  promise: Promise<T>,
-  ms: number,
-  fallback: T,
-  label: string,
-): Promise<T> {
-  let timeoutId: ReturnType<typeof setTimeout> | undefined;
-  try {
-    return await Promise.race([
-      promise,
-      new Promise<T>((resolve) => {
-        timeoutId = setTimeout(() => {
-          console.error(`[home] ${label} timed out after ${ms}ms`);
-          resolve(fallback);
-        }, ms);
-      }),
-    ]);
-  } finally {
-    if (timeoutId) clearTimeout(timeoutId);
-  }
-}
+const SECTION_TIMEOUT_MS = 5000;
 
 export default async function Home() {
   const [homeBannerSlides, data, draftProductIds, priceBuckets] =
     await Promise.all([
-      withTimeout(getHomeBannerSlidesCached(), 5000, null, "homeBanner"),
-      withTimeout(getLandingPageDataCached(), 5000, null, "landing"),
-      withTimeout(getDraftProductIdsCached(), 5000, [], "drafts"),
-      withTimeout(getShopByPriceBucketsCached(), 5000, [], "priceBuckets"),
+      withTimeoutFallback(
+        "home:banner",
+        getHomeBannerSlidesCached(),
+        SECTION_TIMEOUT_MS,
+        null,
+      ),
+      withTimeoutFallback(
+        "home:landing",
+        getLandingPageDataCached(),
+        SECTION_TIMEOUT_MS,
+        null,
+      ),
+      withTimeoutFallback<string[] | null>(
+        "home:drafts",
+        getDraftProductIdsSafe(),
+        SECTION_TIMEOUT_MS,
+        null,
+      ),
+      withTimeoutFallback<
+        Awaited<ReturnType<typeof getShopByPriceBucketsCached>>
+      >(
+        "home:priceBuckets",
+        getShopByPriceBucketsCached(),
+        SECTION_TIMEOUT_MS,
+        [],
+      ),
     ]);
 
   // Contact comes from store layout providers; use site default for this section only.
   const phone = siteConfig.phone;
 
-  const draftIds = new Set(draftProductIds);
+  // Without the draft list we cannot prove a product is publishable, so the
+  // reels section stays empty rather than risking an unfinished listing.
+  const draftIds = draftProductIds === null ? null : new Set(draftProductIds);
   const products = data?.products;
   const featuredProducts =
-    products?.edges?.filter((edge) => !draftIds.has(edge.node.id)) ?? [];
+    draftIds === null
+      ? []
+      : products?.edges?.filter((edge) => !draftIds.has(edge.node.id)) ?? [];
   const collectionScrollCards = data?.collectionScrollCards;
   const homeTestimonials = data?.homeTestimonials;
   const slides = homeBannerSlides?.length ? homeBannerSlides : heroSlides;

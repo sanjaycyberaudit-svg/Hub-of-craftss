@@ -9,8 +9,13 @@ import {
 } from "@/features/search";
 import { STOREFRONT_REVALIDATE_SECONDS } from "@/lib/cache/constants";
 import { getCollectionPageCached } from "@/lib/storefront/collection-detail";
-import { getDraftProductIdsCached } from "@/lib/storefront/draft-product-ids";
-import { fetchProductSearchCached } from "@/lib/storefront/product-queries";
+import { SectionErrorNotice } from "@/components/errors/SectionErrorNotice";
+import { withFallback } from "@/lib/resilience";
+import { getDraftProductIdsSafe } from "@/lib/storefront/draft-product-ids";
+import {
+  fetchProductSearchCached,
+  type StorefrontProductSearchResult,
+} from "@/lib/storefront/product-queries";
 import { buildShopSearchVariables } from "@/lib/storefront/search-params";
 import { getProductPackLabelsByIds } from "@/lib/products/pack.server";
 import { toTitleCase, unslugify } from "@/lib/utils";
@@ -66,11 +71,20 @@ async function CategoryPage({ params, searchParams }: CategoryPageProps) {
     resolvedSearchParams,
     collection.id,
   );
-  const [initialSearchResult, initialDraftIds] = await Promise.all([
-    fetchProductSearchCached(variables),
-    getDraftProductIdsCached(),
+  const [searchResult, initialDraftIds] = await Promise.all([
+    withFallback<StorefrontProductSearchResult | null>(
+      "collection:search",
+      () => fetchProductSearchCached(variables),
+      null,
+    ),
+    getDraftProductIdsSafe(),
   ]);
 
+  const productsUnavailable = searchResult === null || initialDraftIds === null;
+  const initialSearchResult = searchResult ?? {
+    productsCollection: null,
+    matchingCollections: [],
+  };
   const initialProductIds =
     initialSearchResult?.productsCollection?.edges?.map(
       ({ node }) => node.id,
@@ -96,14 +110,21 @@ async function CategoryPage({ params, searchParams }: CategoryPageProps) {
         <FilterSelections shopLayout={false} />
       </Suspense>
 
-      <Suspense fallback={<SearchProductsGridSkeleton />}>
-        <SearchProductsInifiteScroll
-          collectionId={collection.id}
-          initialSearchResult={initialSearchResult}
-          initialDraftIds={initialDraftIds}
-          initialPackLabels={initialPackLabels}
+      {productsUnavailable ? (
+        <SectionErrorNotice
+          title="We could not load products in this collection"
+          description="This is usually temporary. Please try again in a moment."
         />
-      </Suspense>
+      ) : (
+        <Suspense fallback={<SearchProductsGridSkeleton />}>
+          <SearchProductsInifiteScroll
+            collectionId={collection.id}
+            initialSearchResult={initialSearchResult}
+            initialDraftIds={initialDraftIds ?? []}
+            initialPackLabels={initialPackLabels}
+          />
+        </Suspense>
+      )}
     </Shell>
   );
 }

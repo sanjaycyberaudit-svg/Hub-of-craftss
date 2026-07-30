@@ -50,6 +50,7 @@ export async function fetchWithRetry(
       lastError = new Error(`Server error (${response.status}).`);
     } catch (error) {
       lastError = error;
+      if (rest.signal?.aborted) break;
     }
 
     if (attempt < retries) {
