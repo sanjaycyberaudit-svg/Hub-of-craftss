@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
@@ -17,6 +17,7 @@ import {
   fetchWithRetry,
   fetchWithTimeout,
 } from "@/lib/network/fetchWithTimeout";
+import { useInfiniteScrollSentinel } from "@/hooks/useInfiniteScrollSentinel";
 import { cn, keytoUrl } from "@/lib/utils";
 
 type MediaSection = "banner" | "product";
@@ -156,6 +157,21 @@ export function AdminMediaManager() {
     void loadLibrary({ reset: true, page: 1, section: activeSection });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeSection]);
+
+  const requestMore = useCallback(() => {
+    if (!hasNextPage || isLoading || isLoadingMore) return;
+    void loadLibrary({
+      reset: false,
+      page: page + 1,
+      section: activeSection,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hasNextPage, isLoading, isLoadingMore, page, activeSection]);
+
+  const loadMoreSentinelRef = useInfiniteScrollSentinel({
+    enabled: hasNextPage && !isLoading && !isLoadingMore,
+    onLoadMore: requestMore,
+  });
 
   useEffect(() => {
     setSelectedIds((prev) => prev.filter((id) => sectionItemIds.has(id)));
@@ -582,27 +598,15 @@ export function AdminMediaManager() {
           </div>
 
           {hasNextPage ? (
-            <div className="flex justify-center pt-2">
-              <Button
-                type="button"
-                variant="outline"
-                disabled={isLoadingMore}
-                onClick={() =>
-                  void loadLibrary({
-                    reset: false,
-                    page: page + 1,
-                    section: activeSection,
-                  })
-                }
-              >
-                <LoadingButtonLabel
-                  isLoading={isLoadingMore}
-                  loadingText="Loading..."
-                  idleText={`Load more (${sectionItems.length} of ${
-                    activeSection === "banner" ? bannerCount : productCount
-                  })`}
-                />
-              </Button>
+            <div
+              ref={loadMoreSentinelRef}
+              className="flex min-h-10 justify-center pt-2"
+            >
+              {isLoadingMore ? (
+                <p className="text-xs text-muted-foreground">
+                  Loading more images…
+                </p>
+              ) : null}
             </div>
           ) : null}
         </>

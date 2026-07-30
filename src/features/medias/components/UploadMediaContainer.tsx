@@ -239,20 +239,38 @@ function UploadMediaContainer({
   useEffect(() => {
     const root = scrollRef.current;
     const sentinel = loadMoreSentinelRef.current;
-    if (!root || !sentinel || !hasNextPage) return;
+    if (
+      !root ||
+      !sentinel ||
+      !hasNextPage ||
+      isLoading ||
+      isLoadingMore ||
+      loadInFlightRef.current
+    ) {
+      return;
+    }
 
+    let armed = true;
     const observer = new IntersectionObserver(
       (entries) => {
+        if (!armed) return;
         if (entries.some((entry) => entry.isIntersecting)) {
+          armed = false;
           loadMore();
         }
       },
-      { root, rootMargin: "160px", threshold: 0.1 },
+      { root, rootMargin: "160px", threshold: 0 },
     );
 
     observer.observe(sentinel);
     return () => observer.disconnect();
-  }, [hasNextPage, loadMore, accumulatedEdges.length]);
+  }, [
+    hasNextPage,
+    isLoading,
+    isLoadingMore,
+    loadMore,
+    accumulatedEdges.length,
+  ]);
 
   const onDrop = async (acceptedFiles: FileWithPath[]) => {
     if (acceptedFiles.length === 0 || isUploading) return;
@@ -381,18 +399,6 @@ function UploadMediaContainer({
 
       <div className="mb-2 flex items-center justify-between gap-2 text-xs text-muted-foreground">
         <span>{statusLabel}</span>
-        {hasNextPage ? (
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            className="h-7 px-2 text-xs"
-            disabled={isLoading || isLoadingMore}
-            onClick={loadMore}
-          >
-            Load more
-          </Button>
-        ) : null}
       </div>
 
       <div
@@ -417,23 +423,15 @@ function UploadMediaContainer({
             {hasNextPage ? (
               <div
                 ref={loadMoreSentinelRef}
-                className="flex justify-center py-4"
+                className="flex min-h-10 justify-center py-4"
+                aria-hidden={isLoadingMore || isLoading}
               >
                 {isLoadingMore || isLoading ? (
                   <div className="flex items-center gap-2 text-xs text-muted-foreground">
                     <Spinner />
-                    Loading more...
+                    Loading more…
                   </div>
-                ) : (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={loadMore}
-                  >
-                    Load more images
-                  </Button>
-                )}
+                ) : null}
               </div>
             ) : null}
 

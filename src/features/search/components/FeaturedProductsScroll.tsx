@@ -22,7 +22,10 @@ export function FeaturedProductsScroll({
   ]);
 
   const loadMoreHandler = (after: string) => {
-    setPageVariables((prev) => [...prev, { first: PAGE_SIZE, after }]);
+    setPageVariables((prev) => {
+      if (prev.some((page) => page.after === after)) return prev;
+      return [...prev, { first: PAGE_SIZE, after }];
+    });
   };
 
   return (

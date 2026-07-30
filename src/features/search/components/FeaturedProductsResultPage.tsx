@@ -1,7 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
-import { Button } from "@/components/ui/button";
+import { useCallback, useMemo } from "react";
 import { ProductCard, ProductCardFragment } from "@/features/products";
 import { DocumentType } from "@/gql";
 import {
@@ -10,6 +9,7 @@ import {
   type StorefrontProductsInitialData,
 } from "@/hooks/useStorefrontProducts";
 import { useProductPackLabels } from "@/hooks/useProductPackLabels";
+import { useInfiniteScrollSentinel } from "@/hooks/useInfiniteScrollSentinel";
 import SearchProductsGridSkeleton from "./SearchProductsGridSkeleton";
 
 type ProductNode = DocumentType<typeof ProductCardFragment>;
@@ -50,6 +50,23 @@ export function FeaturedProductsResultPage({
   );
   const packLabels = useProductPackLabels(visibleIds, initialPackLabels);
 
+  const endCursor = productsCollection?.pageInfo?.endCursor ?? "";
+  const canLoadMore = Boolean(
+    isLastPage &&
+      productsCollection?.pageInfo?.hasNextPage &&
+      endCursor &&
+      !fetching &&
+      draftLoaded,
+  );
+  const requestMore = useCallback(() => {
+    if (!endCursor) return;
+    onLoadMore(endCursor);
+  }, [endCursor, onLoadMore]);
+  const sentinelRef = useInfiniteScrollSentinel({
+    enabled: canLoadMore,
+    onLoadMore: requestMore,
+  });
+
   const showSkeleton =
     ((fetching && !productsCollection) || !draftLoaded) && !productsCollection;
 
@@ -82,17 +99,19 @@ export function FeaturedProductsResultPage({
         </section>
       )}
 
-      {isLastPage && productsCollection.pageInfo.hasNextPage && (
-        <div className="w-full flex justify-center items-center mt-3">
-          <Button
-            onClick={() =>
-              onLoadMore(productsCollection.pageInfo.endCursor ?? "")
-            }
-          >
-            load more
-          </Button>
+      {isLastPage && productsCollection.pageInfo.hasNextPage ? (
+        <div
+          ref={sentinelRef}
+          className="flex min-h-10 w-full items-center justify-center py-4"
+          aria-hidden={!canLoadMore}
+        >
+          {fetching || canLoadMore ? (
+            <p className="text-xs text-muted-foreground">
+              Loading more products…
+            </p>
+          ) : null}
         </div>
-      )}
+      ) : null}
     </div>
   );
 }

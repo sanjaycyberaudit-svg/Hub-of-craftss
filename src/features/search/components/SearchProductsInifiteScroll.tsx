@@ -31,7 +31,10 @@ function SearchProductsInifiteScroll({
   }, [searchParmas, collectionId]);
 
   const loadMoreHandler = (after: string) => {
-    setPageVariables([...pageVariables, { ...varaibles, after, first: 8 }]);
+    setPageVariables((prev) => {
+      if (prev.some((page) => page.after === after)) return prev;
+      return [...prev, { ...varaibles, after, first: 8 }];
+    });
   };
 
   return (
