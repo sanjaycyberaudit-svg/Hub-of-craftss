@@ -1,6 +1,7 @@
 export const PRODUCT_OPTION_NAME_MAX = 24;
 export const PRODUCT_OPTION_VALUE_MAX = 24;
 export const DEFAULT_PRODUCT_OPTION_NAME = "Size";
+export const LEGACY_OPTION_GROUP_ID = "legacy";
 
 export type ProductSizeOption = {
   /** Option choice label (e.g. XL, WITH MAGNET). */
@@ -18,12 +19,27 @@ export type ProductSizeOption = {
   price: number | null;
 };
 
+export type ProductOptionChoice = ProductSizeOption;
+
+export type ProductOptionGroup = {
+  id: string;
+  /** Admin-defined group name shown on the storefront (Size, Magnet, …). */
+  name: string;
+  options: ProductOptionChoice[];
+};
+
 export type ProductSizeConfig = {
   enabled: boolean;
-  /** Admin-defined group name shown on the storefront (Size, Magnet, …). */
+  groups: ProductOptionGroup[];
+  /**
+   * Legacy mirrors of `groups[0]` so older call sites that still read
+   * `config.name` / `config.options` keep working during the transition.
+   */
   name: string;
   options: ProductSizeOption[];
 };
+
+export type OptionSelections = Record<string, string>;
 
 function normalizeOptionValue(raw: unknown) {
   return String(raw ?? "")
@@ -45,6 +61,13 @@ function normalizeQty(raw: unknown) {
   return Math.max(0, Math.round(parsed * 100) / 100);
 }
 
+function normalizeGroupId(raw: unknown, fallback: string) {
+  const id = String(raw ?? "")
+    .trim()
+    .slice(0, 64);
+  return id || fallback;
+}
+
 /** Money-safe option price; returns null when missing/invalid (legacy rows). */
 export function normalizeOptionPrice(raw: unknown): number | null {
   if (raw == null || raw === "") return null;
@@ -60,27 +83,84 @@ export function readOptionValue(row: Record<string, unknown>): string {
   return normalizeOptionValue(row.size);
 }
 
+function normalizeChoiceRow(row: Record<string, unknown>): ProductOptionChoice | null {
+  const value = readOptionValue(row);
+  const qty = normalizeQty(row.qty);
+  const price = normalizeOptionPrice(row.price);
+  if (!value && qty <= 0 && price == null) return null;
+  return { value, size: value, qty, price };
+}
+
+function normalizeOptionsList(raw: unknown): ProductOptionChoice[] {
+  const optionsRaw = Array.isArray(raw) ? raw : [];
+  const dedup = new Map<string, ProductOptionChoice>();
+  for (const item of optionsRaw) {
+    const choice = normalizeChoiceRow(item as Record<string, unknown>);
+    if (!choice) continue;
+    const dedupKey = choice.value || "__NO_LABEL__";
+    dedup.set(dedupKey, choice);
+  }
+  return Array.from(dedup.values());
+}
+
+function withLegacyMirrors(config: {
+  enabled: boolean;
+  groups: ProductOptionGroup[];
+}): ProductSizeConfig {
+  const first = config.groups[0];
+  return {
+    enabled: config.enabled,
+    groups: config.groups,
+    name: first?.name ?? DEFAULT_PRODUCT_OPTION_NAME,
+    options: first?.options ?? [],
+  };
+}
+
 export function getProductOptionDisplayName(
-  config: Pick<ProductSizeConfig, "name"> | null | undefined,
+  config:
+    | Pick<ProductSizeConfig, "name">
+    | Pick<ProductOptionGroup, "name">
+    | null
+    | undefined,
 ): string {
   return normalizeOptionName(config?.name);
 }
 
+/** Groups that are enabled and have at least one stocked choice. */
+export function getActiveOptionGroups(
+  config: ProductSizeConfig | null | undefined,
+): ProductOptionGroup[] {
+  if (!config?.enabled) return [];
+  return (config.groups ?? []).filter((group) =>
+    group.options.some((option) => Number(option.qty ?? 0) > 0),
+  );
+}
+
+export function getSelectableGroupOptions(
+  group: ProductOptionGroup | null | undefined,
+): ProductOptionChoice[] {
+  if (!group) return [];
+  return group.options.filter((option) => Number(option.qty ?? 0) > 0);
+}
+
+/** @deprecated Prefer getSelectableGroupOptions / getActiveOptionGroups. */
 export function getSelectableProductOptions(
   config: ProductSizeConfig | null | undefined,
 ): ProductSizeOption[] {
-  if (!config?.enabled) return [];
-  return config.options.filter((option) => Number(option.qty ?? 0) > 0);
+  const groups = getActiveOptionGroups(config);
+  if (groups.length === 0) return [];
+  // Legacy callers expect a flat list from the first active group.
+  return getSelectableGroupOptions(groups[0]);
 }
 
-export function findProductSizeOption(
-  config: ProductSizeConfig | null | undefined,
-  selectedSize: string | null | undefined,
-): ProductSizeOption | null {
-  const selectable = getSelectableProductOptions(config);
+export function findChoiceInGroup(
+  group: ProductOptionGroup | null | undefined,
+  selectedValue: string | null | undefined,
+): ProductOptionChoice | null {
+  const selectable = getSelectableGroupOptions(group);
   if (selectable.length === 0) return null;
 
-  const normalized = String(selectedSize ?? "")
+  const normalized = String(selectedValue ?? "")
     .trim()
     .toUpperCase();
   if (normalized) {
@@ -94,12 +174,20 @@ export function findProductSizeOption(
     );
   }
 
-  // Empty-label stock-only option (allowed when a single unlabeled row exists).
   return (
     selectable.find(
       (option) => !String(option.value ?? option.size ?? "").trim(),
     ) ?? null
   );
+}
+
+export function findProductSizeOption(
+  config: ProductSizeConfig | null | undefined,
+  selectedSize: string | null | undefined,
+): ProductSizeOption | null {
+  const groups = getActiveOptionGroups(config);
+  if (groups.length === 0) return null;
+  return findChoiceInGroup(groups[0], selectedSize);
 }
 
 /** Explicit option MRP when set; otherwise null (caller may fall back). */
@@ -111,15 +199,132 @@ export function getOptionListPrice(
 }
 
 /**
+ * Normalize cart selections: prefer `selections` map; fall back to legacy
+ * `size` applied to the first active group.
+ */
+export function resolveOptionSelections(args: {
+  sizeConfig: ProductSizeConfig | null | undefined;
+  selections?: OptionSelections | null;
+  selectedSize?: string | null;
+}): OptionSelections {
+  const groups = getActiveOptionGroups(args.sizeConfig);
+  if (groups.length === 0) return {};
+
+  const fromMap: OptionSelections = {};
+  const raw = args.selections ?? {};
+  for (const group of groups) {
+    const value = String(raw[group.id] ?? "")
+      .trim()
+      .toUpperCase();
+    if (value) fromMap[group.id] = value;
+  }
+
+  if (Object.keys(fromMap).length > 0) return fromMap;
+
+  const legacySize = String(args.selectedSize ?? "")
+    .trim()
+    .toUpperCase();
+  if (legacySize && groups[0]) {
+    return { [groups[0].id]: legacySize };
+  }
+
+  return {};
+}
+
+/** First active group's selected value (legacy `size` mirror). */
+export function getLegacySizeFromSelections(
+  sizeConfig: ProductSizeConfig | null | undefined,
+  selections: OptionSelections | null | undefined,
+): string | undefined {
+  const groups = getActiveOptionGroups(sizeConfig);
+  if (!groups[0]) return undefined;
+  const value = String(selections?.[groups[0].id] ?? "")
+    .trim()
+    .toUpperCase();
+  return value || undefined;
+}
+
+export function areAllOptionGroupsSelected(
+  sizeConfig: ProductSizeConfig | null | undefined,
+  selections: OptionSelections | null | undefined,
+): boolean {
+  const groups = getActiveOptionGroups(sizeConfig);
+  if (groups.length === 0) return true;
+  return groups.every((group) => {
+    const selected = String(selections?.[group.id] ?? "")
+      .trim()
+      .toUpperCase();
+    if (!selected) {
+      // Allow empty-label single choice.
+      return Boolean(findChoiceInGroup(group, ""));
+    }
+    return Boolean(findChoiceInGroup(group, selected));
+  });
+}
+
+/**
+ * Sum of selected choice list prices across groups.
+ * Groups without an explicit choice price contribute 0 to the sum when other
+ * groups are priced; if no choice has a price, returns null (use product MRP).
+ */
+export function sumSelectedOptionListPrices(
+  sizeConfig: ProductSizeConfig | null | undefined,
+  selections: OptionSelections | null | undefined,
+): number | null {
+  const groups = getActiveOptionGroups(sizeConfig);
+  if (groups.length === 0) return null;
+
+  let sum = 0;
+  let anyPriced = false;
+  for (const group of groups) {
+    const selected = String(selections?.[group.id] ?? "")
+      .trim()
+      .toUpperCase();
+    const choice = findChoiceInGroup(group, selected || undefined);
+    if (!choice) continue;
+    const price = getOptionListPrice(choice);
+    if (price != null) {
+      sum += price;
+      anyPriced = true;
+    }
+  }
+
+  if (!anyPriced) return null;
+  return Math.round(sum * 100) / 100;
+}
+
+/** Minimum possible sum across groups (cheapest stocked choice per group). */
+export function getMinSelectableOptionPrice(
+  config: ProductSizeConfig | null | undefined,
+): number | null {
+  const groups = getActiveOptionGroups(config);
+  if (groups.length === 0) return null;
+
+  let sum = 0;
+  let anyPriced = false;
+  for (const group of groups) {
+    const priced = getSelectableGroupOptions(group)
+      .map((option) => getOptionListPrice(option))
+      .filter((price): price is number => price != null);
+    if (priced.length === 0) continue;
+    sum += Math.min(...priced);
+    anyPriced = true;
+  }
+
+  if (!anyPriced) return null;
+  return Math.round(sum * 100) / 100;
+}
+
+/**
  * Resolve the list/MRP that should be charged for a cart/checkout line.
- * When options are enabled, prefer the selected option's price; legacy options
- * without a price fall back to the product-level list price.
+ * Multi-group: sum of selected choice prices. Single / legacy: same behavior.
  */
 export function resolveListPriceForSelection(args: {
   baseListPrice: number;
   sizeConfig: ProductSizeConfig | null | undefined;
   selectedSize?: string | null;
-  /** When true and no option is selected yet, use the cheapest option price. */
+  selections?: OptionSelections | null;
+  /** When true and selections incomplete, use the cheapest sum across groups. */
   preferMinWhenUnselected?: boolean;
 }): number {
   const base =
@@ -127,70 +332,81 @@ export function resolveListPriceForSelection(args: {
       ? Math.round(args.baseListPrice * 100) / 100
       : 0;
 
-  const selectable = getSelectableProductOptions(args.sizeConfig);
-  if (selectable.length === 0) return base;
+  const groups = getActiveOptionGroups(args.sizeConfig);
+  if (groups.length === 0) return base;
 
-  const selected = findProductSizeOption(args.sizeConfig, args.selectedSize);
-  if (selected) {
-    return getOptionListPrice(selected) ?? base;
+  const selections = resolveOptionSelections({
+    sizeConfig: args.sizeConfig,
+    selections: args.selections,
+    selectedSize: args.selectedSize,
+  });
+
+  const complete = areAllOptionGroupsSelected(args.sizeConfig, selections);
+  if (complete) {
+    return sumSelectedOptionListPrices(args.sizeConfig, selections) ?? base;
   }
 
   if (args.preferMinWhenUnselected) {
-    const priced = selectable
-      .map((option) => getOptionListPrice(option))
-      .filter((price): price is number => price != null);
-    if (priced.length > 0) {
-      return Math.min(...priced);
-    }
+    return getMinSelectableOptionPrice(args.sizeConfig) ?? base;
   }
 
   return base;
 }
 
-/** Lowest explicit option MRP among selectable options, if any. */
-export function getMinSelectableOptionPrice(
-  config: ProductSizeConfig | null | undefined,
-): number | null {
-  const priced = getSelectableProductOptions(config)
-    .map((option) => getOptionListPrice(option))
-    .filter((price): price is number => price != null);
-  if (priced.length === 0) return null;
-  return Math.min(...priced);
-}
-
 export function normalizeProductSizeConfig(raw: unknown): ProductSizeConfig {
   const source = (raw ?? {}) as Record<string, unknown>;
   const enabled = Boolean(source.enabled ?? false);
-  const name = normalizeOptionName(source.name);
-  const optionsRaw = Array.isArray(source.options) ? source.options : [];
-  const dedup = new Map<string, ProductSizeOption>();
 
-  for (const item of optionsRaw) {
-    const row = item as Record<string, unknown>;
-    const value = readOptionValue(row);
-    const qty = normalizeQty(row.qty);
-    const price = normalizeOptionPrice(row.price);
-    if (!value && qty <= 0) continue;
-    const dedupKey = value || "__NO_LABEL__";
-    dedup.set(dedupKey, { value, size: value, qty, price });
+  if (Array.isArray(source.groups)) {
+    const groups: ProductOptionGroup[] = [];
+    source.groups.forEach((item, index) => {
+      const row = (item ?? {}) as Record<string, unknown>;
+      const options = normalizeOptionsList(row.options);
+      if (options.length === 0 && !String(row.name ?? "").trim()) return;
+      groups.push({
+        id: normalizeGroupId(row.id, `group_${index + 1}`),
+        name: normalizeOptionName(row.name),
+        options,
+      });
+    });
+
+    // Dedupe group ids.
+    const seen = new Set<string>();
+    const uniqueGroups = groups.map((group, index) => {
+      let id = group.id;
+      if (seen.has(id)) id = `${id}_${index + 1}`;
+      seen.add(id);
+      return { ...group, id };
+    });
+
+    return withLegacyMirrors({ enabled, groups: uniqueGroups });
   }
 
-  return {
-    enabled,
-    name,
-    options: Array.from(dedup.values()),
-  };
+  // Legacy flat { name, options } → single group.
+  const options = normalizeOptionsList(source.options);
+  const groups: ProductOptionGroup[] =
+    options.length > 0 || Boolean(source.name)
+      ? [
+          {
+            id: LEGACY_OPTION_GROUP_ID,
+            name: normalizeOptionName(source.name),
+            options,
+          },
+        ]
+      : [];
+
+  return withLegacyMirrors({ enabled, groups });
 }
 
-/** Persist shape: name + value (+ price when set). No legacy `size` key. */
+/** Persist multi-group shape. Also mirrors first group as name/options for older readers. */
 export function serializeProductSizeConfig(
   config: ProductSizeConfig,
 ): Record<string, unknown> {
   const normalized = normalizeProductSizeConfig(config);
-  return {
-    enabled: normalized.enabled,
-    name: normalized.name,
-    options: normalized.options.map((option) => {
+  const groups = normalized.groups.map((group) => ({
+    id: group.id,
+    name: group.name,
+    options: group.options.map((option) => {
       const row: Record<string, unknown> = {
         value: option.value,
         qty: option.qty,
@@ -200,5 +416,14 @@ export function serializeProductSizeConfig(
       }
       return row;
     }),
+  }));
+
+  const first = groups[0];
+  return {
+    enabled: normalized.enabled,
+    groups,
+    // Legacy mirrors for any external reader still expecting flat shape.
+    name: first?.name ?? DEFAULT_PRODUCT_OPTION_NAME,
+    options: first?.options ?? [],
   };
 }

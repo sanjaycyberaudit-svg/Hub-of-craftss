@@ -7,7 +7,35 @@ import { useMutation, useQuery } from "@urql/next";
 import { FetchCartQuery } from "../components/UserCartSection";
 import { createCartMutation, updateCartsMutation } from "../query";
 import { isBulkOrderQuantity } from "../constants/bulkOrder";
-import useCartStore from "../useCartStore";
+import useCartStore, { type OptionSelections } from "../useCartStore";
+
+type AddOpts = {
+  silent?: boolean;
+  size?: string;
+  selections?: OptionSelections;
+};
+
+function selectionsEqual(
+  a?: OptionSelections | null,
+  b?: OptionSelections | null,
+) {
+  const left = a ?? {};
+  const right = b ?? {};
+  const keys = new Set([...Object.keys(left), ...Object.keys(right)]);
+  for (const key of keys) {
+    if (
+      String(left[key] ?? "")
+        .trim()
+        .toUpperCase() !==
+      String(right[key] ?? "")
+        .trim()
+        .toUpperCase()
+    ) {
+      return false;
+    }
+  }
+  return true;
+}
 
 function useCartActions(
   user: User | null,
@@ -21,6 +49,7 @@ function useCartActions(
   const [, updateCart] = useMutation(updateCartsMutation);
   const addProductStorage = useCartStore((s) => s.addProductToCart);
   const setProductSize = useCartStore((s) => s.setProductSize);
+  const setProductSelections = useCartStore((s) => s.setProductSelections);
   const guestCart = useCartStore((s) => s.cart);
 
   const [{ data }, refetch] = useQuery({
@@ -30,17 +59,24 @@ function useCartActions(
     },
   });
 
-  const authAddOrUpdateProduct = async (
-    quantity: number,
-    opts: { silent?: boolean; size?: string } = {},
-  ) => {
+  const authAddOrUpdateProduct = async (quantity: number, opts: AddOpts = {}) => {
     const size = opts.size;
+    const selections = opts.selections;
     const existedProduct = data?.cartsCollection.edges.find(
       ({ node }) => node.product_id === productId,
     );
     const currentQuantity = existedProduct?.node.quantity ?? 0;
-    const currentSize = guestCart[productId]?.size;
-    if (size && currentQuantity > 0 && currentSize && currentSize !== size) {
+    const currentItem = guestCart[productId];
+    const hasConflict =
+      currentQuantity > 0 &&
+      ((selections &&
+        currentItem?.selections &&
+        !selectionsEqual(currentItem.selections, selections)) ||
+        (size &&
+          currentItem?.size &&
+          !selections &&
+          currentItem.size !== size));
+    if (hasConflict) {
       if (!opts.silent) {
         toast({
           title: "Option mismatch",
@@ -76,19 +112,21 @@ function useCartActions(
       if (!existedProduct) {
         res = await addToCart({
           productId,
-          userId: user.id,
+          userId: user!.id,
           quantity,
         });
         refetch({ requestPolicy: "network-only" });
       } else {
         res = await updateCart({
           productId,
-          userId: user.id,
+          userId: user!.id,
           newQuantity: existedProduct.node.quantity + quantity,
         });
         refetch({ requestPolicy: "network-only" });
       }
-      if (size) {
+      if (selections && Object.keys(selections).length > 0) {
+        setProductSelections(productId, selections);
+      } else if (size) {
         setProductSize(productId, size);
       }
       if (res && !res.error && !opts.silent)
@@ -100,14 +138,21 @@ function useCartActions(
     }
   };
 
-  const guestAddProduct = (
-    quantity: number,
-    opts: { silent?: boolean; size?: string } = {},
-  ) => {
+  const guestAddProduct = (quantity: number, opts: AddOpts = {}) => {
     const size = opts.size;
+    const selections = opts.selections;
     const currentQuantity = guestCart[productId]?.quantity ?? 0;
-    const currentSize = guestCart[productId]?.size;
-    if (size && currentQuantity > 0 && currentSize && currentSize !== size) {
+    const currentItem = guestCart[productId];
+    const hasConflict =
+      currentQuantity > 0 &&
+      ((selections &&
+        currentItem?.selections &&
+        !selectionsEqual(currentItem.selections, selections)) ||
+        (size &&
+          currentItem?.size &&
+          !selections &&
+          currentItem.size !== size));
+    if (hasConflict) {
       if (!opts.silent) {
         toast({
           title: "Option mismatch",
@@ -138,14 +183,14 @@ function useCartActions(
       }
       return { blockedBulk: false, added: false };
     }
-    addProductStorage(productId, quantity, size);
+    addProductStorage(productId, quantity, selections ?? size);
     if (!opts.silent) toast({ title: "Sucess, Added a Product to the Cart." });
     return { blockedBulk: false, added: true };
   };
 
   const addProductToCart = async (
     quantity: number,
-    opts: { silent?: boolean; size?: string } | string = {},
+    opts: AddOpts | string = {},
   ) => {
     const normalizedOpts = typeof opts === "string" ? { size: opts } : opts;
     return !user

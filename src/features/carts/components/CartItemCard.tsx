@@ -25,6 +25,12 @@ import { Button } from "../../../components/ui/button";
 
 export { CartItemCardFragment };
 
+type OptionGroupSelect = {
+  id: string;
+  name: string;
+  options: { value: string; label: string }[];
+};
+
 type CartItemCardProps = React.ComponentProps<typeof Card> & {
   product: DocumentType<typeof CartItemCardFragment> & {
     soldAsPack?: boolean | null;
@@ -36,10 +42,13 @@ type CartItemCardProps = React.ComponentProps<typeof Card> & {
   removeHandler: () => void;
   quantity: number;
   selectedSize?: string;
+  selections?: Record<string, string>;
   sizeRequired?: boolean;
   optionName?: string;
   sizeOptions?: { value: string; label: string }[];
+  optionGroups?: OptionGroupSelect[];
   onSizeChange?: (size: string) => void;
+  onSelectionsChange?: (selections: Record<string, string>) => void;
 };
 
 function CartItemCard({
@@ -50,18 +59,36 @@ function CartItemCard({
   removeHandler,
   quantity,
   selectedSize,
+  selections,
   sizeRequired,
   optionName = "Size",
   sizeOptions = [],
+  optionGroups,
   onSizeChange,
+  onSelectionsChange,
 }: CartItemCardProps) {
-  const normalizedSelectedSize = String(selectedSize ?? "")
-    .trim()
-    .toUpperCase();
-  const missingRequiredSize = Boolean(sizeRequired && !normalizedSelectedSize);
+  const groups =
+    optionGroups && optionGroups.length > 0
+      ? optionGroups
+      : sizeRequired
+        ? [
+            {
+              id: "legacy",
+              name: optionName,
+              options: sizeOptions,
+            },
+          ]
+        : [];
   const packLabel = formatProductPackLabel(product);
-
   const imageSrc = keytoUrl(product.featuredImage.key);
+
+  const missingRequired = groups.some((group) => {
+    const selected = String(selections?.[group.id] ?? selectedSize ?? "")
+      .trim()
+      .toUpperCase();
+    if (selected) return false;
+    return group.options.some((option) => option.value.length > 0);
+  });
 
   return (
     <Card className="flex items-start gap-3 border-0 bg-transparent px-3 py-3 shadow-none md:items-center md:gap-6 md:px-5">
@@ -85,30 +112,53 @@ function CartItemCard({
         {packLabel ? (
           <p className="text-xs text-muted-foreground">{packLabel}</p>
         ) : null}
-        {sizeRequired ? (
-          <div className="mt-1 space-y-1">
-            <label className="text-xs text-muted-foreground">
-              {optionName}
-            </label>
-            <select
-              value={normalizedSelectedSize}
-              disabled={disabled || sizeOptions.length === 0}
-              className="h-8 w-full max-w-[220px] rounded border bg-background px-2 text-xs"
-              onChange={(event) => onSizeChange?.(event.target.value)}
-            >
-              <option value="">Select {optionName.toLowerCase()}</option>
-              {sizeOptions.map((option) => (
-                <option
-                  key={`${option.value}-${option.label}`}
-                  value={option.value}
-                >
-                  {option.label}
-                </option>
-              ))}
-            </select>
-            {missingRequiredSize ? (
+        {groups.length > 0 ? (
+          <div className="mt-1 space-y-2">
+            {groups.map((group) => {
+              const value = String(
+                selections?.[group.id] ??
+                  (groups.length === 1 ? selectedSize : "") ??
+                  "",
+              )
+                .trim()
+                .toUpperCase();
+              return (
+                <div key={group.id} className="space-y-1">
+                  <label className="text-xs text-muted-foreground">
+                    {group.name}
+                  </label>
+                  <select
+                    value={value}
+                    disabled={disabled || group.options.length === 0}
+                    className="h-8 w-full max-w-[220px] rounded border bg-background px-2 text-xs"
+                    onChange={(event) => {
+                      const nextValue = event.target.value;
+                      if (onSelectionsChange) {
+                        onSelectionsChange({
+                          ...(selections ?? {}),
+                          [group.id]: nextValue,
+                        });
+                      } else {
+                        onSizeChange?.(nextValue);
+                      }
+                    }}
+                  >
+                    <option value="">Select {group.name.toLowerCase()}</option>
+                    {group.options.map((option) => (
+                      <option
+                        key={`${group.id}-${option.value}-${option.label}`}
+                        value={option.value}
+                      >
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              );
+            })}
+            {missingRequired ? (
               <p className="text-[11px] text-destructive">
-                Please select {optionName.toLowerCase()} to continue checkout.
+                Please select every option to continue checkout.
               </p>
             ) : null}
           </div>

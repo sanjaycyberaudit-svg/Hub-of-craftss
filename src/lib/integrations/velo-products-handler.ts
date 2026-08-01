@@ -54,18 +54,27 @@ const draftFlagSchema = z
   .preprocess(parseDraftFlag, z.boolean())
   .default(false);
 
+const optionRowSchema = z.object({
+  value: z.string().trim().max(PRODUCT_OPTION_VALUE_MAX).optional(),
+  size: z.string().trim().max(PRODUCT_OPTION_VALUE_MAX).optional(),
+  qty: z.number().min(0),
+  price: z.number().min(0).nullable().optional(),
+});
+
 const sizeConfigSchema = z
   .object({
     enabled: z.boolean(),
     name: z.string().trim().max(PRODUCT_OPTION_NAME_MAX).optional(),
-    options: z.array(
-      z.object({
-        value: z.string().trim().max(PRODUCT_OPTION_VALUE_MAX).optional(),
-        size: z.string().trim().max(PRODUCT_OPTION_VALUE_MAX).optional(),
-        qty: z.number().min(0),
-        price: z.number().min(0).nullable().optional(),
-      }),
-    ),
+    options: z.array(optionRowSchema).optional(),
+    groups: z
+      .array(
+        z.object({
+          id: z.string().trim().max(64).optional(),
+          name: z.string().trim().max(PRODUCT_OPTION_NAME_MAX).optional(),
+          options: z.array(optionRowSchema),
+        }),
+      )
+      .optional(),
   })
   .optional();
 

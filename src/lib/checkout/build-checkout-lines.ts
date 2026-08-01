@@ -29,6 +29,7 @@ function resolveCheckoutLinePricing(
   pricingMap: Record<string, CartProductPricing>,
   sizeConfig: ProductSizeConfig | undefined,
   selectedSize: string | undefined,
+  selections?: Record<string, string>,
 ): CartProductPricing {
   const fromMap = pricingMap[product.id];
   const baseFields = fromMap
@@ -43,6 +44,7 @@ function resolveCheckoutLinePricing(
     product: baseFields,
     sizeConfig,
     selectedSize,
+    selections,
   });
 
   return {
@@ -80,15 +82,16 @@ export async function buildCheckoutLineItems(
       throw new Error(`Product ${productId} is no longer available.`);
     }
 
-    const selectedSize = orderProducts[productId]?.size;
+    const item = orderProducts[productId];
     return {
       ...product,
-      quantity: orderProducts[productId].quantity,
+      quantity: item.quantity,
       pricing: resolveCheckoutLinePricing(
         product,
         pricingMap,
         sizeConfigs.get(productId),
-        selectedSize,
+        item?.size,
+        item?.selections,
       ),
     };
   });

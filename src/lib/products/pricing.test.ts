@@ -61,4 +61,35 @@ describe("resolveProductPricingForSelection", () => {
     expect(priced.unitPrice).toBe(400);
     expect(priced.discountActive).toBe(true);
   });
+
+  it("sums multi-group selections before applying discount", () => {
+    const sizeConfig = normalizeProductSizeConfig({
+      enabled: true,
+      groups: [
+        {
+          id: "size",
+          name: "Size",
+          options: [{ value: "M", qty: 1, price: 300 }],
+        },
+        {
+          id: "magnet",
+          name: "Magnet",
+          options: [{ value: "WITH MAGNET", qty: 1, price: 100 }],
+        },
+      ],
+    });
+
+    const priced = resolveProductPricingForSelection({
+      product: {
+        price: "999",
+        discountEnabled: true,
+        discountPercent: 10,
+      },
+      sizeConfig,
+      selections: { size: "M", magnet: "WITH MAGNET" },
+    });
+
+    expect(priced.listPrice).toBe(400);
+    expect(priced.unitPrice).toBe(360);
+  });
 });

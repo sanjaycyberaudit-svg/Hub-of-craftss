@@ -14,6 +14,11 @@ type SizeConfigResponse = {
   enabled: boolean;
   name?: string;
   options: SizeOption[];
+  groups?: Array<{
+    id?: string;
+    name?: string;
+    options: SizeOption[];
+  }>;
 };
 
 function formatSizeLabel(option: SizeOption) {
@@ -60,10 +65,21 @@ export default function ProductSizePreview({
 
   const labels = useMemo(() => {
     if (!data?.enabled) return [];
-    return (data.options ?? [])
-      .filter((option) => Number(option.qty ?? 0) > 0)
-      .map(formatSizeLabel);
-  }, [data]);
+    const groups =
+      Array.isArray(data.groups) && data.groups.length > 0
+        ? data.groups
+        : [{ name: data.name, options: data.options ?? [] }];
+    return groups.flatMap((group) =>
+      (group.options ?? [])
+        .filter((option) => Number(option.qty ?? 0) > 0)
+        .map((option) => {
+          const label = formatSizeLabel(option);
+          return groups.length > 1
+            ? `${String(group.name ?? optionName).trim() || optionName}: ${label}`
+            : label;
+        }),
+    );
+  }, [data, optionName]);
 
   if (labels.length === 0) return null;
 

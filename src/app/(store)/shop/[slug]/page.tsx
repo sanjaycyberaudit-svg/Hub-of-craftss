@@ -125,7 +125,10 @@ async function ProductDetailPage({ params }: Props) {
     : productEdge.node;
   const hasConfiguredSizes =
     sizeConfig.enabled &&
-    sizeConfig.options.some((option) => Number(option.qty ?? 0) > 0);
+    (sizeConfig.groups?.some((group) =>
+      group.options.some((option) => Number(option.qty ?? 0) > 0),
+    ) ??
+      sizeConfig.options.some((option) => Number(option.qty ?? 0) > 0));
   const optionName = getProductOptionDisplayName(sizeConfig);
   const displayPricing = hasConfiguredSizes
     ? toProductDiscountFields(
@@ -137,16 +140,39 @@ async function ProductDetailPage({ params }: Props) {
       )
     : pricingProduct;
 
-  const storefrontSizeLabels = sizeConfig.options
-    .filter((option) => Number(option.qty ?? 0) > 0)
-    .map((option) => {
-      const value = String(option.value ?? option.size ?? "")
-        .trim()
-        .toUpperCase();
-      if (!value) return `${option.qty}`;
-      if (/^[A-Z]+$/.test(value)) return `${value} : ${option.qty}`;
-      return value;
-    });
+  const storefrontSizeLabels = (sizeConfig.groups?.length
+    ? sizeConfig.groups.flatMap((group) =>
+        group.options
+          .filter((option) => Number(option.qty ?? 0) > 0)
+          .map((option) => {
+            const value = String(option.value ?? option.size ?? "")
+              .trim()
+              .toUpperCase();
+            const label = !value
+              ? `${option.qty}`
+              : /^[A-Z]+$/.test(value)
+                ? `${value} : ${option.qty}`
+                : value;
+            return sizeConfig.groups.length > 1
+              ? `${group.name}: ${label}`
+              : label;
+          }),
+      )
+    : sizeConfig.options
+        .filter((option) => Number(option.qty ?? 0) > 0)
+        .map((option) => {
+          const value = String(option.value ?? option.size ?? "")
+            .trim()
+            .toUpperCase();
+          if (!value) return `${option.qty}`;
+          if (/^[A-Z]+$/.test(value)) return `${value} : ${option.qty}`;
+          return value;
+        }));
+
+  const availableLabel =
+    (sizeConfig.groups?.length ?? 0) > 1
+      ? "Available options"
+      : `Available ${optionName.toLowerCase()}`;
 
   return (
     <Shell>
@@ -208,8 +234,7 @@ async function ProductDetailPage({ params }: Props) {
               />
               {hasConfiguredSizes ? (
                 <p className="text-sm text-muted-foreground">
-                  Available {optionName.toLowerCase()}:{" "}
-                  {storefrontSizeLabels.join(", ")}
+                  {availableLabel}: {storefrontSizeLabels.join(", ")}
                 </p>
               ) : null}
             </div>

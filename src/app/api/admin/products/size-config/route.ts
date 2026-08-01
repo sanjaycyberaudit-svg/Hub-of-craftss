@@ -1,6 +1,7 @@
 import { publicValidationPayload } from "@/lib/api/public-error";
 import { getSessionUser, isAdminUser } from "@/lib/auth/admin";
 import {
+  getActiveOptionGroups,
   getProductSizeConfig,
   normalizeProductSizeConfig,
   PRODUCT_OPTION_NAME_MAX,
@@ -23,13 +24,32 @@ const optionSchema = z
     price: row.price ?? null,
   }));
 
+const groupSchema = z.object({
+  id: z.string().trim().min(1).max(64).optional(),
+  name: z.string().trim().max(PRODUCT_OPTION_NAME_MAX).optional(),
+  options: z.array(optionSchema),
+});
+
 const saveSchema = z.object({
   productId: z.string().trim().min(1),
-  config: z.object({
-    enabled: z.boolean(),
-    name: z.string().trim().max(PRODUCT_OPTION_NAME_MAX).optional(),
-    options: z.array(optionSchema),
-  }),
+  config: z
+    .object({
+      enabled: z.boolean(),
+      // New multi-group shape.
+      groups: z.array(groupSchema).optional(),
+      // Legacy flat shape still accepted.
+      name: z.string().trim().max(PRODUCT_OPTION_NAME_MAX).optional(),
+      options: z.array(optionSchema).optional(),
+    })
+    .superRefine((config, ctx) => {
+      if (!config.groups && !config.options) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Provide groups or options.",
+          path: ["groups"],
+        });
+      }
+    }),
 });
 
 async function ensureAdmin() {
@@ -72,29 +92,31 @@ export async function POST(request: NextRequest) {
 
   const normalized = normalizeProductSizeConfig(parsed.data.config);
   if (normalized.enabled) {
-    const stocked = normalized.options.filter(
-      (option) => Number(option.qty ?? 0) > 0,
-    );
-    if (stocked.length === 0) {
+    const activeGroups = getActiveOptionGroups(normalized);
+    if (activeGroups.length === 0) {
       return NextResponse.json(
         {
           message:
-            "Add at least one option with stock when options/variants are enabled.",
+            "Add at least one variant group with stock when options/variants are enabled.",
         },
         { status: 400 },
       );
     }
-    const missingPrice = stocked.find(
-      (option) => option.price == null || Number(option.price) <= 0,
-    );
-    if (missingPrice) {
-      const label = String(missingPrice.value ?? "").trim() || "an option";
-      return NextResponse.json(
-        {
-          message: `Enter a price greater than 0 for ${label}. Each option needs its own price when variants are enabled.`,
-        },
-        { status: 400 },
+
+    for (const group of activeGroups) {
+      const stocked = group.options.filter(
+        (option) => Number(option.qty ?? 0) > 0,
       );
+      const missingPrice = stocked.find((option) => option.price == null);
+      if (missingPrice) {
+        const label = String(missingPrice.value ?? "").trim() || "an option";
+        return NextResponse.json(
+          {
+            message: `Enter a price for ${group.name} → ${label}. Each choice needs its own price (0 is allowed).`,
+          },
+          { status: 400 },
+        );
+      }
     }
   }
 

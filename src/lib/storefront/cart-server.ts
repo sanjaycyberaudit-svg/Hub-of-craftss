@@ -31,21 +31,40 @@ export type CartSizeConfigPayload = {
     qty: number;
     price: number | null;
   }[];
+  groups: {
+    id: string;
+    name: string;
+    options: {
+      value: string;
+      size: string;
+      qty: number;
+      price: number | null;
+    }[];
+  }[];
 };
 
 function toApiSizePayload(config: ProductSizeConfig): CartSizeConfigPayload {
-  const configuredOptions = config.options.filter(
-    (option) => Number(option.qty ?? 0) > 0,
-  );
+  const groups = (config.groups ?? [])
+    .map((group) => ({
+      id: group.id,
+      name: group.name || DEFAULT_PRODUCT_OPTION_NAME,
+      options: group.options
+        .filter((option) => Number(option.qty ?? 0) > 0)
+        .map((option) => ({
+          value: option.value,
+          size: option.value,
+          qty: option.qty,
+          price: option.price,
+        })),
+    }))
+    .filter((group) => group.options.length > 0);
+
+  const first = groups[0];
   return {
-    enabled: config.enabled && configuredOptions.length > 0,
-    name: config.name || DEFAULT_PRODUCT_OPTION_NAME,
-    options: configuredOptions.map((option) => ({
-      value: option.value,
-      size: option.value,
-      qty: option.qty,
-      price: option.price,
-    })),
+    enabled: config.enabled && groups.length > 0,
+    name: first?.name || config.name || DEFAULT_PRODUCT_OPTION_NAME,
+    options: first?.options ?? [],
+    groups,
   };
 }
 
@@ -71,6 +90,7 @@ export async function prefetchCartSizeConfigs(
         enabled: false,
         name: DEFAULT_PRODUCT_OPTION_NAME,
         options: [],
+        groups: [],
       },
     );
   });

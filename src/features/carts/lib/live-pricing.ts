@@ -7,6 +7,7 @@ import {
 } from "@/lib/products/pricing";
 import {
   normalizeProductSizeConfig,
+  type OptionSelections,
   type ProductSizeConfig,
 } from "@/lib/products/sizeConfig-shared";
 
@@ -25,7 +26,7 @@ export function withLiveProductPricing<
   };
 }
 
-/** Apply live product pricing, then override list price from the selected option. */
+/** Apply live product pricing, then override list price from selections. */
 export function withLiveLinePricing<
   T extends ProductDiscountFields & ProductPackFields & { id?: string },
 >(
@@ -33,6 +34,7 @@ export function withLiveLinePricing<
   pricing: CartProductPricing | null | undefined,
   sizeConfig: ProductSizeConfig | null | undefined,
   selectedSize: string | null | undefined,
+  selections?: OptionSelections | null,
 ): T {
   const withProduct = withLiveProductPricing(product, pricing);
   if (!sizeConfig?.enabled) return withProduct;
@@ -41,6 +43,7 @@ export function withLiveLinePricing<
     product: withProduct,
     sizeConfig,
     selectedSize,
+    selections,
   });
   const fields = toProductDiscountFields(resolved);
   return {
@@ -52,19 +55,7 @@ export function withLiveLinePricing<
 }
 
 export function toSizeConfigFromCartPayload(
-  payload:
-    | {
-        enabled?: boolean;
-        name?: string;
-        options?: Array<{
-          value?: string;
-          size?: string;
-          qty?: number;
-          price?: number | null;
-        }>;
-      }
-    | null
-    | undefined,
+  payload: unknown,
 ): ProductSizeConfig {
   return normalizeProductSizeConfig(payload ?? {});
 }

@@ -6,6 +6,7 @@ import {
 } from "./discount";
 import {
   resolveListPriceForSelection,
+  type OptionSelections,
   type ProductSizeConfig,
 } from "./sizeConfig-shared";
 
@@ -80,6 +81,7 @@ export function resolveProductPricingForSelection(args: {
   product: Record<string, unknown> | ProductDiscountFields;
   sizeConfig?: ProductSizeConfig | null;
   selectedSize?: string | null;
+  selections?: OptionSelections | null;
   preferMinWhenUnselected?: boolean;
 }): ResolvedProductPricing {
   const base = resolveProductPricing(args.product);
@@ -87,6 +89,7 @@ export function resolveProductPricingForSelection(args: {
     baseListPrice: base.listPrice,
     sizeConfig: args.sizeConfig,
     selectedSize: args.selectedSize,
+    selections: args.selections,
     preferMinWhenUnselected: args.preferMinWhenUnselected,
   });
 

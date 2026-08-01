@@ -13,6 +13,8 @@ export type StockReservationLine = {
   productId: string;
   quantity: number;
   size?: string;
+  /** Multi-group selections keyed by group id. */
+  selections?: Record<string, string>;
 };
 
 export function shouldReserveStockAtCheckout(
@@ -42,11 +44,24 @@ export function readReservationLines(
       const size = String(row.size ?? "")
         .trim()
         .toUpperCase();
+      const selectionsRaw = row.selections;
+      const selections: Record<string, string> = {};
+      if (selectionsRaw && typeof selectionsRaw === "object") {
+        for (const [key, value] of Object.entries(
+          selectionsRaw as Record<string, unknown>,
+        )) {
+          const normalized = String(value ?? "")
+            .trim()
+            .toUpperCase();
+          if (key && normalized) selections[key] = normalized;
+        }
+      }
       if (!productId || quantity <= 0) return null;
       return {
         productId,
         quantity,
         ...(size ? { size } : {}),
+        ...(Object.keys(selections).length > 0 ? { selections } : {}),
       } satisfies StockReservationLine;
     })
     .filter((line): line is StockReservationLine => line !== null);

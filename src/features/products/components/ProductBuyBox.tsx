@@ -8,8 +8,9 @@ import {
   toProductDiscountFields,
 } from "@/lib/products/pricing";
 import {
-  getProductOptionDisplayName,
-  getSelectableProductOptions,
+  areAllOptionGroupsSelected,
+  getActiveOptionGroups,
+  type OptionSelections,
   type ProductSizeConfig,
 } from "@/lib/products/sizeConfig-shared";
 import { useMemo, useState } from "react";
@@ -29,46 +30,31 @@ export function ProductBuyBox({
   pricingProduct,
   packLabel,
 }: ProductBuyBoxProps) {
-  const [selectedOptionKey, setSelectedOptionKey] = useState("");
-  const optionName = getProductOptionDisplayName(sizeConfig);
-  const selectable = useMemo(
-    () => getSelectableProductOptions(sizeConfig),
+  const [selections, setSelections] = useState<OptionSelections>({});
+  const activeGroups = useMemo(
+    () => getActiveOptionGroups(sizeConfig),
     [sizeConfig],
   );
-  const hasSizeOptions = selectable.length > 0;
-
-  const selectedOption = useMemo(() => {
-    if (!hasSizeOptions || !selectedOptionKey) return null;
-    return (
-      selectable.find((option, index) => {
-        const value = String(option.value ?? option.size ?? "")
-          .trim()
-          .toUpperCase();
-        return `${index}-${value || "NO_LABEL"}` === selectedOptionKey;
-      }) ?? null
-    );
-  }, [hasSizeOptions, selectedOptionKey, selectable]);
+  const hasSizeOptions = activeGroups.length > 0;
+  const allSelected = areAllOptionGroupsSelected(sizeConfig, selections);
 
   const displayPricing = useMemo(() => {
     if (!hasSizeOptions) {
       return pricingProduct;
     }
 
-    const selectedSize = selectedOption
-      ? String(selectedOption.value ?? selectedOption.size ?? "")
-      : "";
     const resolved = resolveProductPricingForSelection({
       product: pricingProduct,
       sizeConfig,
-      selectedSize: selectedSize || undefined,
-      preferMinWhenUnselected: !selectedOption,
+      selections,
+      preferMinWhenUnselected: !allSelected,
     });
     return toProductDiscountFields(resolved);
-  }, [hasSizeOptions, pricingProduct, selectedOption, sizeConfig]);
+  }, [allSelected, hasSizeOptions, pricingProduct, selections, sizeConfig]);
 
   const priceHint =
-    hasSizeOptions && !selectedOption
-      ? `Select a ${optionName.toLowerCase()} to confirm the final price. Showing from the lowest option.`
+    hasSizeOptions && !allSelected
+      ? "Select every variant to confirm the final price. Showing from the lowest combination."
       : null;
 
   return (
@@ -97,8 +83,8 @@ export function ProductBuyBox({
         productId={productId}
         stock={stock}
         sizeConfig={sizeConfig}
-        selectedOptionKey={selectedOptionKey}
-        onSelectedOptionKeyChange={setSelectedOptionKey}
+        selections={selections}
+        onSelectionsChange={setSelections}
       />
     </div>
   );

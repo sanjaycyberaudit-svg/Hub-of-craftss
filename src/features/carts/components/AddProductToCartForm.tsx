@@ -2,7 +2,7 @@
 import { QuantityInput } from "@/components/layouts/QuantityInput";
 import { Button } from "@/components/ui/button";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 
 import {
@@ -23,8 +23,11 @@ import useCartActions from "../hooks/useCartActions";
 import { AddProductCartData, AddProductToCartSchema } from "../validations";
 import { useToast } from "@/components/ui/use-toast";
 import {
-  DEFAULT_PRODUCT_OPTION_NAME,
-  getProductOptionDisplayName,
+  areAllOptionGroupsSelected,
+  getActiveOptionGroups,
+  getLegacySizeFromSelections,
+  getSelectableGroupOptions,
+  type OptionSelections,
   type ProductSizeConfig,
 } from "@/lib/products/sizeConfig-shared";
 
@@ -32,16 +35,16 @@ interface AddProductToCartFormProps {
   productId: string;
   stock?: number | null;
   sizeConfig?: ProductSizeConfig;
-  selectedOptionKey?: string;
-  onSelectedOptionKeyChange?: (key: string) => void;
+  selections?: OptionSelections;
+  onSelectionsChange?: (selections: OptionSelections) => void;
 }
 
 function AddProductToCartForm({
   productId,
   stock,
   sizeConfig,
-  selectedOptionKey: controlledKey,
-  onSelectedOptionKeyChange,
+  selections: controlledSelections,
+  onSelectionsChange,
 }: AddProductToCartFormProps) {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -49,54 +52,48 @@ function AddProductToCartForm({
   const stockControl = useStockControlConfig();
   const { addProductToCart } = useCartActions(user, productId, stock ?? null);
   const [bulkGuardOpen, setBulkGuardOpen] = useState(false);
-  const [uncontrolledKey, setUncontrolledKey] = useState<string>("");
-  const selectedOptionKey = controlledKey ?? uncontrolledKey;
-  const setSelectedOptionKey = (key: string) => {
-    onSelectedOptionKeyChange?.(key);
-    if (controlledKey === undefined) {
-      setUncontrolledKey(key);
+  const [uncontrolledSelections, setUncontrolledSelections] =
+    useState<OptionSelections>({});
+  const selections = controlledSelections ?? uncontrolledSelections;
+  const setSelections = (next: OptionSelections) => {
+    onSelectionsChange?.(next);
+    if (controlledSelections === undefined) {
+      setUncontrolledSelections(next);
     }
   };
-  const optionName = getProductOptionDisplayName(sizeConfig);
-  const selectableSizeOptions = (sizeConfig?.options ?? [])
-    .map((option, index) => {
-      const value = String(option.value ?? option.size ?? "")
-        .trim()
-        .toUpperCase();
-      return {
-        key: `${index}-${value || "NO_LABEL"}`,
-        size: value,
-        qty: Math.max(0, Number(option.qty ?? 0)),
-        price: option.price,
-      };
-    })
-    .filter((option) => option.qty > 0);
-  const hasSizeOptions =
-    Boolean(sizeConfig?.enabled) && selectableSizeOptions.length > 0;
-  const selectedOption = selectableSizeOptions.find(
-    (option) => option.key === selectedOptionKey,
+
+  const activeGroups = useMemo(
+    () => getActiveOptionGroups(sizeConfig),
+    [sizeConfig],
   );
+  const hasSizeOptions = activeGroups.length > 0;
+  const allSelected = areAllOptionGroupsSelected(sizeConfig, selections);
+
+  const limitingStock = useMemo(() => {
+    if (!hasSizeOptions) return null;
+    if (!allSelected) return null;
+    let min = Number.POSITIVE_INFINITY;
+    for (const group of activeGroups) {
+      const value = selections[group.id];
+      const choice = getSelectableGroupOptions(group).find(
+        (option) =>
+          String(option.value ?? option.size ?? "")
+            .trim()
+            .toUpperCase() === String(value ?? "").trim().toUpperCase(),
+      );
+      if (!choice) return 0;
+      min = Math.min(min, Math.max(0, Number(choice.qty ?? 0)));
+    }
+    return Number.isFinite(min) ? min : 0;
+  }, [activeGroups, allSelected, hasSizeOptions, selections]);
+
   const isOutOfStock =
     stockControl.enabled &&
-    typeof stock === "number" &&
-    stock <= 0 &&
-    !hasSizeOptions;
-
-  const getSizeLabel = (option: {
-    size: string;
-    qty: number;
-    price?: number | null;
-  }) => {
-    const base = !option.size
-      ? `${option.qty}`
-      : /^[A-Z]+$/.test(option.size)
-        ? `${option.size} : ${option.qty}`
-        : option.size;
-    if (option.price != null && Number(option.price) >= 0) {
-      return `${base} · ₹${option.price}`;
-    }
-    return base;
-  };
+    ((typeof limitingStock === "number" && limitingStock <= 0) ||
+      (typeof limitingStock !== "number" &&
+        typeof stock === "number" &&
+        stock <= 0 &&
+        !hasSizeOptions));
 
   const form = useForm<AddProductCartData>({
     resolver: zodResolver(AddProductToCartSchema),
@@ -106,26 +103,24 @@ function AddProductToCartForm({
   });
 
   async function onSubmit(values: AddProductCartData) {
-    if (hasSizeOptions && !selectedOption) {
+    if (hasSizeOptions && !allSelected) {
       toast({
-        title: `Select ${optionName}`,
-        description: `Please choose an available ${optionName.toLowerCase()} before adding to cart.`,
+        title: "Select options",
+        description: "Please choose a value for every variant before adding.",
         variant: "destructive",
       });
       return;
     }
-    const selectedSizeStock = hasSizeOptions ? selectedOption?.qty ?? 0 : null;
     if (
       stockControl.enabled &&
-      ((typeof selectedSizeStock === "number" &&
-        values.quantity > selectedSizeStock) ||
-        (typeof selectedSizeStock !== "number" &&
+      ((typeof limitingStock === "number" && values.quantity > limitingStock) ||
+        (typeof limitingStock !== "number" &&
           typeof stock === "number" &&
           values.quantity > stock))
     ) {
       toast({
         title: "Stock limit reached",
-        description: `Only ${typeof selectedSizeStock === "number" ? selectedSizeStock : stock} left in stock for this product.`,
+        description: `Only ${typeof limitingStock === "number" ? limitingStock : stock} left in stock for this selection.`,
         variant: "destructive",
       });
       return;
@@ -137,10 +132,11 @@ function AddProductToCartForm({
       setBulkGuardOpen(true);
       return;
     }
-    const res = await addProductToCart(
-      values.quantity,
-      selectedOption?.size || undefined,
-    );
+    const legacySize = getLegacySizeFromSelections(sizeConfig, selections);
+    const res = await addProductToCart(values.quantity, {
+      size: legacySize,
+      selections: hasSizeOptions ? selections : undefined,
+    });
     if (res?.blockedBulk) {
       setBulkGuardOpen(true);
     }
@@ -149,18 +145,16 @@ function AddProductToCartForm({
   const addOne = () => {
     const currQuantity = form.getValues("quantity");
     const nextQuantity = currQuantity + 1;
-    const selectedSizeStock = hasSizeOptions ? selectedOption?.qty ?? 0 : null;
     if (
       stockControl.enabled &&
-      ((typeof selectedSizeStock === "number" &&
-        nextQuantity > selectedSizeStock) ||
-        (typeof selectedSizeStock !== "number" &&
+      ((typeof limitingStock === "number" && nextQuantity > limitingStock) ||
+        (typeof limitingStock !== "number" &&
           typeof stock === "number" &&
           nextQuantity > stock))
     ) {
       toast({
         title: "Stock limit reached",
-        description: `Only ${typeof selectedSizeStock === "number" ? selectedSizeStock : stock} left in stock for this product.`,
+        description: `Only ${typeof limitingStock === "number" ? limitingStock : stock} left in stock for this selection.`,
         variant: "destructive",
       });
       return;
@@ -182,35 +176,45 @@ function AddProductToCartForm({
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-        {hasSizeOptions ? (
-          <FormItem>
-            <FormLabel>{optionName || DEFAULT_PRODUCT_OPTION_NAME}</FormLabel>
-            <FormControl>
-              <div className="flex flex-wrap gap-2">
-                {selectableSizeOptions.map((option) => (
-                  <button
-                    key={option.key}
-                    type="button"
-                    className={`rounded border px-3 py-1 text-sm ${
-                      selectedOptionKey === option.key
-                        ? "border-primary bg-primary text-primary-foreground"
-                        : "border-border bg-background"
-                    }`}
-                    onClick={() => setSelectedOptionKey(option.key)}
-                  >
-                    {getSizeLabel(option)}
-                  </button>
-                ))}
-                {selectableSizeOptions.length === 0 ? (
-                  <p className="text-xs text-muted-foreground">
-                    No {optionName.toLowerCase()} stock available right now.
-                  </p>
-                ) : null}
-              </div>
-            </FormControl>
-            <FormMessage />
-          </FormItem>
-        ) : null}
+        {hasSizeOptions
+          ? activeGroups.map((group) => {
+              const choices = getSelectableGroupOptions(group);
+              return (
+                <FormItem key={group.id}>
+                  <FormLabel>{group.name}</FormLabel>
+                  <FormControl>
+                    <select
+                      className="h-10 w-full max-w-md rounded-md border border-input bg-background px-3 text-sm"
+                      value={selections[group.id] ?? ""}
+                      onChange={(event) =>
+                        setSelections({
+                          ...selections,
+                          [group.id]: event.target.value,
+                        })
+                      }
+                    >
+                      <option value="">Select {group.name.toLowerCase()}</option>
+                      {choices.map((option) => {
+                        const value = String(option.value ?? option.size ?? "")
+                          .trim()
+                          .toUpperCase();
+                        const label = value || `${option.qty}`;
+                        const priceLabel =
+                          option.price != null ? ` · ₹${option.price}` : "";
+                        return (
+                          <option key={`${group.id}-${value || "NO_LABEL"}`} value={value}>
+                            {label}
+                            {priceLabel}
+                          </option>
+                        );
+                      })}
+                    </select>
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              );
+            })
+          : null}
         <FormField
           control={form.control}
           name="quantity"
@@ -232,7 +236,10 @@ function AddProductToCartForm({
           type="submit"
           disabled={
             isOutOfStock ||
-            (hasSizeOptions && selectableSizeOptions.length === 0)
+            (hasSizeOptions &&
+              activeGroups.some(
+                (group) => getSelectableGroupOptions(group).length === 0,
+              ))
           }
         >
           {isOutOfStock ? "Out of stock" : "Add to Cart"}

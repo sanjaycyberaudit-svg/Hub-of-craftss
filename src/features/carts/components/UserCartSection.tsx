@@ -52,6 +52,7 @@ import {
   toSizeConfigFromCartPayload,
   withLiveLinePricing,
 } from "../lib/live-pricing";
+import { areAllOptionGroupsSelected } from "@/lib/products/sizeConfig-shared";
 import { getSaleProductPrice } from "@/lib/products/discount";
 import { isBulkOrderQuantity } from "../constants/bulkOrder";
 
@@ -71,10 +72,17 @@ type CartSizeConfigOption = {
   price?: number | null;
 };
 
+type CartSizeConfigGroup = {
+  id: string;
+  name: string;
+  options: CartSizeConfigOption[];
+};
+
 type CartSizeConfig = {
   enabled: boolean;
   name?: string;
   options: CartSizeConfigOption[];
+  groups?: CartSizeConfigGroup[];
 };
 
 type CartEdge = NonNullable<
@@ -111,6 +119,7 @@ function UserCartSection({
   const [, removeCart] = useMutation(RemoveCartsMutation);
   const localCart = useCartStore((s) => s.cart);
   const setProductSize = useCartStore((s) => s.setProductSize);
+  const setProductSelections = useCartStore((s) => s.setProductSelections);
   const [sizeConfigsByProductId, setSizeConfigsByProductId] = useState<
     Record<string, CartSizeConfig>
   >(() => initialSizeConfigs ?? {});
@@ -141,6 +150,7 @@ function UserCartSection({
         {
           quantity: edge.node.quantity,
           size: localCart[edge.node.product_id]?.size,
+          selections: localCart[edge.node.product_id]?.selections,
         },
       ]),
     );
@@ -294,6 +304,7 @@ function UserCartSection({
                 enabled: false,
                 name: "Size",
                 options: [],
+                groups: [],
               },
             ] as const,
         );
@@ -314,18 +325,19 @@ function UserCartSection({
     () =>
       cart
         .filter(({ node }) => {
-          const config = sizeConfigsByProductId[node.product_id];
-          const hasLabeledOptions = Boolean(
-            config?.enabled &&
-              config.options.some(
-                (option) =>
-                  String(option.value ?? option.size ?? "").trim().length > 0,
-              ),
+          const sizeConfig = toSizeConfigFromCartPayload(
+            sizeConfigsByProductId[node.product_id],
           );
-          const selected = String(localCart[node.product_id]?.size ?? "")
-            .trim()
-            .toUpperCase();
-          return hasLabeledOptions && !selected;
+          if (!sizeConfig.enabled || sizeConfig.groups.length === 0) {
+            return false;
+          }
+          const item = localCart[node.product_id];
+          const selections =
+            item?.selections ??
+            (item?.size && sizeConfig.groups[0]
+              ? { [sizeConfig.groups[0].id]: item.size }
+              : {});
+          return !areAllOptionGroupsSelected(sizeConfig, selections);
         })
         .map(({ node }) => node.product?.name)
         .filter((name): name is string => Boolean(name)),
@@ -435,6 +447,7 @@ function UserCartSection({
       cart[product.id] = {
         quantity: item.node.quantity,
         size: localCart[product.id]?.size,
+        selections: localCart[product.id]?.selections,
       };
     });
     return cart;
@@ -489,26 +502,38 @@ function UserCartSection({
           <CartItemsList>
             {cart.map(({ node }) =>
               (() => {
-                const config = sizeConfigsByProductId[node.product_id];
-                const optionName = String(config?.name ?? "").trim() || "Size";
-                const hasLabeledOptions = Boolean(
-                  config?.enabled &&
-                    config.options.some(
-                      (option) =>
-                        String(option.value ?? option.size ?? "").trim()
-                          .length > 0,
-                    ),
+                const sizeConfig = toSizeConfigFromCartPayload(
+                  sizeConfigsByProductId[node.product_id],
                 );
-                const sizeOptions = (config?.options ?? [])
-                  .filter((option) => Number(option.qty ?? 0) > 0)
-                  .map((option) => {
-                    const normalized = String(option.value ?? option.size ?? "")
-                      .trim()
-                      .toUpperCase();
-                    const label = normalized || `${option.qty}`;
-                    return { value: normalized, label };
-                  })
-                  .filter((option) => option.value.length > 0);
+                const optionGroups = sizeConfig.groups
+                  .filter((group) =>
+                    group.options.some((option) => Number(option.qty ?? 0) > 0),
+                  )
+                  .map((group) => ({
+                    id: group.id,
+                    name: group.name,
+                    options: group.options
+                      .filter((option) => Number(option.qty ?? 0) > 0)
+                      .map((option) => {
+                        const normalized = String(
+                          option.value ?? option.size ?? "",
+                        )
+                          .trim()
+                          .toUpperCase();
+                        return {
+                          value: normalized,
+                          label: normalized || `${option.qty}`,
+                        };
+                      })
+                      .filter((option) => option.value.length > 0),
+                  }));
+                const sizeRequired = optionGroups.length > 0;
+                const item = localCart[node.product_id];
+                const selections =
+                  item?.selections ??
+                  (item?.size && optionGroups[0]
+                    ? { [optionGroups[0].id]: item.size }
+                    : {});
 
                 return (
                   <CartItemCard
@@ -517,16 +542,18 @@ function UserCartSection({
                     product={withLiveLinePricing(
                       node.product!,
                       livePricing[node.product_id],
-                      toSizeConfigFromCartPayload(
-                        sizeConfigsByProductId[node.product_id],
-                      ),
-                      localCart[node.product_id]?.size,
+                      sizeConfig,
+                      item?.size,
+                      selections,
                     )}
                     quantity={node.quantity}
-                    selectedSize={localCart[node.product_id]?.size}
-                    sizeRequired={hasLabeledOptions}
-                    optionName={optionName}
-                    sizeOptions={sizeOptions}
+                    selectedSize={item?.size}
+                    selections={selections}
+                    sizeRequired={sizeRequired}
+                    optionGroups={optionGroups}
+                    onSelectionsChange={(next) =>
+                      setProductSelections(node.product_id, next)
+                    }
                     onSizeChange={(size) =>
                       setProductSize(node.product_id, size)
                     }

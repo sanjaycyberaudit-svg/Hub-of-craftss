@@ -134,19 +134,42 @@ type SizeOptionForm = {
   price: string;
 };
 
-type ProductSizeConfigForm = {
-  enabled: boolean;
+type SizeGroupForm = {
+  id: string;
   name: string;
   options: SizeOptionForm[];
 };
 
-const DEFAULT_SIZE_OPTIONS: SizeOptionForm[] = [
-  { value: "36", qty: "1", price: "" },
-  { value: "38", qty: "1", price: "" },
-  { value: "40", qty: "1", price: "" },
-  { value: "42", qty: "1", price: "" },
-  { value: "44", qty: "1", price: "" },
-];
+type ProductSizeConfigForm = {
+  enabled: boolean;
+  groups: SizeGroupForm[];
+};
+
+function createGroupId() {
+  return `group_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 7)}`;
+}
+
+function createDefaultSizeGroup(): SizeGroupForm {
+  return {
+    id: createGroupId(),
+    name: DEFAULT_PRODUCT_OPTION_NAME,
+    options: [
+      { value: "36", qty: "1", price: "" },
+      { value: "38", qty: "1", price: "" },
+      { value: "40", qty: "1", price: "" },
+      { value: "42", qty: "1", price: "" },
+      { value: "44", qty: "1", price: "" },
+    ],
+  };
+}
+
+function createEmptyGroup(name = DEFAULT_PRODUCT_OPTION_NAME): SizeGroupForm {
+  return {
+    id: createGroupId(),
+    name,
+    options: [{ value: "", qty: "", price: "" }],
+  };
+}
 
 function normalizeSizeQtyInput(raw: unknown) {
   const value = Number(String(raw ?? "").replace(/[^0-9.]/g, ""));
@@ -162,13 +185,37 @@ function normalizeSizePriceInput(raw: unknown): number | null {
   return Math.round(value * 100) / 100;
 }
 
-function hasAnySizeOptionConfigured(options: SizeOptionForm[]) {
-  return options.some((option) => {
-    const value = String(option.value ?? "").trim();
-    const qty = normalizeSizeQtyInput(option.qty);
-    const price = normalizeSizePriceInput(option.price);
-    return value.length > 0 || qty > 0 || price != null;
+function mapOptionsFromApi(rawOptions: unknown): SizeOptionForm[] {
+  if (!Array.isArray(rawOptions) || rawOptions.length === 0) {
+    return [{ value: "", qty: "", price: "" }];
+  }
+  return rawOptions.map((item) => {
+    const raw = item as Record<string, unknown>;
+    const value = String(raw.value ?? raw.size ?? "")
+      .trim()
+      .slice(0, PRODUCT_OPTION_VALUE_MAX)
+      .toUpperCase();
+    const price =
+      raw.price == null || String(raw.price).trim() === ""
+        ? ""
+        : String(raw.price);
+    return {
+      value,
+      qty: String(raw.qty ?? ""),
+      price,
+    };
   });
+}
+
+function hasAnyGroupConfigured(groups: SizeGroupForm[]) {
+  return groups.some((group) =>
+    group.options.some((option) => {
+      const value = String(option.value ?? "").trim();
+      const qty = normalizeSizeQtyInput(option.qty);
+      const price = normalizeSizePriceInput(option.price);
+      return value.length > 0 || qty > 0 || price != null;
+    }),
+  );
 }
 
 type BulkSharedPayload = ReturnType<typeof buildBulkSharedPayloadFromForm>;
@@ -288,8 +335,7 @@ function ProductFrom({ product, galleryMediaIds = [] }: ProductsFormProps) {
   });
   const [sizeConfig, setSizeConfig] = useState<ProductSizeConfigForm>({
     enabled: false,
-    name: DEFAULT_PRODUCT_OPTION_NAME,
-    options: [{ value: "", qty: "", price: "" }],
+    groups: [createEmptyGroup()],
   });
   const localFileInputRef = useRef<HTMLInputElement>(null);
 
@@ -385,33 +431,45 @@ function ProductFrom({ product, galleryMediaIds = [] }: ProductsFormProps) {
         );
         if (!response.ok) return;
         const payload = (await response.json()) as {
-          config?: ProductSizeConfigForm;
+          config?: {
+            enabled?: boolean;
+            name?: string;
+            options?: unknown[];
+            groups?: Array<{
+              id?: string;
+              name?: string;
+              options?: unknown[];
+            }>;
+          };
         };
         if (!active) return;
         const config = payload.config;
         if (!config) return;
+
+        const groupsFromApi =
+          Array.isArray(config.groups) && config.groups.length > 0
+            ? config.groups.map((group, index) => ({
+                id:
+                  String(group.id ?? "").trim() ||
+                  `group_${index + 1}_${createGroupId()}`,
+                name:
+                  String(group.name ?? "").trim() ||
+                  DEFAULT_PRODUCT_OPTION_NAME,
+                options: mapOptionsFromApi(group.options),
+              }))
+            : [
+                {
+                  id: createGroupId(),
+                  name:
+                    String(config.name ?? "").trim() ||
+                    DEFAULT_PRODUCT_OPTION_NAME,
+                  options: mapOptionsFromApi(config.options),
+                },
+              ];
+
         setSizeConfig({
           enabled: Boolean(config.enabled),
-          name: String(config.name ?? "").trim() || DEFAULT_PRODUCT_OPTION_NAME,
-          options:
-            Array.isArray(config.options) && config.options.length > 0
-              ? config.options.map((item) => {
-                  const raw = item as Record<string, unknown>;
-                  const value = String(raw.value ?? raw.size ?? "")
-                    .trim()
-                    .slice(0, PRODUCT_OPTION_VALUE_MAX)
-                    .toUpperCase();
-                  const price =
-                    raw.price == null || String(raw.price).trim() === ""
-                      ? ""
-                      : String(raw.price);
-                  return {
-                    value,
-                    qty: String(raw.qty ?? ""),
-                    price,
-                  };
-                })
-              : [{ value: "", qty: "", price: "" }],
+          groups: groupsFromApi,
         });
       } catch {
         // keep default config
@@ -424,35 +482,48 @@ function ProductFrom({ product, galleryMediaIds = [] }: ProductsFormProps) {
   }, [product?.id]);
 
   const normalizedSizeConfig = useMemo(() => {
-    const dedup = new Map<
-      string,
-      { value: string; qty: number; price: number | null }
-    >();
-    for (const option of sizeConfig.options) {
-      const value = String(option.value ?? "")
-        .trim()
-        .slice(0, PRODUCT_OPTION_VALUE_MAX)
-        .toUpperCase();
-      const qty = normalizeSizeQtyInput(option.qty);
-      const price = normalizeSizePriceInput(option.price);
-      if (!value && qty <= 0 && price == null) continue;
-      const key = value || "__NO_LABEL__";
-      dedup.set(key, { value, qty, price });
-    }
+    const groups = sizeConfig.groups
+      .map((group, groupIndex) => {
+        const dedup = new Map<
+          string,
+          { value: string; qty: number; price: number | null }
+        >();
+        for (const option of group.options) {
+          const value = String(option.value ?? "")
+            .trim()
+            .slice(0, PRODUCT_OPTION_VALUE_MAX)
+            .toUpperCase();
+          const qty = normalizeSizeQtyInput(option.qty);
+          const price = normalizeSizePriceInput(option.price);
+          if (!value && qty <= 0 && price == null) continue;
+          const key = value || "__NO_LABEL__";
+          dedup.set(key, { value, qty, price });
+        }
+        const options = Array.from(dedup.values()).map((option) => ({
+          value: option.value,
+          size: option.value,
+          qty: option.qty,
+          price: option.price,
+        }));
+        return {
+          id: String(group.id || `group_${groupIndex + 1}`),
+          name:
+            String(group.name ?? "")
+              .trim()
+              .slice(0, PRODUCT_OPTION_NAME_MAX) || DEFAULT_PRODUCT_OPTION_NAME,
+          options,
+        };
+      })
+      .filter((group) => group.options.length > 0 || group.name.length > 0);
+
+    const first = groups[0];
     return {
       enabled: sizeConfig.enabled,
-      name:
-        String(sizeConfig.name ?? "")
-          .trim()
-          .slice(0, PRODUCT_OPTION_NAME_MAX) || DEFAULT_PRODUCT_OPTION_NAME,
-      options: Array.from(dedup.values()).map((option) => ({
-        value: option.value,
-        size: option.value,
-        qty: option.qty,
-        price: option.price,
-      })),
+      groups,
+      name: first?.name ?? DEFAULT_PRODUCT_OPTION_NAME,
+      options: first?.options ?? [],
     };
-  }, [sizeConfig.enabled, sizeConfig.name, sizeConfig.options]);
+  }, [sizeConfig.enabled, sizeConfig.groups]);
 
   const inBulkMode = !product && createMode === "bulk";
   const totalBulkImages = bulkFiles.length + selectedMediaIds.length;
@@ -562,22 +633,26 @@ function ProductFrom({ product, galleryMediaIds = [] }: ProductsFormProps) {
       }
 
       if (normalizedSizeConfig.enabled) {
-        const pricedOptions = normalizedSizeConfig.options.filter(
-          (option) => Number(option.qty ?? 0) > 0,
+        const activeGroups = normalizedSizeConfig.groups.filter((group) =>
+          group.options.some((option) => Number(option.qty ?? 0) > 0),
         );
-        if (pricedOptions.length === 0) {
+        if (activeGroups.length === 0) {
           throw new Error(
-            "Add at least one option with stock when options/variants are enabled.",
+            "Add at least one variant group with stock when options/variants are enabled.",
           );
         }
-        const missingPrice = pricedOptions.find(
-          (option) => option.price == null || Number(option.price) <= 0,
-        );
-        if (missingPrice) {
-          const label = String(missingPrice.value ?? "").trim() || "an option";
-          throw new Error(
-            `Enter a price greater than 0 for ${label}. When options are enabled, each option needs its own price.`,
+        for (const group of activeGroups) {
+          const stocked = group.options.filter(
+            (option) => Number(option.qty ?? 0) > 0,
           );
+          const missingPrice = stocked.find((option) => option.price == null);
+          if (missingPrice) {
+            const label =
+              String(missingPrice.value ?? "").trim() || "an option";
+            throw new Error(
+              `Enter a price for ${group.name} → ${label} (0 is allowed).`,
+            );
+          }
         }
       }
 
@@ -809,33 +884,83 @@ function ProductFrom({ product, galleryMediaIds = [] }: ProductsFormProps) {
     });
   };
 
+  const updateGroupName = (groupIndex: number, name: string) => {
+    setSizeConfig((prev) => ({
+      ...prev,
+      groups: prev.groups.map((group, i) =>
+        i === groupIndex
+          ? {
+              ...group,
+              name: name.slice(0, PRODUCT_OPTION_NAME_MAX),
+            }
+          : group,
+      ),
+    }));
+  };
+
   const updateSizeOption = (
-    index: number,
+    groupIndex: number,
+    optionIndex: number,
     key: keyof SizeOptionForm,
     value: string,
   ) => {
     setSizeConfig((prev) => ({
       ...prev,
-      options: prev.options.map((option, i) =>
-        i === index ? { ...option, [key]: value } : option,
+      groups: prev.groups.map((group, gi) =>
+        gi === groupIndex
+          ? {
+              ...group,
+              options: group.options.map((option, oi) =>
+                oi === optionIndex ? { ...option, [key]: value } : option,
+              ),
+            }
+          : group,
       ),
     }));
   };
 
-  const addSizeOption = () => {
+  const addSizeOption = (groupIndex: number) => {
     setSizeConfig((prev) => ({
       ...prev,
-      options: [...prev.options, { value: "", qty: "", price: "" }],
+      groups: prev.groups.map((group, gi) =>
+        gi === groupIndex
+          ? {
+              ...group,
+              options: [...group.options, { value: "", qty: "", price: "" }],
+            }
+          : group,
+      ),
     }));
   };
 
-  const removeSizeOption = (index: number) => {
+  const removeSizeOption = (groupIndex: number, optionIndex: number) => {
     setSizeConfig((prev) => ({
       ...prev,
-      options:
-        prev.options.length <= 1
-          ? [{ value: "", qty: "", price: "" }]
-          : prev.options.filter((_, i) => i !== index),
+      groups: prev.groups.map((group, gi) => {
+        if (gi !== groupIndex) return group;
+        const nextOptions =
+          group.options.length <= 1
+            ? [{ value: "", qty: "", price: "" }]
+            : group.options.filter((_, i) => i !== optionIndex);
+        return { ...group, options: nextOptions };
+      }),
+    }));
+  };
+
+  const addVariantGroup = () => {
+    setSizeConfig((prev) => ({
+      ...prev,
+      groups: [...prev.groups, createEmptyGroup("Magnet")],
+    }));
+  };
+
+  const removeVariantGroup = (groupIndex: number) => {
+    setSizeConfig((prev) => ({
+      ...prev,
+      groups:
+        prev.groups.length <= 1
+          ? [createEmptyGroup()]
+          : prev.groups.filter((_, i) => i !== groupIndex),
     }));
   };
 
@@ -1232,13 +1357,13 @@ function ProductFrom({ product, galleryMediaIds = [] }: ProductsFormProps) {
                   onChange={(event) => {
                     const enabled = event.target.checked;
                     setSizeConfig((prev) => ({
-                      ...prev,
                       enabled,
-                      name: prev.name.trim() || DEFAULT_PRODUCT_OPTION_NAME,
-                      options:
-                        enabled && !hasAnySizeOptionConfigured(prev.options)
-                          ? DEFAULT_SIZE_OPTIONS
-                          : prev.options,
+                      groups:
+                        enabled && !hasAnyGroupConfigured(prev.groups)
+                          ? [createDefaultSizeGroup()]
+                          : prev.groups.length > 0
+                            ? prev.groups
+                            : [createEmptyGroup()],
                     }));
                     if (enabled) {
                       const current = String(
@@ -1250,145 +1375,160 @@ function ProductFrom({ product, galleryMediaIds = [] }: ProductsFormProps) {
                     }
                   }}
                 />
-                Allow customers to choose one option (Size, Magnet, Colour,
-                etc.).
+                Let customers pick variants (Size, Magnet, Colour, …). Add as
+                many groups as you need.
               </label>
             </FormControl>
             <FormDescription>
-              Set a custom option name, then add values with their own stock and
-              price. Value labels support up to {PRODUCT_OPTION_VALUE_MAX}{" "}
-              characters. Leave a value empty to show stock only. When options
-              are on, the main Price (MRP) field above is inactive.
+              Each group becomes a dropdown on the product page. Add choices
+              with stock and price. Customer pays the sum of selected choice
+              prices
+              {watch("discountEnabled")
+                ? " (product discount still applies on top)"
+                : ""}
+              . Main Price (MRP) above stays inactive while this is on.
             </FormDescription>
           </FormItem>
 
-          {sizeConfig.enabled ? (
-            <FormItem>
-              <FormLabel className="text-sm">Option name</FormLabel>
-              <FormControl>
-                <Input
-                  value={sizeConfig.name}
-                  maxLength={PRODUCT_OPTION_NAME_MAX}
-                  placeholder="Size / Magnet / Colour"
-                  onChange={(event) =>
-                    setSizeConfig((prev) => ({
-                      ...prev,
-                      name: event.target.value.slice(
-                        0,
-                        PRODUCT_OPTION_NAME_MAX,
-                      ),
-                    }))
-                  }
-                />
-              </FormControl>
-              <FormDescription>
-                Shown on the product page (e.g. &quot;Select Magnet&quot;).
-              </FormDescription>
-            </FormItem>
-          ) : null}
-
-          {sizeConfig.enabled ? (
-            <FormItem>
-              <FormLabel className="text-sm">
-                Option values, stock &amp; price
-              </FormLabel>
-              <FormControl>
-                <div className="space-y-2">
-                  <div className="hidden grid-cols-[1fr,0.7fr,0.9fr,auto] gap-2 text-xs text-muted-foreground sm:grid">
-                    <span>Value</span>
-                    <span>Stock</span>
-                    <span>Price (₹)</span>
-                    <span className="w-20" />
-                  </div>
-                  {sizeConfig.options.map((option, index) => (
-                    <div
-                      key={index}
-                      className="grid grid-cols-1 gap-2 sm:grid-cols-[1fr,0.7fr,0.9fr,auto]"
+          {sizeConfig.enabled
+            ? sizeConfig.groups.map((group, groupIndex) => (
+                <FormItem
+                  key={group.id}
+                  className="rounded-lg border border-border/80 p-4"
+                >
+                  <div className="mb-3 flex flex-wrap items-end justify-between gap-2">
+                    <div className="min-w-[12rem] flex-1 space-y-1">
+                      <FormLabel className="text-sm">
+                        Variant group {groupIndex + 1} name
+                      </FormLabel>
+                      <Input
+                        value={group.name}
+                        maxLength={PRODUCT_OPTION_NAME_MAX}
+                        placeholder="Size / Magnet / Colour"
+                        onChange={(event) =>
+                          updateGroupName(groupIndex, event.target.value)
+                        }
+                      />
+                    </div>
+                    <Button
+                      type="button"
+                      variant="destructive"
+                      disabled={sizeConfig.groups.length <= 1}
+                      onClick={() => removeVariantGroup(groupIndex)}
                     >
-                      <Input
-                        value={option.value}
-                        maxLength={PRODUCT_OPTION_VALUE_MAX}
-                        placeholder="Value (e.g. XL / WITH MAGNET)"
-                        onChange={(event) =>
-                          updateSizeOption(
-                            index,
-                            "value",
-                            event.target.value
-                              .trimStart()
-                              .slice(0, PRODUCT_OPTION_VALUE_MAX)
-                              .toUpperCase(),
-                          )
-                        }
-                      />
-                      <Input
-                        type="text"
-                        inputMode="decimal"
-                        value={option.qty}
-                        placeholder="Stock qty"
-                        onChange={(event) =>
-                          updateSizeOption(
-                            index,
-                            "qty",
-                            event.target.value.replace(/[^0-9.]/g, ""),
-                          )
-                        }
-                        onBlur={(event) =>
-                          updateSizeOption(
-                            index,
-                            "qty",
-                            String(normalizeSizeQtyInput(event.target.value)),
-                          )
-                        }
-                      />
-                      <Input
-                        type="text"
-                        inputMode="decimal"
-                        value={option.price}
-                        placeholder="Price"
-                        aria-label={`Price for option ${index + 1}`}
-                        onChange={(event) =>
-                          updateSizeOption(
-                            index,
-                            "price",
-                            event.target.value.replace(/[^0-9.]/g, ""),
-                          )
-                        }
-                        onBlur={(event) => {
-                          const normalized = normalizeSizePriceInput(
-                            event.target.value,
-                          );
-                          updateSizeOption(
-                            index,
-                            "price",
-                            normalized == null ? "" : String(normalized),
-                          );
-                        }}
-                      />
+                      Remove group
+                    </Button>
+                  </div>
+                  <FormLabel className="text-sm">
+                    Values, stock &amp; price
+                  </FormLabel>
+                  <FormControl>
+                    <div className="mt-2 space-y-2">
+                      <div className="hidden grid-cols-[1fr,0.7fr,0.9fr,auto] gap-2 text-xs text-muted-foreground sm:grid">
+                        <span>Value</span>
+                        <span>Stock</span>
+                        <span>Price (₹)</span>
+                        <span className="w-20" />
+                      </div>
+                      {group.options.map((option, optionIndex) => (
+                        <div
+                          key={optionIndex}
+                          className="grid grid-cols-1 gap-2 sm:grid-cols-[1fr,0.7fr,0.9fr,auto]"
+                        >
+                          <Input
+                            value={option.value}
+                            maxLength={PRODUCT_OPTION_VALUE_MAX}
+                            placeholder="Value (e.g. XL / WITH MAGNET)"
+                            onChange={(event) =>
+                              updateSizeOption(
+                                groupIndex,
+                                optionIndex,
+                                "value",
+                                event.target.value
+                                  .trimStart()
+                                  .slice(0, PRODUCT_OPTION_VALUE_MAX)
+                                  .toUpperCase(),
+                              )
+                            }
+                          />
+                          <Input
+                            type="text"
+                            inputMode="decimal"
+                            value={option.qty}
+                            placeholder="Stock qty"
+                            onChange={(event) =>
+                              updateSizeOption(
+                                groupIndex,
+                                optionIndex,
+                                "qty",
+                                event.target.value.replace(/[^0-9.]/g, ""),
+                              )
+                            }
+                            onBlur={(event) =>
+                              updateSizeOption(
+                                groupIndex,
+                                optionIndex,
+                                "qty",
+                                String(
+                                  normalizeSizeQtyInput(event.target.value),
+                                ),
+                              )
+                            }
+                          />
+                          <Input
+                            type="text"
+                            inputMode="decimal"
+                            value={option.price}
+                            placeholder="Price"
+                            aria-label={`Price for ${group.name} option ${optionIndex + 1}`}
+                            onChange={(event) =>
+                              updateSizeOption(
+                                groupIndex,
+                                optionIndex,
+                                "price",
+                                event.target.value.replace(/[^0-9.]/g, ""),
+                              )
+                            }
+                            onBlur={(event) => {
+                              const normalized = normalizeSizePriceInput(
+                                event.target.value,
+                              );
+                              updateSizeOption(
+                                groupIndex,
+                                optionIndex,
+                                "price",
+                                normalized == null ? "" : String(normalized),
+                              );
+                            }}
+                          />
+                          <Button
+                            type="button"
+                            variant="destructive"
+                            onClick={() =>
+                              removeSizeOption(groupIndex, optionIndex)
+                            }
+                          >
+                            Remove
+                          </Button>
+                        </div>
+                      ))}
                       <Button
                         type="button"
-                        variant="destructive"
-                        onClick={() => removeSizeOption(index)}
+                        variant="outline"
+                        onClick={() => addSizeOption(groupIndex)}
                       >
-                        Remove
+                        Add choice
                       </Button>
                     </div>
-                  ))}
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={addSizeOption}
-                  >
-                    Add option
-                  </Button>
-                </div>
-              </FormControl>
-              <FormDescription>
-                Customers pay the selected option&apos;s price
-                {watch("discountEnabled")
-                  ? " (product discount still applies on top)."
-                  : "."}
-              </FormDescription>
-            </FormItem>
+                  </FormControl>
+                </FormItem>
+              ))
+            : null}
+
+          {sizeConfig.enabled ? (
+            <Button type="button" variant="secondary" onClick={addVariantGroup}>
+              Add variant group
+            </Button>
           ) : null}
 
           {inBulkMode ? (

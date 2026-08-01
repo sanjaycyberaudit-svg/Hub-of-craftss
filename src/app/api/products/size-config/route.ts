@@ -11,19 +11,27 @@ export const revalidate = 120;
 export const dynamic = "force-dynamic";
 
 function toApiPayload(config: ProductSizeConfig) {
-  const configuredOptions = config.options.filter(
-    (option) => Number(option.qty ?? 0) > 0,
-  );
+  const groups = (config.groups ?? [])
+    .map((group) => ({
+      id: group.id,
+      name: group.name || DEFAULT_PRODUCT_OPTION_NAME,
+      options: group.options
+        .filter((option) => Number(option.qty ?? 0) > 0)
+        .map((option) => ({
+          value: option.value,
+          size: option.value,
+          qty: option.qty,
+          price: option.price,
+        })),
+    }))
+    .filter((group) => group.options.length > 0);
+
+  const first = groups[0];
   return {
-    enabled: config.enabled && configuredOptions.length > 0,
-    name: config.name || DEFAULT_PRODUCT_OPTION_NAME,
-    options: configuredOptions.map((option) => ({
-      value: option.value,
-      // Legacy alias for older cart clients.
-      size: option.value,
-      qty: option.qty,
-      price: option.price,
-    })),
+    enabled: config.enabled && groups.length > 0,
+    name: first?.name || config.name || DEFAULT_PRODUCT_OPTION_NAME,
+    options: first?.options ?? [],
+    groups,
   };
 }
 
@@ -36,6 +44,7 @@ const emptyPayload = {
     qty: number;
     price: number | null;
   }[],
+  groups: [] as ReturnType<typeof toApiPayload>["groups"],
 };
 
 export async function GET(request: NextRequest) {
@@ -69,6 +78,7 @@ export async function GET(request: NextRequest) {
             enabled: false,
             name: DEFAULT_PRODUCT_OPTION_NAME,
             options: [],
+            groups: [],
           },
         );
       });

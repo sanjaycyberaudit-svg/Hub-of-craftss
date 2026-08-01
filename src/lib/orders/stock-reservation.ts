@@ -1,9 +1,12 @@
 import { invalidateStorefrontCache } from "@/lib/cache/invalidate-storefront";
 import { mergePaymentMeta, readPaymentMeta } from "@/lib/orders/payment-meta";
 import {
+  getActiveOptionGroups,
   getProductSizeConfigKey,
   normalizeProductSizeConfig,
+  resolveOptionSelections,
   serializeProductSizeConfig,
+  type OptionSelections,
   type ProductSizeConfig,
 } from "@/lib/products/sizeConfig";
 import db from "@/lib/supabase/db";
@@ -62,25 +65,117 @@ type DbTx = PostgresJsDatabase<typeof schema>;
 type ReserveInput = {
   lines: StockReservationLine[];
   selectedSizes: Record<string, string>;
+  selectedSelections?: Record<string, OptionSelections>;
   sizeConfigs: Map<string, ProductSizeConfig>;
   productNames: Map<string, string>;
 };
 
-function findSizeOption(config: ProductSizeConfig, selectedSize: string) {
-  const normalized = selectedSize.trim().toUpperCase();
-  if (!normalized) {
-    return (
-      config.options.find((option) => !String(option.size ?? "").trim()) ?? null
-    );
-  }
-  return (
-    config.options.find(
-      (option) =>
-        String(option.size ?? "")
+function applyQtyDeltaToGroups(
+  config: ProductSizeConfig,
+  selections: OptionSelections,
+  quantityDelta: number,
+): ProductSizeConfig | null {
+  const active = getActiveOptionGroups(config);
+  if (active.length === 0) return config;
+
+  const resolved = resolveOptionSelections({
+    sizeConfig: config,
+    selections,
+  });
+
+  if (quantityDelta < 0) {
+    for (const group of active) {
+      const selected = String(resolved[group.id] ?? "")
+        .trim()
+        .toUpperCase();
+      const option = group.options.find((item) => {
+        const optionSize = String(item.value ?? item.size ?? "")
           .trim()
-          .toUpperCase() === normalized,
-    ) ?? null
+          .toUpperCase();
+        return selected ? optionSize === selected : !optionSize;
+      });
+      if (!option) return null;
+      if (Number(option.qty ?? 0) < Math.abs(quantityDelta)) return null;
+    }
+  }
+
+  const nextGroups = config.groups.map((group) => {
+    if (!active.some((g) => g.id === group.id)) return group;
+    const selected = String(resolved[group.id] ?? "")
+      .trim()
+      .toUpperCase();
+    return {
+      ...group,
+      options: group.options.map((item) => {
+        const optionSize = String(item.value ?? item.size ?? "")
+          .trim()
+          .toUpperCase();
+        const matches = selected ? optionSize === selected : !optionSize;
+        if (!matches) return item;
+        return {
+          ...item,
+          qty: Math.max(0, Number(item.qty ?? 0) + quantityDelta),
+        };
+      }),
+    };
+  });
+
+  return normalizeProductSizeConfig({
+    enabled: config.enabled,
+    groups: nextGroups,
+  });
+}
+
+async function lockAndDecrementOptionStock(
+  tx: DbTx,
+  productId: string,
+  selections: OptionSelections,
+  quantity: number,
+  selectedSize?: string,
+) {
+  const key = getProductSizeConfigKey(productId);
+  const locked = await tx.execute(
+    sql`SELECT id, value FROM api_settings WHERE key = ${key} FOR UPDATE`,
   );
+
+  const row = locked.at(0) as { id?: string; value?: unknown } | undefined;
+  if (!row) {
+    return false;
+  }
+
+  const config = normalizeProductSizeConfig(row.value);
+  if (!config.enabled || getActiveOptionGroups(config).length === 0) {
+    return true;
+  }
+
+  const resolved = resolveOptionSelections({
+    sizeConfig: config,
+    selections,
+    selectedSize,
+  });
+  const next = applyQtyDeltaToGroups(config, resolved, -quantity);
+  if (!next) return false;
+
+  const value = serializeProductSizeConfig(next);
+
+  await tx
+    .insert(apiSettings)
+    .values({
+      key,
+      value,
+      isEnabled: next.enabled,
+      updatedAt: new Date().toISOString(),
+    })
+    .onConflictDoUpdate({
+      target: apiSettings.key,
+      set: {
+        value,
+        isEnabled: next.enabled,
+        updatedAt: new Date().toISOString(),
+      },
+    });
+
+  return true;
 }
 
 async function lockAndDecrementProductStock(
@@ -99,77 +194,6 @@ async function lockAndDecrementProductStock(
   return Boolean(updated);
 }
 
-async function lockAndDecrementSizeStock(
-  tx: DbTx,
-  productId: string,
-  selectedSize: string,
-  quantity: number,
-) {
-  const key = getProductSizeConfigKey(productId);
-  const locked = await tx.execute(
-    sql`SELECT id, value FROM api_settings WHERE key = ${key} FOR UPDATE`,
-  );
-
-  const row = locked.at(0) as { id?: string; value?: unknown } | undefined;
-  if (!row) {
-    return false;
-  }
-
-  const config = normalizeProductSizeConfig(row.value);
-  if (!config.enabled || config.options.length === 0) {
-    return true;
-  }
-
-  const option = findSizeOption(config, selectedSize);
-  if (!option) {
-    return false;
-  }
-
-  if (Number(option.qty ?? 0) < quantity) {
-    return false;
-  }
-
-  const nextOptions = config.options.map((item) => {
-    const optionSize = String(item.size ?? "")
-      .trim()
-      .toUpperCase();
-    const targetSize = String(option.size ?? "")
-      .trim()
-      .toUpperCase();
-    if (optionSize !== targetSize) return item;
-    return {
-      ...item,
-      qty: Math.max(0, Number(item.qty ?? 0) - quantity),
-    };
-  });
-
-  const normalized = normalizeProductSizeConfig({
-    enabled: config.enabled,
-    name: config.name,
-    options: nextOptions,
-  });
-  const value = serializeProductSizeConfig(normalized);
-
-  await tx
-    .insert(apiSettings)
-    .values({
-      key,
-      value,
-      isEnabled: normalized.enabled,
-      updatedAt: new Date().toISOString(),
-    })
-    .onConflictDoUpdate({
-      target: apiSettings.key,
-      set: {
-        value,
-        isEnabled: normalized.enabled,
-        updatedAt: new Date().toISOString(),
-      },
-    });
-
-  return true;
-}
-
 async function incrementProductStock(
   tx: DbTx,
   productId: string,
@@ -183,11 +207,12 @@ async function incrementProductStock(
     .where(eq(products.id, productId));
 }
 
-async function incrementSizeStock(
+async function incrementOptionStock(
   tx: DbTx,
   productId: string,
-  selectedSize: string,
+  selections: OptionSelections,
   quantity: number,
+  selectedSize?: string,
 ) {
   const key = getProductSizeConfigKey(productId);
   const locked = await tx.execute(
@@ -195,47 +220,33 @@ async function incrementSizeStock(
   );
   const row = locked.at(0) as { id?: string; value?: unknown } | undefined;
   const config = normalizeProductSizeConfig(row?.value);
-  if (!config.enabled || config.options.length === 0) {
+  if (!config.enabled || getActiveOptionGroups(config).length === 0) {
     return;
   }
 
-  const option = findSizeOption(config, selectedSize);
-  if (!option) return;
-
-  const nextOptions = config.options.map((item) => {
-    const optionSize = String(item.size ?? "")
-      .trim()
-      .toUpperCase();
-    const targetSize = String(option.size ?? "")
-      .trim()
-      .toUpperCase();
-    if (optionSize !== targetSize) return item;
-    return {
-      ...item,
-      qty: Math.max(0, Number(item.qty ?? 0) + quantity),
-    };
+  const resolved = resolveOptionSelections({
+    sizeConfig: config,
+    selections,
+    selectedSize,
   });
+  const next = applyQtyDeltaToGroups(config, resolved, quantity);
+  if (!next) return;
 
-  const normalized = normalizeProductSizeConfig({
-    enabled: config.enabled,
-    name: config.name,
-    options: nextOptions,
-  });
-  const value = serializeProductSizeConfig(normalized);
+  const value = serializeProductSizeConfig(next);
 
   await tx
     .insert(apiSettings)
     .values({
       key,
       value,
-      isEnabled: normalized.enabled,
+      isEnabled: next.enabled,
       updatedAt: new Date().toISOString(),
     })
     .onConflictDoUpdate({
       target: apiSettings.key,
       set: {
         value,
-        isEnabled: normalized.enabled,
+        isEnabled: next.enabled,
         updatedAt: new Date().toISOString(),
       },
     });
@@ -260,6 +271,15 @@ export async function reserveStockInTransaction(
   for (const line of sortedLines) {
     const productName = input.productNames.get(line.productId);
     const selectedSize = line.size ?? input.selectedSizes[line.productId] ?? "";
+    const selections =
+      line.selections ??
+      input.selectedSelections?.[line.productId] ??
+      (selectedSize
+        ? resolveOptionSelections({
+            sizeConfig: input.sizeConfigs.get(line.productId),
+            selectedSize,
+          })
+        : {});
 
     const productReserved = await lockAndDecrementProductStock(
       tx,
@@ -280,22 +300,21 @@ export async function reserveStockInTransaction(
     const sizeConfig = input.sizeConfigs.get(line.productId);
     const hasConfiguredSizes =
       Boolean(sizeConfig?.enabled) &&
-      (sizeConfig?.options.some((option) => Number(option.qty ?? 0) > 0) ??
-        false);
+      getActiveOptionGroups(sizeConfig).length > 0;
 
     if (hasConfiguredSizes) {
-      const sizeReserved = await lockAndDecrementSizeStock(
+      const sizeReserved = await lockAndDecrementOptionStock(
         tx,
         line.productId,
-        selectedSize,
+        selections,
         line.quantity,
       );
 
       if (!sizeReserved) {
         throw new StockReservationError(
           productName
-            ? `${productName}${selectedSize ? ` (${selectedSize})` : ""} is no longer available in that size.`
-            : "Selected size is no longer available.",
+            ? `${productName} is no longer available for the selected options.`
+            : "Selected options are no longer available.",
           line.productId,
           productName,
         );
@@ -306,6 +325,7 @@ export async function reserveStockInTransaction(
       productId: line.productId,
       quantity: line.quantity,
       ...(selectedSize ? { size: selectedSize } : {}),
+      ...(Object.keys(selections).length > 0 ? { selections } : {}),
     });
   }
 
@@ -413,12 +433,13 @@ export async function deductPaidOrderStockAtomic(
           );
         }
 
-        if (line.size) {
-          const sizeOk = await lockAndDecrementSizeStock(
+        if (line.size || (line.selections && Object.keys(line.selections).length > 0)) {
+          const sizeOk = await lockAndDecrementOptionStock(
             tx,
             line.productId,
-            line.size,
+            line.selections ?? {},
             line.quantity,
+            line.size,
           );
           if (!sizeOk) {
             throw new StockReservationError(
@@ -531,12 +552,16 @@ export async function releaseStockReservation(
 
       for (const line of sortedLines) {
         await incrementProductStock(tx, line.productId, line.quantity);
-        if (line.size) {
-          await incrementSizeStock(
+        if (
+          line.size ||
+          (line.selections && Object.keys(line.selections).length > 0)
+        ) {
+          await incrementOptionStock(
             tx,
             line.productId,
-            line.size,
+            line.selections ?? {},
             line.quantity,
+            line.size,
           );
         }
       }
@@ -578,8 +603,17 @@ export async function releaseStockReservation(
 
     for (const line of sortedOrphanLines) {
       await incrementProductStock(tx, line.productId, line.quantity);
-      if (line.size) {
-        await incrementSizeStock(tx, line.productId, line.size, line.quantity);
+      if (
+        line.size ||
+        (line.selections && Object.keys(line.selections).length > 0)
+      ) {
+        await incrementOptionStock(
+          tx,
+          line.productId,
+          line.selections ?? {},
+          line.quantity,
+          line.size,
+        );
       }
     }
 

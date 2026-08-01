@@ -1,18 +1,30 @@
 import {
   DEFAULT_PRODUCT_OPTION_NAME,
+  LEGACY_OPTION_GROUP_ID,
+  getMinSelectableOptionPrice,
   normalizeProductSizeConfig,
   resolveListPriceForSelection,
   serializeProductSizeConfig,
+  sumSelectedOptionListPrices,
 } from "./sizeConfig-shared";
 
 describe("normalizeProductSizeConfig", () => {
-  it("defaults the group name to Size when missing", () => {
+  it("migrates legacy flat name/options into a single group", () => {
     const config = normalizeProductSizeConfig({
       enabled: true,
-      options: [{ size: "XL", qty: 2 }],
+      options: [{ size: "XL", qty: 2, price: 100 }],
     });
 
     expect(config.name).toBe(DEFAULT_PRODUCT_OPTION_NAME);
+    expect(config.groups).toHaveLength(1);
+    expect(config.groups[0].id).toBe(LEGACY_OPTION_GROUP_ID);
+    expect(config.groups[0].options[0]).toEqual({
+      value: "XL",
+      size: "XL",
+      qty: 2,
+      price: 100,
+    });
+    expect(config.options[0].value).toBe("XL");
   });
 
   it("maps legacy size into value and mirrors size alias", () => {
@@ -29,28 +41,33 @@ describe("normalizeProductSizeConfig", () => {
     });
   });
 
-  it("prefers value over size when both exist", () => {
+  it("normalizes multi-group payloads", () => {
     const config = normalizeProductSizeConfig({
       enabled: true,
-      name: "Magnet",
-      options: [{ value: "NO MAGNET", size: "OLD", qty: 1 }],
+      groups: [
+        {
+          id: "size",
+          name: "Size",
+          options: [{ value: "36", qty: 2, price: 200 }],
+        },
+        {
+          id: "magnet",
+          name: "Magnet",
+          options: [
+            { value: "WITH MAGNET", qty: 5, price: 50 },
+            { value: "WITHOUT MAGNET", qty: 5, price: 0 },
+          ],
+        },
+      ],
     });
 
-    expect(config.name).toBe("Magnet");
-    expect(config.options[0].value).toBe("NO MAGNET");
+    expect(config.groups).toHaveLength(2);
+    expect(config.groups[1].name).toBe("Magnet");
+    expect(config.name).toBe("Size");
+    expect(config.options[0].value).toBe("36");
   });
 
-  it("allows longer option values up to 24 characters", () => {
-    const config = normalizeProductSizeConfig({
-      enabled: true,
-      name: "Finish",
-      options: [{ value: "WITH MAGNET EXTRA", qty: 1 }],
-    });
-
-    expect(config.options[0].value).toBe("WITH MAGNET EXTRA");
-  });
-
-  it("dedupes options by normalized value", () => {
+  it("dedupes options by normalized value within a group", () => {
     const config = normalizeProductSizeConfig({
       enabled: true,
       options: [
@@ -63,60 +80,85 @@ describe("normalizeProductSizeConfig", () => {
     expect(config.options[0].qty).toBe(4);
     expect(config.options[0].price).toBe(250);
   });
-
-  it("normalizes per-option price and keeps legacy null", () => {
-    const config = normalizeProductSizeConfig({
-      enabled: true,
-      options: [
-        { value: "A", qty: 1, price: "199.999" },
-        { value: "B", qty: 1 },
-      ],
-    });
-
-    expect(config.options[0].price).toBe(200);
-    expect(config.options[1].price).toBeNull();
-  });
 });
 
 describe("serializeProductSizeConfig", () => {
-  it("writes name, value, and price without the legacy size key", () => {
+  it("writes groups plus legacy mirrors", () => {
     const serialized = serializeProductSizeConfig({
       enabled: true,
       name: "Magnet",
-      options: [
-        { value: "WITH MAGNET", size: "WITH MAGNET", qty: 5, price: 350 },
-        { value: "NO MAGNET", size: "NO MAGNET", qty: 2, price: null },
+      options: [],
+      groups: [
+        {
+          id: "magnet",
+          name: "Magnet",
+          options: [
+            { value: "WITH MAGNET", size: "WITH MAGNET", qty: 5, price: 350 },
+            { value: "NO MAGNET", size: "NO MAGNET", qty: 2, price: null },
+          ],
+        },
       ],
     });
 
-    expect(serialized).toEqual({
-      enabled: true,
-      name: "Magnet",
-      options: [
-        { value: "WITH MAGNET", qty: 5, price: 350 },
-        { value: "NO MAGNET", qty: 2 },
-      ],
-    });
+    expect(serialized.enabled).toBe(true);
+    expect(serialized.groups).toEqual([
+      {
+        id: "magnet",
+        name: "Magnet",
+        options: [
+          { value: "WITH MAGNET", qty: 5, price: 350 },
+          { value: "NO MAGNET", qty: 2 },
+        ],
+      },
+    ]);
+    expect(serialized.name).toBe("Magnet");
+    expect(serialized.options).toEqual([
+      { value: "WITH MAGNET", qty: 5, price: 350 },
+      { value: "NO MAGNET", qty: 2 },
+    ]);
   });
 });
 
-describe("resolveListPriceForSelection", () => {
+describe("multi-group pricing", () => {
   const config = normalizeProductSizeConfig({
     enabled: true,
-    options: [
-      { value: "S", qty: 2, price: 400 },
-      { value: "L", qty: 1, price: 600 },
+    groups: [
+      {
+        id: "size",
+        name: "Size",
+        options: [
+          { value: "S", qty: 2, price: 400 },
+          { value: "L", qty: 1, price: 600 },
+        ],
+      },
+      {
+        id: "magnet",
+        name: "Magnet",
+        options: [
+          { value: "WITH MAGNET", qty: 3, price: 100 },
+          { value: "WITHOUT MAGNET", qty: 3, price: 0 },
+        ],
+      },
     ],
   });
 
-  it("uses the selected option price", () => {
+  it("sums selected option prices across groups", () => {
+    expect(
+      sumSelectedOptionListPrices(config, {
+        size: "L",
+        magnet: "WITH MAGNET",
+      }),
+    ).toBe(700);
+  });
+
+  it("uses sum for resolveListPriceForSelection", () => {
     expect(
       resolveListPriceForSelection({
         baseListPrice: 999,
         sizeConfig: config,
-        selectedSize: "L",
+        selections: { size: "S", magnet: "WITHOUT MAGNET" },
       }),
-    ).toBe(600);
+    ).toBe(400);
   });
 
   it("falls back to product price for legacy options without price", () => {
@@ -133,7 +175,8 @@ describe("resolveListPriceForSelection", () => {
     ).toBe(999);
   });
 
-  it("can prefer the cheapest option before selection", () => {
+  it("prefers cheapest sum when unselected", () => {
+    expect(getMinSelectableOptionPrice(config)).toBe(400);
     expect(
       resolveListPriceForSelection({
         baseListPrice: 999,

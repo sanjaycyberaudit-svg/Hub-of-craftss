@@ -73,21 +73,16 @@ export function useCartLivePricing(productIds: string[]) {
 }
 
 export function calcLiveCartSubtotal(
-  quantities: Record<string, { quantity: number; size?: string }>,
-  pricing: PricingMap,
-  sizeConfigs?: Record<
+  quantities: Record<
     string,
     {
-      enabled?: boolean;
-      name?: string;
-      options?: Array<{
-        value?: string;
-        size?: string;
-        qty?: number;
-        price?: number | null;
-      }>;
+      quantity: number;
+      size?: string;
+      selections?: Record<string, string>;
     }
   >,
+  pricing: PricingMap,
+  sizeConfigs?: Record<string, unknown>,
 ): number {
   return Object.entries(quantities).reduce((total, [productId, item]) => {
     const base = pricing[productId];
@@ -105,6 +100,7 @@ export function calcLiveCartSubtotal(
           },
           sizeConfig,
           selectedSize: item.size,
+          selections: item.selections,
         }).unitPrice
       : base.unitPrice;
 

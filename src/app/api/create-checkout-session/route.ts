@@ -27,8 +27,11 @@ import { createCashfreePayment } from "@/lib/payments/cashfree";
 import { validatePaymentSessionId } from "@/lib/payments/cashfree-standards";
 import { resolveCheckoutPaymentProvider } from "@/lib/payments/resolve-checkout-provider";
 import {
+  findChoiceInGroup,
+  getActiveOptionGroups,
   getProductOptionDisplayName,
   getProductSizeConfigsByProductIds,
+  resolveOptionSelections,
 } from "@/lib/products/sizeConfig";
 import db from "@/lib/supabase/db";
 import { address, medias, orderLines, orders } from "@/lib/supabase/schema";
@@ -64,6 +67,7 @@ const orderProductsSchema = z.object({
     z.object({
       quantity: z.number().min(1),
       size: z.string().trim().max(24).optional(),
+      selections: z.record(z.string().trim().max(24)).optional(),
     }),
   ),
   guest: z.boolean(),
@@ -231,48 +235,35 @@ export async function POST(request: Request) {
       Object.keys(checkout.orderProducts),
     );
     for (const line of productsQuantity) {
-      const selectedSize = String(checkout.orderProducts[line.id]?.size ?? "")
-        .trim()
-        .toUpperCase();
+      const cartItem = checkout.orderProducts[line.id];
       const sizeConfig = sizeConfigs.get(line.id);
-      const optionName = getProductOptionDisplayName(sizeConfig);
-      const selectableOptions =
-        sizeConfig?.options.filter((option) => Number(option.qty ?? 0) > 0) ??
-        [];
-      const hasConfiguredSizes =
-        Boolean(sizeConfig?.enabled) && selectableOptions.length > 0;
-      if (hasConfiguredSizes) {
-        const emptyLabelOption = selectableOptions.find(
-          (option) => !String(option.value ?? option.size ?? "").trim(),
-        );
-        if (!selectedSize && !emptyLabelOption) {
+      const activeGroups = getActiveOptionGroups(sizeConfig);
+      if (activeGroups.length === 0) continue;
+
+      const selections = resolveOptionSelections({
+        sizeConfig,
+        selections: cartItem?.selections,
+        selectedSize: cartItem?.size,
+      });
+
+      for (const group of activeGroups) {
+        const selected = String(selections[group.id] ?? "")
+          .trim()
+          .toUpperCase();
+        const choice = findChoiceInGroup(group, selected || undefined);
+        if (!choice) {
           return NextResponse.json(
             {
-              message: `${line.name}: please select a ${optionName.toLowerCase()}.`,
+              message: `${line.name}: please select a ${getProductOptionDisplayName(group).toLowerCase()}.`,
             },
             { status: 400 },
           );
         }
-        const sizeOption = selectedSize
-          ? selectableOptions.find(
-              (option) =>
-                String(option.value ?? option.size ?? "")
-                  .trim()
-                  .toUpperCase() === selectedSize,
-            )
-          : emptyLabelOption ?? null;
-        if (!sizeOption) {
+        if (line.quantity > Number(choice.qty ?? 0)) {
+          const label = String(choice.value ?? choice.size ?? "").trim();
           return NextResponse.json(
             {
-              message: `${line.name}: selected ${optionName.toLowerCase()} is unavailable.`,
-            },
-            { status: 400 },
-          );
-        }
-        if (line.quantity > sizeOption.qty) {
-          return NextResponse.json(
-            {
-              message: `${line.name}${selectedSize ? ` (${selectedSize})` : ""} has only ${sizeOption.qty} left.`,
+              message: `${line.name}${label ? ` (${group.name}: ${label})` : ""} has only ${choice.qty} left.`,
             },
             { status: 400 },
           );
@@ -360,6 +351,16 @@ export async function POST(request: Request) {
           .toUpperCase(),
       ]),
     );
+    const selectedSelections = Object.fromEntries(
+      Object.entries(checkout.orderProducts).map(([id, value]) => [
+        id,
+        resolveOptionSelections({
+          sizeConfig: sizeConfigs.get(id),
+          selections: value.selections,
+          selectedSize: value.size,
+        }),
+      ]),
+    );
     const productNames = new Map(
       productsQuantity.map((product) => [product.id, product.name]),
     );
@@ -381,6 +382,7 @@ export async function POST(request: Request) {
         paymentEnvironment,
         linePricing,
         sizes: selectedSizes,
+        selections: selectedSelections,
       };
 
       const created = await tx
@@ -442,8 +444,10 @@ export async function POST(request: Request) {
             productId: product.id,
             quantity: product.quantity,
             size: selectedSizes[product.id] || undefined,
+            selections: selectedSelections[product.id],
           })),
           selectedSizes,
+          selectedSelections,
           sizeConfigs,
           productNames,
         });

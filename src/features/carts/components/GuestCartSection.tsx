@@ -48,15 +48,9 @@ import {
   toSizeConfigFromCartPayload,
   withLiveLinePricing,
 } from "../lib/live-pricing";
+import { areAllOptionGroupsSelected } from "@/lib/products/sizeConfig-shared";
 import { getSaleProductPrice } from "@/lib/products/discount";
 import { useToast } from "@/components/ui/use-toast";
-
-type CartSizeConfigOption = {
-  value?: string;
-  size: string;
-  qty: number;
-  price?: number | null;
-};
 
 type CartSizeConfig = CartSizeConfigPayload;
 
@@ -84,6 +78,7 @@ function GuestCartSection({
   const addProductToCart = useCartStore((s) => s.addProductToCart);
   const removeProduct = useCartStore((s) => s.removeProduct);
   const setProductSize = useCartStore((s) => s.setProductSize);
+  const setProductSelections = useCartStore((s) => s.setProductSelections);
   const [sizeConfigsByProductId, setSizeConfigsByProductId] = useState<
     Record<string, CartSizeConfig>
   >(() => initialSizeConfigs ?? {});
@@ -249,6 +244,7 @@ function GuestCartSection({
                 enabled: false,
                 name: "Size",
                 options: [],
+                groups: [],
               },
             ] as const,
         );
@@ -269,18 +265,19 @@ function GuestCartSection({
     () =>
       cartLines
         .filter(({ node }) => {
-          const config = sizeConfigsByProductId[node.id];
-          const hasLabeledOptions = Boolean(
-            config?.enabled &&
-              config.options.some(
-                (option) =>
-                  String(option.value ?? option.size ?? "").trim().length > 0,
-              ),
+          const sizeConfig = toSizeConfigFromCartPayload(
+            sizeConfigsByProductId[node.id],
           );
-          const selected = String(cartItems[node.id]?.size ?? "")
-            .trim()
-            .toUpperCase();
-          return hasLabeledOptions && !selected;
+          if (!sizeConfig.enabled || sizeConfig.groups.length === 0) {
+            return false;
+          }
+          const item = cartItems[node.id];
+          const selections =
+            item?.selections ??
+            (item?.size && sizeConfig.groups[0]
+              ? { [sizeConfig.groups[0].id]: item.size }
+              : {});
+          return !areAllOptionGroupsSelected(sizeConfig, selections);
         })
         .map(({ node }) => node.name)
         .filter((name): name is string => Boolean(name)),
@@ -375,26 +372,38 @@ function GuestCartSection({
           <CartItemsList>
             {cartLines.map(({ node }) =>
               (() => {
-                const config = sizeConfigsByProductId[node.id];
-                const optionName = String(config?.name ?? "").trim() || "Size";
-                const hasLabeledOptions = Boolean(
-                  config?.enabled &&
-                    config.options.some(
-                      (option) =>
-                        String(option.value ?? option.size ?? "").trim()
-                          .length > 0,
-                    ),
+                const sizeConfig = toSizeConfigFromCartPayload(
+                  sizeConfigsByProductId[node.id],
                 );
-                const sizeOptions = (config?.options ?? [])
-                  .filter((option) => Number(option.qty ?? 0) > 0)
-                  .map((option) => {
-                    const normalized = String(option.value ?? option.size ?? "")
-                      .trim()
-                      .toUpperCase();
-                    const label = normalized || `${option.qty}`;
-                    return { value: normalized, label };
-                  })
-                  .filter((option) => option.value.length > 0);
+                const optionGroups = sizeConfig.groups
+                  .filter((group) =>
+                    group.options.some((option) => Number(option.qty ?? 0) > 0),
+                  )
+                  .map((group) => ({
+                    id: group.id,
+                    name: group.name,
+                    options: group.options
+                      .filter((option) => Number(option.qty ?? 0) > 0)
+                      .map((option) => {
+                        const normalized = String(
+                          option.value ?? option.size ?? "",
+                        )
+                          .trim()
+                          .toUpperCase();
+                        return {
+                          value: normalized,
+                          label: normalized || `${option.qty}`,
+                        };
+                      })
+                      .filter((option) => option.value.length > 0),
+                  }));
+                const sizeRequired = optionGroups.length > 0;
+                const item = cartItems[node.id];
+                const selections =
+                  item?.selections ??
+                  (item?.size && optionGroups[0]
+                    ? { [optionGroups[0].id]: item.size }
+                    : {});
 
                 return (
                   <CartItemCard
@@ -403,16 +412,18 @@ function GuestCartSection({
                     product={withLiveLinePricing(
                       node,
                       livePricing[node.id],
-                      toSizeConfigFromCartPayload(
-                        sizeConfigsByProductId[node.id],
-                      ),
-                      cartItems[node.id]?.size,
+                      sizeConfig,
+                      item?.size,
+                      selections,
                     )}
-                    quantity={cartItems[node.id]?.quantity ?? 0}
-                    selectedSize={cartItems[node.id]?.size}
-                    sizeRequired={hasLabeledOptions}
-                    optionName={optionName}
-                    sizeOptions={sizeOptions}
+                    quantity={item?.quantity ?? 0}
+                    selectedSize={item?.size}
+                    selections={selections}
+                    sizeRequired={sizeRequired}
+                    optionGroups={optionGroups}
+                    onSelectionsChange={(next) =>
+                      setProductSelections(node.id, next)
+                    }
                     onSizeChange={(size) => setProductSize(node.id, size)}
                     addOneHandler={() =>
                       addOneHandler(
