@@ -1,4 +1,5 @@
 import type { StoreContact } from "@/lib/contact/links";
+import { buildTelHref } from "@/lib/contact/phone";
 
 export type ShopContactPersonInput = {
   name: string;
@@ -23,8 +24,7 @@ export type ResolvedShopContact = {
 };
 
 export function buildPhoneHref(phone: string): string {
-  const digits = phone.replace(/\D/g, "");
-  return digits ? `tel:+${digits}` : "tel:";
+  return buildTelHref(phone);
 }
 
 export function normalizeShopContacts(

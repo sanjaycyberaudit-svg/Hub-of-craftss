@@ -12,10 +12,10 @@ const defaultContact: ResolvedShopContact = {
   email: siteConfig.email,
   contacts: siteConfig.contacts.map((contact) => ({
     ...contact,
-    phoneHref: contact.phoneHref || buildPhoneHref(contact.phone),
+    phoneHref: buildPhoneHref(contact.phone || contact.phoneHref),
   })),
   phone: siteConfig.phone,
-  phoneHref: siteConfig.phoneHref,
+  phoneHref: siteConfig.phoneHref || buildPhoneHref(siteConfig.phone),
 };
 
 const ShopContactContext = createContext<ResolvedShopContact>(defaultContact);

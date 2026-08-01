@@ -1,7 +1,12 @@
-/** Build a WhatsApp chat URL from a `tel:` href or raw digits. */
+import {
+  buildTelHref,
+  buildWhatsAppHref,
+  toInternationalPhoneDigits,
+} from "@/lib/contact/phone";
+
+/** Build a WhatsApp chat URL from a `tel:` href, display phone, or raw digits. */
 export function whatsAppHrefFromPhone(phoneHref: string): string {
-  const digits = phoneHref.replace(/^tel:/i, "").replace(/\D/g, "");
-  return digits ? `https://wa.me/${digits}` : "https://wa.me/";
+  return buildWhatsAppHref(phoneHref);
 }
 
 export type StoreContact = {
@@ -14,7 +19,11 @@ export function contactActionHref(
   contact: StoreContact,
   mode: "call" | "whatsapp",
 ): string {
-  return mode === "call"
-    ? contact.phoneHref
-    : whatsAppHrefFromPhone(contact.phoneHref);
+  const source = contact.phoneHref?.trim() || contact.phone?.trim() || "";
+  if (mode === "call") {
+    // Prefer normalized href even if stored phoneHref omitted country code.
+    const digits = toInternationalPhoneDigits(source);
+    return digits ? buildTelHref(digits) : contact.phoneHref || "tel:";
+  }
+  return buildWhatsAppHref(source);
 }

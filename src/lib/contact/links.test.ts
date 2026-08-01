@@ -1,8 +1,17 @@
 import { contactActionHref, whatsAppHrefFromPhone } from "@/lib/contact/links";
 
 describe("contact links", () => {
-  it("builds WhatsApp href from tel link", () => {
+  it("builds WhatsApp href with country code from tel link", () => {
     expect(whatsAppHrefFromPhone("tel:+918012715132")).toBe(
+      "https://wa.me/918012715132",
+    );
+  });
+
+  it("adds India country code when tel link is 10 digits only", () => {
+    expect(whatsAppHrefFromPhone("tel:+8012715132")).toBe(
+      "https://wa.me/918012715132",
+    );
+    expect(whatsAppHrefFromPhone("tel:8012715132")).toBe(
       "https://wa.me/918012715132",
     );
   });
@@ -18,5 +27,18 @@ describe("contact links", () => {
     expect(contactActionHref(contact, "whatsapp")).toBe(
       "https://wa.me/918012715132",
     );
+  });
+
+  it("fixes WhatsApp when stored contact has local 10-digit number", () => {
+    const contact = {
+      name: "Shaaru",
+      phone: "8870669160",
+      phoneHref: "tel:+8870669160",
+    };
+
+    expect(contactActionHref(contact, "whatsapp")).toBe(
+      "https://wa.me/918870669160",
+    );
+    expect(contactActionHref(contact, "call")).toBe("tel:+918870669160");
   });
 });
