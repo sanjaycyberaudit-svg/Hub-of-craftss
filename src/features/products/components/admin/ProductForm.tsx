@@ -171,6 +171,8 @@ function createEmptyGroup(name = DEFAULT_PRODUCT_OPTION_NAME): SizeGroupForm {
   };
 }
 
+const ADD_NEW_VARIANT_VALUE = "__add_new_variant__";
+
 function normalizeSizeQtyInput(raw: unknown) {
   const value = Number(String(raw ?? "").replace(/[^0-9.]/g, ""));
   if (!Number.isFinite(value)) return 0;
@@ -337,6 +339,9 @@ function ProductFrom({ product, galleryMediaIds = [] }: ProductsFormProps) {
     enabled: false,
     groups: [createEmptyGroup()],
   });
+  const [activeVariantGroupId, setActiveVariantGroupId] = useState<string>(
+    () => sizeConfig.groups[0]?.id ?? "",
+  );
   const localFileInputRef = useRef<HTMLInputElement>(null);
 
   const [{ data }] = useQuery({
@@ -471,6 +476,7 @@ function ProductFrom({ product, galleryMediaIds = [] }: ProductsFormProps) {
           enabled: Boolean(config.enabled),
           groups: groupsFromApi,
         });
+        setActiveVariantGroupId(groupsFromApi[0]?.id ?? "");
       } catch {
         // keep default config
       }
@@ -480,6 +486,14 @@ function ProductFrom({ product, galleryMediaIds = [] }: ProductsFormProps) {
       active = false;
     };
   }, [product?.id]);
+
+  useEffect(() => {
+    if (!sizeConfig.enabled || sizeConfig.groups.length === 0) return;
+    if (sizeConfig.groups.some((group) => group.id === activeVariantGroupId)) {
+      return;
+    }
+    setActiveVariantGroupId(sizeConfig.groups[0]?.id ?? "");
+  }, [sizeConfig.enabled, sizeConfig.groups, activeVariantGroupId]);
 
   const normalizedSizeConfig = useMemo(() => {
     const groups = sizeConfig.groups
@@ -947,11 +961,14 @@ function ProductFrom({ product, galleryMediaIds = [] }: ProductsFormProps) {
     }));
   };
 
-  const addVariantGroup = () => {
+  const addVariantGroup = (name = "") => {
+    const nextGroup = createEmptyGroup(name);
     setSizeConfig((prev) => ({
       ...prev,
-      groups: [...prev.groups, createEmptyGroup("Magnet")],
+      groups: [...prev.groups, nextGroup],
     }));
+    setActiveVariantGroupId(nextGroup.id);
+    return nextGroup.id;
   };
 
   const removeVariantGroup = (groupIndex: number) => {
@@ -964,7 +981,24 @@ function ProductFrom({ product, galleryMediaIds = [] }: ProductsFormProps) {
     }));
   };
 
+  const selectVariantGroup = (value: string) => {
+    if (value === ADD_NEW_VARIANT_VALUE) {
+      addVariantGroup("");
+      return;
+    }
+    setActiveVariantGroupId(value);
+  };
+
   const variantsEnabled = sizeConfig.enabled;
+  const activeVariantGroupIndex = sizeConfig.groups.findIndex(
+    (group) => group.id === activeVariantGroupId,
+  );
+  const activeVariantGroup =
+    activeVariantGroupIndex >= 0
+      ? sizeConfig.groups[activeVariantGroupIndex]
+      : sizeConfig.groups[0];
+  const activeGroupIndex =
+    activeVariantGroupIndex >= 0 ? activeVariantGroupIndex : 0;
 
   return (
     <Form {...form}>
@@ -1207,7 +1241,7 @@ function ProductFrom({ product, galleryMediaIds = [] }: ProductsFormProps) {
             </FormControl>
             <FormDescription>
               {variantsEnabled
-                ? "Inactive while options/variants are enabled — set a price on each option below. The product MRP is auto-synced to the lowest option price on save."
+                ? "Inactive while options are enabled — set prices on each choice below."
                 : "List price before discount. Customers pay less only when discount is enabled below."}
             </FormDescription>
             <FormMessage />
@@ -1348,7 +1382,7 @@ function ProductFrom({ product, galleryMediaIds = [] }: ProductsFormProps) {
           />
 
           <FormItem>
-            <FormLabel className="text-sm">Enable options / variants</FormLabel>
+            <FormLabel className="text-sm">Options / variants</FormLabel>
             <FormControl>
               <label className="flex items-center gap-2 text-sm">
                 <input
@@ -1375,160 +1409,160 @@ function ProductFrom({ product, galleryMediaIds = [] }: ProductsFormProps) {
                     }
                   }}
                 />
-                Let customers pick variants (Size, Magnet, Colour, …). Add as
-                many groups as you need.
+                Enable
               </label>
             </FormControl>
-            <FormDescription>
-              Each group becomes a dropdown on the product page. Add choices
-              with stock and price. Customer pays the sum of selected choice
-              prices
-              {watch("discountEnabled")
-                ? " (product discount still applies on top)"
-                : ""}
-              . Main Price (MRP) above stays inactive while this is on.
-            </FormDescription>
           </FormItem>
 
-          {sizeConfig.enabled
-            ? sizeConfig.groups.map((group, groupIndex) => (
-                <FormItem
-                  key={group.id}
-                  className="rounded-lg border border-border/80 p-4"
+          {sizeConfig.enabled && activeVariantGroup ? (
+            <FormItem className="space-y-4 rounded-lg border border-border/80 p-4">
+              <div className="flex flex-wrap items-end gap-3">
+                <div className="min-w-[14rem] flex-1 space-y-1">
+                  <FormLabel className="text-sm">Variant type</FormLabel>
+                  <Select
+                    value={activeVariantGroup.id}
+                    onValueChange={selectVariantGroup}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select variant type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {sizeConfig.groups.map((group) => (
+                        <SelectItem key={group.id} value={group.id}>
+                          {group.name.trim() || "Untitled"}
+                        </SelectItem>
+                      ))}
+                      <SelectItem value={ADD_NEW_VARIANT_VALUE}>
+                        Add new…
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <Button
+                  type="button"
+                  variant="destructive"
+                  disabled={sizeConfig.groups.length <= 1}
+                  onClick={() => removeVariantGroup(activeGroupIndex)}
                 >
-                  <div className="mb-3 flex flex-wrap items-end justify-between gap-2">
-                    <div className="min-w-[12rem] flex-1 space-y-1">
-                      <FormLabel className="text-sm">
-                        Variant group {groupIndex + 1} name
-                      </FormLabel>
-                      <Input
-                        value={group.name}
-                        maxLength={PRODUCT_OPTION_NAME_MAX}
-                        placeholder="Size / Magnet / Colour"
-                        onChange={(event) =>
-                          updateGroupName(groupIndex, event.target.value)
-                        }
-                      />
+                  Remove type
+                </Button>
+              </div>
+
+              <div className="space-y-1">
+                <FormLabel className="text-sm">Type name</FormLabel>
+                <Input
+                  value={activeVariantGroup.name}
+                  maxLength={PRODUCT_OPTION_NAME_MAX}
+                  placeholder="Size / Magnet / Colour"
+                  onChange={(event) =>
+                    updateGroupName(activeGroupIndex, event.target.value)
+                  }
+                />
+              </div>
+
+              <div className="space-y-2">
+                <FormLabel className="text-sm">
+                  Values, stock &amp; price
+                </FormLabel>
+                <FormControl>
+                  <div className="space-y-2">
+                    <div className="hidden grid-cols-[1fr,0.7fr,0.9fr,auto] gap-2 text-xs text-muted-foreground sm:grid">
+                      <span>Value</span>
+                      <span>Stock</span>
+                      <span>Price (₹)</span>
+                      <span className="w-20" />
                     </div>
+                    {activeVariantGroup.options.map((option, optionIndex) => (
+                      <div
+                        key={optionIndex}
+                        className="grid grid-cols-1 gap-2 sm:grid-cols-[1fr,0.7fr,0.9fr,auto]"
+                      >
+                        <Input
+                          value={option.value}
+                          maxLength={PRODUCT_OPTION_VALUE_MAX}
+                          placeholder="Value (e.g. XL / WITH MAGNET)"
+                          onChange={(event) =>
+                            updateSizeOption(
+                              activeGroupIndex,
+                              optionIndex,
+                              "value",
+                              event.target.value
+                                .trimStart()
+                                .slice(0, PRODUCT_OPTION_VALUE_MAX)
+                                .toUpperCase(),
+                            )
+                          }
+                        />
+                        <Input
+                          type="text"
+                          inputMode="decimal"
+                          value={option.qty}
+                          placeholder="Stock qty"
+                          onChange={(event) =>
+                            updateSizeOption(
+                              activeGroupIndex,
+                              optionIndex,
+                              "qty",
+                              event.target.value.replace(/[^0-9.]/g, ""),
+                            )
+                          }
+                          onBlur={(event) =>
+                            updateSizeOption(
+                              activeGroupIndex,
+                              optionIndex,
+                              "qty",
+                              String(normalizeSizeQtyInput(event.target.value)),
+                            )
+                          }
+                        />
+                        <Input
+                          type="text"
+                          inputMode="decimal"
+                          value={option.price}
+                          placeholder="Price"
+                          aria-label={`Price for ${activeVariantGroup.name} option ${optionIndex + 1}`}
+                          onChange={(event) =>
+                            updateSizeOption(
+                              activeGroupIndex,
+                              optionIndex,
+                              "price",
+                              event.target.value.replace(/[^0-9.]/g, ""),
+                            )
+                          }
+                          onBlur={(event) => {
+                            const normalized = normalizeSizePriceInput(
+                              event.target.value,
+                            );
+                            updateSizeOption(
+                              activeGroupIndex,
+                              optionIndex,
+                              "price",
+                              normalized == null ? "" : String(normalized),
+                            );
+                          }}
+                        />
+                        <Button
+                          type="button"
+                          variant="destructive"
+                          onClick={() =>
+                            removeSizeOption(activeGroupIndex, optionIndex)
+                          }
+                        >
+                          Remove
+                        </Button>
+                      </div>
+                    ))}
                     <Button
                       type="button"
-                      variant="destructive"
-                      disabled={sizeConfig.groups.length <= 1}
-                      onClick={() => removeVariantGroup(groupIndex)}
+                      variant="outline"
+                      onClick={() => addSizeOption(activeGroupIndex)}
                     >
-                      Remove group
+                      Add choice
                     </Button>
                   </div>
-                  <FormLabel className="text-sm">
-                    Values, stock &amp; price
-                  </FormLabel>
-                  <FormControl>
-                    <div className="mt-2 space-y-2">
-                      <div className="hidden grid-cols-[1fr,0.7fr,0.9fr,auto] gap-2 text-xs text-muted-foreground sm:grid">
-                        <span>Value</span>
-                        <span>Stock</span>
-                        <span>Price (₹)</span>
-                        <span className="w-20" />
-                      </div>
-                      {group.options.map((option, optionIndex) => (
-                        <div
-                          key={optionIndex}
-                          className="grid grid-cols-1 gap-2 sm:grid-cols-[1fr,0.7fr,0.9fr,auto]"
-                        >
-                          <Input
-                            value={option.value}
-                            maxLength={PRODUCT_OPTION_VALUE_MAX}
-                            placeholder="Value (e.g. XL / WITH MAGNET)"
-                            onChange={(event) =>
-                              updateSizeOption(
-                                groupIndex,
-                                optionIndex,
-                                "value",
-                                event.target.value
-                                  .trimStart()
-                                  .slice(0, PRODUCT_OPTION_VALUE_MAX)
-                                  .toUpperCase(),
-                              )
-                            }
-                          />
-                          <Input
-                            type="text"
-                            inputMode="decimal"
-                            value={option.qty}
-                            placeholder="Stock qty"
-                            onChange={(event) =>
-                              updateSizeOption(
-                                groupIndex,
-                                optionIndex,
-                                "qty",
-                                event.target.value.replace(/[^0-9.]/g, ""),
-                              )
-                            }
-                            onBlur={(event) =>
-                              updateSizeOption(
-                                groupIndex,
-                                optionIndex,
-                                "qty",
-                                String(
-                                  normalizeSizeQtyInput(event.target.value),
-                                ),
-                              )
-                            }
-                          />
-                          <Input
-                            type="text"
-                            inputMode="decimal"
-                            value={option.price}
-                            placeholder="Price"
-                            aria-label={`Price for ${group.name} option ${optionIndex + 1}`}
-                            onChange={(event) =>
-                              updateSizeOption(
-                                groupIndex,
-                                optionIndex,
-                                "price",
-                                event.target.value.replace(/[^0-9.]/g, ""),
-                              )
-                            }
-                            onBlur={(event) => {
-                              const normalized = normalizeSizePriceInput(
-                                event.target.value,
-                              );
-                              updateSizeOption(
-                                groupIndex,
-                                optionIndex,
-                                "price",
-                                normalized == null ? "" : String(normalized),
-                              );
-                            }}
-                          />
-                          <Button
-                            type="button"
-                            variant="destructive"
-                            onClick={() =>
-                              removeSizeOption(groupIndex, optionIndex)
-                            }
-                          >
-                            Remove
-                          </Button>
-                        </div>
-                      ))}
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() => addSizeOption(groupIndex)}
-                      >
-                        Add choice
-                      </Button>
-                    </div>
-                  </FormControl>
-                </FormItem>
-              ))
-            : null}
-
-          {sizeConfig.enabled ? (
-            <Button type="button" variant="secondary" onClick={addVariantGroup}>
-              Add variant group
-            </Button>
+                </FormControl>
+              </div>
+            </FormItem>
           ) : null}
 
           {inBulkMode ? (
