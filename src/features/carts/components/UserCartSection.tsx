@@ -48,7 +48,10 @@ import {
   calcLiveCartSubtotal,
   useCartLivePricing,
 } from "../hooks/useCartLivePricing";
-import { withLiveProductPricing } from "../lib/live-pricing";
+import {
+  toSizeConfigFromCartPayload,
+  withLiveLinePricing,
+} from "../lib/live-pricing";
 import { getSaleProductPrice } from "@/lib/products/discount";
 import { isBulkOrderQuantity } from "../constants/bulkOrder";
 
@@ -65,6 +68,7 @@ type CartSizeConfigOption = {
   value?: string;
   size: string;
   qty: number;
+  price?: number | null;
 };
 
 type CartSizeConfig = {
@@ -134,15 +138,22 @@ function UserCartSection({
     const quantities = Object.fromEntries(
       cart.map((edge) => [
         edge.node.product_id,
-        { quantity: edge.node.quantity },
+        {
+          quantity: edge.node.quantity,
+          size: localCart[edge.node.product_id]?.size,
+        },
       ]),
     );
-    const liveTotal = calcLiveCartSubtotal(quantities, livePricing);
+    const liveTotal = calcLiveCartSubtotal(
+      quantities,
+      livePricing,
+      sizeConfigsByProductId,
+    );
     if (Object.keys(livePricing).length > 0) {
       return liveTotal;
     }
     return calcSubtotal(cart);
-  }, [cart, livePricing]);
+  }, [cart, livePricing, localCart, sizeConfigsByProductId]);
   const productCount = useMemo(() => calcProductCount(cart), [cart]);
   const courierBreakdown = useMemo(() => {
     if (!courierConfig.enabled || !deliveryState) return null;
@@ -503,9 +514,13 @@ function UserCartSection({
                   <CartItemCard
                     key={node.product_id}
                     id={node.product_id}
-                    product={withLiveProductPricing(
+                    product={withLiveLinePricing(
                       node.product!,
                       livePricing[node.product_id],
+                      toSizeConfigFromCartPayload(
+                        sizeConfigsByProductId[node.product_id],
+                      ),
+                      localCart[node.product_id]?.size,
                     )}
                     quantity={node.quantity}
                     selectedSize={localCart[node.product_id]?.size}

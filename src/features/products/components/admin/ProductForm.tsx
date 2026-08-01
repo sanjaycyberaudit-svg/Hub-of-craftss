@@ -64,6 +64,7 @@ import {
 } from "@/lib/products/discount";
 import {
   DEFAULT_PRODUCT_OPTION_NAME,
+  getMinSelectableOptionPrice,
   PRODUCT_OPTION_NAME_MAX,
   PRODUCT_OPTION_VALUE_MAX,
 } from "@/lib/products/sizeConfig-shared";
@@ -130,6 +131,7 @@ type IntegrationsPayload = {
 type SizeOptionForm = {
   value: string;
   qty: string;
+  price: string;
 };
 
 type ProductSizeConfigForm = {
@@ -139,11 +141,11 @@ type ProductSizeConfigForm = {
 };
 
 const DEFAULT_SIZE_OPTIONS: SizeOptionForm[] = [
-  { value: "36", qty: "1" },
-  { value: "38", qty: "1" },
-  { value: "40", qty: "1" },
-  { value: "42", qty: "1" },
-  { value: "44", qty: "1" },
+  { value: "36", qty: "1", price: "" },
+  { value: "38", qty: "1", price: "" },
+  { value: "40", qty: "1", price: "" },
+  { value: "42", qty: "1", price: "" },
+  { value: "44", qty: "1", price: "" },
 ];
 
 function normalizeSizeQtyInput(raw: unknown) {
@@ -152,11 +154,20 @@ function normalizeSizeQtyInput(raw: unknown) {
   return Math.max(0, Math.round(value * 100) / 100);
 }
 
+function normalizeSizePriceInput(raw: unknown): number | null {
+  const trimmed = String(raw ?? "").trim();
+  if (!trimmed) return null;
+  const value = Number(trimmed.replace(/[^0-9.]/g, ""));
+  if (!Number.isFinite(value) || value < 0) return null;
+  return Math.round(value * 100) / 100;
+}
+
 function hasAnySizeOptionConfigured(options: SizeOptionForm[]) {
   return options.some((option) => {
     const value = String(option.value ?? "").trim();
     const qty = normalizeSizeQtyInput(option.qty);
-    return value.length > 0 || qty > 0;
+    const price = normalizeSizePriceInput(option.price);
+    return value.length > 0 || qty > 0 || price != null;
   });
 }
 
@@ -278,7 +289,7 @@ function ProductFrom({ product, galleryMediaIds = [] }: ProductsFormProps) {
   const [sizeConfig, setSizeConfig] = useState<ProductSizeConfigForm>({
     enabled: false,
     name: DEFAULT_PRODUCT_OPTION_NAME,
-    options: [{ value: "", qty: "" }],
+    options: [{ value: "", qty: "", price: "" }],
   });
   const localFileInputRef = useRef<HTMLInputElement>(null);
 
@@ -390,12 +401,17 @@ function ProductFrom({ product, galleryMediaIds = [] }: ProductsFormProps) {
                     .trim()
                     .slice(0, PRODUCT_OPTION_VALUE_MAX)
                     .toUpperCase();
+                  const price =
+                    raw.price == null || String(raw.price).trim() === ""
+                      ? ""
+                      : String(raw.price);
                   return {
                     value,
                     qty: String(raw.qty ?? ""),
+                    price,
                   };
                 })
-              : [{ value: "", qty: "" }],
+              : [{ value: "", qty: "", price: "" }],
         });
       } catch {
         // keep default config
@@ -408,16 +424,20 @@ function ProductFrom({ product, galleryMediaIds = [] }: ProductsFormProps) {
   }, [product?.id]);
 
   const normalizedSizeConfig = useMemo(() => {
-    const dedup = new Map<string, { value: string; qty: number }>();
+    const dedup = new Map<
+      string,
+      { value: string; qty: number; price: number | null }
+    >();
     for (const option of sizeConfig.options) {
       const value = String(option.value ?? "")
         .trim()
         .slice(0, PRODUCT_OPTION_VALUE_MAX)
         .toUpperCase();
       const qty = normalizeSizeQtyInput(option.qty);
-      if (!value && qty <= 0) continue;
+      const price = normalizeSizePriceInput(option.price);
+      if (!value && qty <= 0 && price == null) continue;
       const key = value || "__NO_LABEL__";
-      dedup.set(key, { value, qty });
+      dedup.set(key, { value, qty, price });
     }
     return {
       enabled: sizeConfig.enabled,
@@ -429,6 +449,7 @@ function ProductFrom({ product, galleryMediaIds = [] }: ProductsFormProps) {
         value: option.value,
         size: option.value,
         qty: option.qty,
+        price: option.price,
       })),
     };
   }, [sizeConfig.enabled, sizeConfig.name, sizeConfig.options]);
@@ -540,9 +561,38 @@ function ProductFrom({ product, galleryMediaIds = [] }: ProductsFormProps) {
         throw new Error("Select at least one product image.");
       }
 
+      if (normalizedSizeConfig.enabled) {
+        const pricedOptions = normalizedSizeConfig.options.filter(
+          (option) => Number(option.qty ?? 0) > 0,
+        );
+        if (pricedOptions.length === 0) {
+          throw new Error(
+            "Add at least one option with stock when options/variants are enabled.",
+          );
+        }
+        const missingPrice = pricedOptions.find(
+          (option) => option.price == null || Number(option.price) <= 0,
+        );
+        if (missingPrice) {
+          const label = String(missingPrice.value ?? "").trim() || "an option";
+          throw new Error(
+            `Enter a price greater than 0 for ${label}. When options are enabled, each option needs its own price.`,
+          );
+        }
+      }
+
+      // When variants are on, the product MRP field is inactive — sync DB price
+      // to the cheapest option so shop cards / JSON-LD stay sensible.
+      const syncedMinPrice = normalizedSizeConfig.enabled
+        ? getMinSelectableOptionPrice(normalizedSizeConfig)
+        : null;
+      const priceForSave =
+        syncedMinPrice != null ? String(syncedMinPrice) : data.price;
+
       const payload = normalizeProductFormPayload(
         {
           ...data,
+          price: priceForSave,
           featuredImageId: productImageMediaIds[0],
         },
         {
@@ -775,7 +825,7 @@ function ProductFrom({ product, galleryMediaIds = [] }: ProductsFormProps) {
   const addSizeOption = () => {
     setSizeConfig((prev) => ({
       ...prev,
-      options: [...prev.options, { value: "", qty: "" }],
+      options: [...prev.options, { value: "", qty: "", price: "" }],
     }));
   };
 
@@ -784,10 +834,12 @@ function ProductFrom({ product, galleryMediaIds = [] }: ProductsFormProps) {
       ...prev,
       options:
         prev.options.length <= 1
-          ? [{ value: "", qty: "" }]
+          ? [{ value: "", qty: "", price: "" }]
           : prev.options.filter((_, i) => i !== index),
     }));
   };
+
+  const variantsEnabled = sizeConfig.enabled;
 
   return (
     <Form {...form}>
@@ -1007,18 +1059,31 @@ function ProductFrom({ product, galleryMediaIds = [] }: ProductsFormProps) {
           </FormItem>
 
           <FormItem>
-            <FormLabel className="text-sm">Price (MRP)*</FormLabel>
+            <FormLabel
+              className={
+                variantsEnabled ? "text-sm text-muted-foreground" : "text-sm"
+              }
+            >
+              Price (MRP){variantsEnabled ? "" : "*"}
+            </FormLabel>
             <FormControl>
               <Input
                 defaultValue={product?.price}
                 aria-invalid={!!form.formState.errors.price}
                 placeholder="Original price in ₹ (e.g. 1299)"
+                disabled={variantsEnabled}
+                className={
+                  variantsEnabled
+                    ? "cursor-not-allowed bg-muted text-muted-foreground opacity-70"
+                    : undefined
+                }
                 {...register("price")}
               />
             </FormControl>
             <FormDescription>
-              List price before discount. Customers pay less only when discount
-              is enabled below.
+              {variantsEnabled
+                ? "Inactive while options/variants are enabled — set a price on each option below. The product MRP is auto-synced to the lowest option price on save."
+                : "List price before discount. Customers pay less only when discount is enabled below."}
             </FormDescription>
             <FormMessage />
           </FormItem>
@@ -1164,27 +1229,36 @@ function ProductFrom({ product, galleryMediaIds = [] }: ProductsFormProps) {
                 <input
                   type="checkbox"
                   checked={sizeConfig.enabled}
-                  onChange={(event) =>
+                  onChange={(event) => {
+                    const enabled = event.target.checked;
                     setSizeConfig((prev) => ({
                       ...prev,
-                      enabled: event.target.checked,
+                      enabled,
                       name: prev.name.trim() || DEFAULT_PRODUCT_OPTION_NAME,
                       options:
-                        event.target.checked &&
-                        !hasAnySizeOptionConfigured(prev.options)
+                        enabled && !hasAnySizeOptionConfigured(prev.options)
                           ? DEFAULT_SIZE_OPTIONS
                           : prev.options,
-                    }))
-                  }
+                    }));
+                    if (enabled) {
+                      const current = String(
+                        form.getValues("price") ?? "",
+                      ).trim();
+                      if (!current) {
+                        form.setValue("price", "0");
+                      }
+                    }
+                  }}
                 />
                 Allow customers to choose one option (Size, Magnet, Colour,
                 etc.).
               </label>
             </FormControl>
             <FormDescription>
-              Set a custom option name, then add values with their own stock.
-              Value labels support up to {PRODUCT_OPTION_VALUE_MAX} characters.
-              Leave a value empty to show stock only.
+              Set a custom option name, then add values with their own stock and
+              price. Value labels support up to {PRODUCT_OPTION_VALUE_MAX}{" "}
+              characters. Leave a value empty to show stock only. When options
+              are on, the main Price (MRP) field above is inactive.
             </FormDescription>
           </FormItem>
 
@@ -1216,14 +1290,20 @@ function ProductFrom({ product, galleryMediaIds = [] }: ProductsFormProps) {
           {sizeConfig.enabled ? (
             <FormItem>
               <FormLabel className="text-sm">
-                Option values &amp; stock
+                Option values, stock &amp; price
               </FormLabel>
               <FormControl>
                 <div className="space-y-2">
+                  <div className="hidden grid-cols-[1fr,0.7fr,0.9fr,auto] gap-2 text-xs text-muted-foreground sm:grid">
+                    <span>Value</span>
+                    <span>Stock</span>
+                    <span>Price (₹)</span>
+                    <span className="w-20" />
+                  </div>
                   {sizeConfig.options.map((option, index) => (
                     <div
                       key={index}
-                      className="grid grid-cols-[1fr,1fr,auto] gap-2"
+                      className="grid grid-cols-1 gap-2 sm:grid-cols-[1fr,0.7fr,0.9fr,auto]"
                     >
                       <Input
                         value={option.value}
@@ -1260,6 +1340,30 @@ function ProductFrom({ product, galleryMediaIds = [] }: ProductsFormProps) {
                           )
                         }
                       />
+                      <Input
+                        type="text"
+                        inputMode="decimal"
+                        value={option.price}
+                        placeholder="Price"
+                        aria-label={`Price for option ${index + 1}`}
+                        onChange={(event) =>
+                          updateSizeOption(
+                            index,
+                            "price",
+                            event.target.value.replace(/[^0-9.]/g, ""),
+                          )
+                        }
+                        onBlur={(event) => {
+                          const normalized = normalizeSizePriceInput(
+                            event.target.value,
+                          );
+                          updateSizeOption(
+                            index,
+                            "price",
+                            normalized == null ? "" : String(normalized),
+                          );
+                        }}
+                      />
                       <Button
                         type="button"
                         variant="destructive"
@@ -1278,6 +1382,12 @@ function ProductFrom({ product, galleryMediaIds = [] }: ProductsFormProps) {
                   </Button>
                 </div>
               </FormControl>
+              <FormDescription>
+                Customers pay the selected option&apos;s price
+                {watch("discountEnabled")
+                  ? " (product discount still applies on top)."
+                  : "."}
+              </FormDescription>
             </FormItem>
           ) : null}
 

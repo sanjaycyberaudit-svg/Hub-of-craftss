@@ -1,6 +1,7 @@
 import {
   DEFAULT_PRODUCT_OPTION_NAME,
   normalizeProductSizeConfig,
+  resolveListPriceForSelection,
   serializeProductSizeConfig,
 } from "./sizeConfig-shared";
 
@@ -24,6 +25,7 @@ describe("normalizeProductSizeConfig", () => {
       value: "WITH MAGNET",
       size: "WITH MAGNET",
       qty: 3,
+      price: null,
     });
   });
 
@@ -52,28 +54,92 @@ describe("normalizeProductSizeConfig", () => {
     const config = normalizeProductSizeConfig({
       enabled: true,
       options: [
-        { value: "XL", qty: 1 },
-        { size: " xl ", qty: 4 },
+        { value: "XL", qty: 1, price: 100 },
+        { size: " xl ", qty: 4, price: 250 },
       ],
     });
 
     expect(config.options).toHaveLength(1);
     expect(config.options[0].qty).toBe(4);
+    expect(config.options[0].price).toBe(250);
+  });
+
+  it("normalizes per-option price and keeps legacy null", () => {
+    const config = normalizeProductSizeConfig({
+      enabled: true,
+      options: [
+        { value: "A", qty: 1, price: "199.999" },
+        { value: "B", qty: 1 },
+      ],
+    });
+
+    expect(config.options[0].price).toBe(200);
+    expect(config.options[1].price).toBeNull();
   });
 });
 
 describe("serializeProductSizeConfig", () => {
-  it("writes name and value without the legacy size key", () => {
+  it("writes name, value, and price without the legacy size key", () => {
     const serialized = serializeProductSizeConfig({
       enabled: true,
       name: "Magnet",
-      options: [{ value: "WITH MAGNET", size: "WITH MAGNET", qty: 5 }],
+      options: [
+        { value: "WITH MAGNET", size: "WITH MAGNET", qty: 5, price: 350 },
+        { value: "NO MAGNET", size: "NO MAGNET", qty: 2, price: null },
+      ],
     });
 
     expect(serialized).toEqual({
       enabled: true,
       name: "Magnet",
-      options: [{ value: "WITH MAGNET", qty: 5 }],
+      options: [
+        { value: "WITH MAGNET", qty: 5, price: 350 },
+        { value: "NO MAGNET", qty: 2 },
+      ],
     });
+  });
+});
+
+describe("resolveListPriceForSelection", () => {
+  const config = normalizeProductSizeConfig({
+    enabled: true,
+    options: [
+      { value: "S", qty: 2, price: 400 },
+      { value: "L", qty: 1, price: 600 },
+    ],
+  });
+
+  it("uses the selected option price", () => {
+    expect(
+      resolveListPriceForSelection({
+        baseListPrice: 999,
+        sizeConfig: config,
+        selectedSize: "L",
+      }),
+    ).toBe(600);
+  });
+
+  it("falls back to product price for legacy options without price", () => {
+    const legacy = normalizeProductSizeConfig({
+      enabled: true,
+      options: [{ value: "XL", qty: 1 }],
+    });
+    expect(
+      resolveListPriceForSelection({
+        baseListPrice: 999,
+        sizeConfig: legacy,
+        selectedSize: "XL",
+      }),
+    ).toBe(999);
+  });
+
+  it("can prefer the cheapest option before selection", () => {
+    expect(
+      resolveListPriceForSelection({
+        baseListPrice: 999,
+        sizeConfig: config,
+        preferMinWhenUnselected: true,
+      }),
+    ).toBe(400);
   });
 });

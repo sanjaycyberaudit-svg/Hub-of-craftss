@@ -25,7 +25,12 @@ import {
 export type CartSizeConfigPayload = {
   enabled: boolean;
   name: string;
-  options: { value: string; size: string; qty: number }[];
+  options: {
+    value: string;
+    size: string;
+    qty: number;
+    price: number | null;
+  }[];
 };
 
 function toApiSizePayload(config: ProductSizeConfig): CartSizeConfigPayload {
@@ -39,6 +44,7 @@ function toApiSizePayload(config: ProductSizeConfig): CartSizeConfigPayload {
       value: option.value,
       size: option.value,
       qty: option.qty,
+      price: option.price,
     })),
   };
 }

@@ -27,6 +27,7 @@ import {
   ProductDiscountBadge,
   ProductPriceDisplay,
 } from "@/features/products/components/ProductPriceDisplay";
+import { ProductBuyBox } from "@/features/products/components/ProductBuyBox";
 import { getEffectiveProductPrice } from "@/lib/products/discount";
 import {
   formatProductPackLabel,
@@ -37,7 +38,10 @@ import {
   getProductPackLabelsByIds,
 } from "@/lib/products/pack.server";
 import { withFallback } from "@/lib/resilience";
-import { toProductDiscountFields } from "@/lib/products/pricing";
+import {
+  resolveProductPricingForSelection,
+  toProductDiscountFields,
+} from "@/lib/products/pricing";
 import { getCartProductPricingByIds } from "@/lib/storefront/cart-pricing";
 import { keytoUrl } from "@/lib/utils";
 import { JsonLd } from "@/components/seo/JsonLd";
@@ -123,6 +127,15 @@ async function ProductDetailPage({ params }: Props) {
     sizeConfig.enabled &&
     sizeConfig.options.some((option) => Number(option.qty ?? 0) > 0);
   const optionName = getProductOptionDisplayName(sizeConfig);
+  const displayPricing = hasConfiguredSizes
+    ? toProductDiscountFields(
+        resolveProductPricingForSelection({
+          product: pricingProduct,
+          sizeConfig,
+          preferMinWhenUnselected: true,
+        }),
+      )
+    : pricingProduct;
 
   const storefrontSizeLabels = sizeConfig.options
     .filter((option) => Number(option.qty ?? 0) > 0)
@@ -148,7 +161,7 @@ async function ProductDetailPage({ params }: Props) {
             name,
             slug: productSlug,
             description,
-            price: getEffectiveProductPrice(pricingProduct),
+            price: getEffectiveProductPrice(displayPricing),
             imageUrl: featuredImage?.key ? keytoUrl(featuredImage.key) : null,
             inStock: Number(stock ?? 0) > 0,
           }),
@@ -158,7 +171,7 @@ async function ProductDetailPage({ params }: Props) {
         <div className="space-y-8 relative col-span-12 md:col-span-7 min-w-0 overflow-hidden">
           <div className="relative min-w-0 w-full max-w-full">
             <ProductDiscountBadge
-              product={pricingProduct}
+              product={displayPricing}
               className="absolute top-3 left-3 z-10"
             />
             <ProductImageShowcase data={productEdge.node} />
@@ -171,19 +184,23 @@ async function ProductDetailPage({ params }: Props) {
               <h1 className="text-4xl font-semibold tracking-wide mb-3">
                 {name}
               </h1>
-              <ProductPriceDisplay
-                product={pricingProduct}
-                className="mb-3"
-                saleClassName="text-2xl"
-                originalClassName="text-base"
-              />
-              {packLabel ? (
-                <p className="mb-3 text-sm font-medium text-foreground/80">
-                  {packLabel}
-                  <span className="ml-1 font-normal text-muted-foreground">
-                    · Qty 1 = 1 set
-                  </span>
-                </p>
+              {!hasConfiguredSizes ? (
+                <>
+                  <ProductPriceDisplay
+                    product={pricingProduct}
+                    className="mb-3"
+                    saleClassName="text-2xl"
+                    originalClassName="text-base"
+                  />
+                  {packLabel ? (
+                    <p className="mb-3 text-sm font-medium text-foreground/80">
+                      {packLabel}
+                      <span className="ml-1 font-normal text-muted-foreground">
+                        · Qty 1 = 1 set
+                      </span>
+                    </p>
+                  ) : null}
+                </>
               ) : null}
               <LowStockNotice
                 stock={stock}
@@ -199,18 +216,27 @@ async function ProductDetailPage({ params }: Props) {
             <AddToWishListButton productId={id} />
           </section>
 
-          <section className="flex mb-8 items-end space-x-5">
+          <section className="mb-8 space-y-5">
             <Suspense>
-              <AddProductToCartForm
-                productId={id}
-                stock={stock}
-                sizeConfig={sizeConfig}
-              />
+              {hasConfiguredSizes ? (
+                <ProductBuyBox
+                  productId={id}
+                  stock={stock}
+                  sizeConfig={sizeConfig}
+                  pricingProduct={pricingProduct}
+                  packLabel={packLabel}
+                />
+              ) : (
+                <div className="flex items-end space-x-5">
+                  <AddProductToCartForm
+                    productId={id}
+                    stock={stock}
+                    sizeConfig={sizeConfig}
+                  />
+                  <BuyNowButton productId={id} stock={stock} />
+                </div>
+              )}
             </Suspense>
-
-            {!hasConfiguredSizes ? (
-              <BuyNowButton productId={id} stock={stock} />
-            ) : null}
           </section>
 
           <section className="space-y-6">

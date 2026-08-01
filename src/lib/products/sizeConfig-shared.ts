@@ -11,6 +11,11 @@ export type ProductSizeOption = {
    * still reads `option.size` keeps working without a break-cut rename.
    */
   size: string;
+  /**
+   * List/MRP for this option. `null` means legacy/unset — storefront falls
+   * back to the product-level price until an admin saves an explicit value.
+   */
+  price: number | null;
 };
 
 export type ProductSizeConfig = {
@@ -40,6 +45,14 @@ function normalizeQty(raw: unknown) {
   return Math.max(0, Math.round(parsed * 100) / 100);
 }
 
+/** Money-safe option price; returns null when missing/invalid (legacy rows). */
+export function normalizeOptionPrice(raw: unknown): number | null {
+  if (raw == null || raw === "") return null;
+  const parsed = Number(raw);
+  if (!Number.isFinite(parsed) || parsed < 0) return null;
+  return Math.round(parsed * 100) / 100;
+}
+
 /** Prefer `value`, fall back to legacy `size` field from older rows. */
 export function readOptionValue(row: Record<string, unknown>): string {
   const fromValue = normalizeOptionValue(row.value);
@@ -60,6 +73,91 @@ export function getSelectableProductOptions(
   return config.options.filter((option) => Number(option.qty ?? 0) > 0);
 }
 
+export function findProductSizeOption(
+  config: ProductSizeConfig | null | undefined,
+  selectedSize: string | null | undefined,
+): ProductSizeOption | null {
+  const selectable = getSelectableProductOptions(config);
+  if (selectable.length === 0) return null;
+
+  const normalized = String(selectedSize ?? "")
+    .trim()
+    .toUpperCase();
+  if (normalized) {
+    return (
+      selectable.find(
+        (option) =>
+          String(option.value ?? option.size ?? "")
+            .trim()
+            .toUpperCase() === normalized,
+      ) ?? null
+    );
+  }
+
+  // Empty-label stock-only option (allowed when a single unlabeled row exists).
+  return (
+    selectable.find(
+      (option) => !String(option.value ?? option.size ?? "").trim(),
+    ) ?? null
+  );
+}
+
+/** Explicit option MRP when set; otherwise null (caller may fall back). */
+export function getOptionListPrice(
+  option: Pick<ProductSizeOption, "price"> | null | undefined,
+): number | null {
+  if (!option) return null;
+  return normalizeOptionPrice(option.price);
+}
+
+/**
+ * Resolve the list/MRP that should be charged for a cart/checkout line.
+ * When options are enabled, prefer the selected option's price; legacy options
+ * without a price fall back to the product-level list price.
+ */
+export function resolveListPriceForSelection(args: {
+  baseListPrice: number;
+  sizeConfig: ProductSizeConfig | null | undefined;
+  selectedSize?: string | null;
+  /** When true and no option is selected yet, use the cheapest option price. */
+  preferMinWhenUnselected?: boolean;
+}): number {
+  const base =
+    Number.isFinite(args.baseListPrice) && args.baseListPrice >= 0
+      ? Math.round(args.baseListPrice * 100) / 100
+      : 0;
+
+  const selectable = getSelectableProductOptions(args.sizeConfig);
+  if (selectable.length === 0) return base;
+
+  const selected = findProductSizeOption(args.sizeConfig, args.selectedSize);
+  if (selected) {
+    return getOptionListPrice(selected) ?? base;
+  }
+
+  if (args.preferMinWhenUnselected) {
+    const priced = selectable
+      .map((option) => getOptionListPrice(option))
+      .filter((price): price is number => price != null);
+    if (priced.length > 0) {
+      return Math.min(...priced);
+    }
+  }
+
+  return base;
+}
+
+/** Lowest explicit option MRP among selectable options, if any. */
+export function getMinSelectableOptionPrice(
+  config: ProductSizeConfig | null | undefined,
+): number | null {
+  const priced = getSelectableProductOptions(config)
+    .map((option) => getOptionListPrice(option))
+    .filter((price): price is number => price != null);
+  if (priced.length === 0) return null;
+  return Math.min(...priced);
+}
+
 export function normalizeProductSizeConfig(raw: unknown): ProductSizeConfig {
   const source = (raw ?? {}) as Record<string, unknown>;
   const enabled = Boolean(source.enabled ?? false);
@@ -71,9 +169,10 @@ export function normalizeProductSizeConfig(raw: unknown): ProductSizeConfig {
     const row = item as Record<string, unknown>;
     const value = readOptionValue(row);
     const qty = normalizeQty(row.qty);
+    const price = normalizeOptionPrice(row.price);
     if (!value && qty <= 0) continue;
     const dedupKey = value || "__NO_LABEL__";
-    dedup.set(dedupKey, { value, size: value, qty });
+    dedup.set(dedupKey, { value, size: value, qty, price });
   }
 
   return {
@@ -83,7 +182,7 @@ export function normalizeProductSizeConfig(raw: unknown): ProductSizeConfig {
   };
 }
 
-/** Persist shape: name + value only (no legacy `size` key). */
+/** Persist shape: name + value (+ price when set). No legacy `size` key. */
 export function serializeProductSizeConfig(
   config: ProductSizeConfig,
 ): Record<string, unknown> {
@@ -91,9 +190,15 @@ export function serializeProductSizeConfig(
   return {
     enabled: normalized.enabled,
     name: normalized.name,
-    options: normalized.options.map((option) => ({
-      value: option.value,
-      qty: option.qty,
-    })),
+    options: normalized.options.map((option) => {
+      const row: Record<string, unknown> = {
+        value: option.value,
+        qty: option.qty,
+      };
+      if (option.price != null) {
+        row.price = option.price;
+      }
+      return row;
+    }),
   };
 }

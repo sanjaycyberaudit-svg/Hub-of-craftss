@@ -63,6 +63,7 @@ const sizeConfigSchema = z
         value: z.string().trim().max(PRODUCT_OPTION_VALUE_MAX).optional(),
         size: z.string().trim().max(PRODUCT_OPTION_VALUE_MAX).optional(),
         qty: z.number().min(0),
+        price: z.number().min(0).nullable().optional(),
       }),
     ),
   })

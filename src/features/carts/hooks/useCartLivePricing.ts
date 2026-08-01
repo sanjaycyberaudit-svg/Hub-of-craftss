@@ -1,5 +1,7 @@
 "use client";
 
+import { resolveProductPricingForSelection } from "@/lib/products/pricing";
+import { normalizeProductSizeConfig } from "@/lib/products/sizeConfig-shared";
 import type { CartProductPricing } from "@/lib/storefront/cart-pricing";
 import { useEffect, useMemo, useState } from "react";
 
@@ -71,12 +73,42 @@ export function useCartLivePricing(productIds: string[]) {
 }
 
 export function calcLiveCartSubtotal(
-  quantities: Record<string, { quantity: number }>,
+  quantities: Record<string, { quantity: number; size?: string }>,
   pricing: PricingMap,
+  sizeConfigs?: Record<
+    string,
+    {
+      enabled?: boolean;
+      name?: string;
+      options?: Array<{
+        value?: string;
+        size?: string;
+        qty?: number;
+        price?: number | null;
+      }>;
+    }
+  >,
 ): number {
   return Object.entries(quantities).reduce((total, [productId, item]) => {
-    const unitPrice = pricing[productId]?.unitPrice;
-    if (!unitPrice || item.quantity <= 0) return total;
+    const base = pricing[productId];
+    if (!base || item.quantity <= 0) return total;
+
+    const sizeConfig = sizeConfigs?.[productId]
+      ? normalizeProductSizeConfig(sizeConfigs[productId])
+      : null;
+    const unitPrice = sizeConfig?.enabled
+      ? resolveProductPricingForSelection({
+          product: {
+            price: base.listPrice,
+            discountEnabled: base.discountActive,
+            discountPercent: base.discountPercent,
+          },
+          sizeConfig,
+          selectedSize: item.size,
+        }).unitPrice
+      : base.unitPrice;
+
+    if (!unitPrice) return total;
     return total + item.quantity * unitPrice;
   }, 0);
 }

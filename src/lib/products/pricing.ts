@@ -4,6 +4,10 @@ import {
   isProductDiscountActive,
   type ProductDiscountFields,
 } from "./discount";
+import {
+  resolveListPriceForSelection,
+  type ProductSizeConfig,
+} from "./sizeConfig-shared";
 
 export type ResolvedProductPricing = {
   listPrice: number;
@@ -66,4 +70,33 @@ export function resolveProductUnitPrice(
   raw: Record<string, unknown> | ProductDiscountFields,
 ): number {
   return resolveProductPricing(raw).unitPrice;
+}
+
+/**
+ * Re-price a product using the selected option's list price (when options are
+ * enabled), while keeping the product-level discount percent.
+ */
+export function resolveProductPricingForSelection(args: {
+  product: Record<string, unknown> | ProductDiscountFields;
+  sizeConfig?: ProductSizeConfig | null;
+  selectedSize?: string | null;
+  preferMinWhenUnselected?: boolean;
+}): ResolvedProductPricing {
+  const base = resolveProductPricing(args.product);
+  const listPrice = resolveListPriceForSelection({
+    baseListPrice: base.listPrice,
+    sizeConfig: args.sizeConfig,
+    selectedSize: args.selectedSize,
+    preferMinWhenUnselected: args.preferMinWhenUnselected,
+  });
+
+  if (listPrice === base.listPrice) {
+    return base;
+  }
+
+  return resolveProductPricing({
+    price: listPrice,
+    discountEnabled: base.discountActive,
+    discountPercent: base.discountPercent,
+  });
 }

@@ -22,6 +22,7 @@ function toApiPayload(config: ProductSizeConfig) {
       // Legacy alias for older cart clients.
       size: option.value,
       qty: option.qty,
+      price: option.price,
     })),
   };
 }
@@ -29,7 +30,12 @@ function toApiPayload(config: ProductSizeConfig) {
 const emptyPayload = {
   enabled: false,
   name: DEFAULT_PRODUCT_OPTION_NAME,
-  options: [] as { value: string; size: string; qty: number }[],
+  options: [] as {
+    value: string;
+    size: string;
+    qty: number;
+    price: number | null;
+  }[],
 };
 
 export async function GET(request: NextRequest) {

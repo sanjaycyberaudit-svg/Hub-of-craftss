@@ -1,8 +1,10 @@
 import {
   normalizeProductPricingFields,
   resolveProductPricing,
+  resolveProductPricingForSelection,
   resolveProductUnitPrice,
 } from "./pricing";
+import { normalizeProductSizeConfig } from "./sizeConfig-shared";
 
 describe("resolveProductPricing", () => {
   it("uses list price when discount flag is not strictly true", () => {
@@ -35,5 +37,28 @@ describe("resolveProductPricing", () => {
         discountPercent: 37,
       }).unitPrice,
     ).toBe(189);
+  });
+});
+
+describe("resolveProductPricingForSelection", () => {
+  it("applies product discount on top of the selected option price", () => {
+    const sizeConfig = normalizeProductSizeConfig({
+      enabled: true,
+      options: [{ value: "XL", qty: 2, price: 500 }],
+    });
+
+    const priced = resolveProductPricingForSelection({
+      product: {
+        price: "999",
+        discountEnabled: true,
+        discountPercent: 20,
+      },
+      sizeConfig,
+      selectedSize: "XL",
+    });
+
+    expect(priced.listPrice).toBe(500);
+    expect(priced.unitPrice).toBe(400);
+    expect(priced.discountActive).toBe(true);
   });
 });

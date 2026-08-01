@@ -32,12 +32,16 @@ interface AddProductToCartFormProps {
   productId: string;
   stock?: number | null;
   sizeConfig?: ProductSizeConfig;
+  selectedOptionKey?: string;
+  onSelectedOptionKeyChange?: (key: string) => void;
 }
 
 function AddProductToCartForm({
   productId,
   stock,
   sizeConfig,
+  selectedOptionKey: controlledKey,
+  onSelectedOptionKeyChange,
 }: AddProductToCartFormProps) {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -45,7 +49,14 @@ function AddProductToCartForm({
   const stockControl = useStockControlConfig();
   const { addProductToCart } = useCartActions(user, productId, stock ?? null);
   const [bulkGuardOpen, setBulkGuardOpen] = useState(false);
-  const [selectedOptionKey, setSelectedOptionKey] = useState<string>("");
+  const [uncontrolledKey, setUncontrolledKey] = useState<string>("");
+  const selectedOptionKey = controlledKey ?? uncontrolledKey;
+  const setSelectedOptionKey = (key: string) => {
+    onSelectedOptionKeyChange?.(key);
+    if (controlledKey === undefined) {
+      setUncontrolledKey(key);
+    }
+  };
   const optionName = getProductOptionDisplayName(sizeConfig);
   const selectableSizeOptions = (sizeConfig?.options ?? [])
     .map((option, index) => {
@@ -56,6 +67,7 @@ function AddProductToCartForm({
         key: `${index}-${value || "NO_LABEL"}`,
         size: value,
         qty: Math.max(0, Number(option.qty ?? 0)),
+        price: option.price,
       };
     })
     .filter((option) => option.qty > 0);
@@ -70,14 +82,20 @@ function AddProductToCartForm({
     stock <= 0 &&
     !hasSizeOptions;
 
-  const getSizeLabel = (option: { size: string; qty: number }) => {
-    if (!option.size) {
-      return `${option.qty}`;
+  const getSizeLabel = (option: {
+    size: string;
+    qty: number;
+    price?: number | null;
+  }) => {
+    const base = !option.size
+      ? `${option.qty}`
+      : /^[A-Z]+$/.test(option.size)
+        ? `${option.size} : ${option.qty}`
+        : option.size;
+    if (option.price != null && Number(option.price) >= 0) {
+      return `${base} · ₹${option.price}`;
     }
-    if (/^[A-Z]+$/.test(option.size)) {
-      return `${option.size} : ${option.qty}`;
-    }
-    return option.size;
+    return base;
   };
 
   const form = useForm<AddProductCartData>({

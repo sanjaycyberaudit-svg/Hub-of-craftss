@@ -44,7 +44,10 @@ import {
   calcLiveCartSubtotal,
   useCartLivePricing,
 } from "../hooks/useCartLivePricing";
-import { withLiveProductPricing } from "../lib/live-pricing";
+import {
+  toSizeConfigFromCartPayload,
+  withLiveLinePricing,
+} from "../lib/live-pricing";
 import { getSaleProductPrice } from "@/lib/products/discount";
 import { useToast } from "@/components/ui/use-toast";
 
@@ -52,6 +55,7 @@ type CartSizeConfigOption = {
   value?: string;
   size: string;
   qty: number;
+  price?: number | null;
 };
 
 type CartSizeConfig = CartSizeConfigPayload;
@@ -104,12 +108,16 @@ function GuestCartSection({
   const { pricing: livePricing } = useCartLivePricing(cartProductIds);
 
   const subtotal = useMemo(() => {
-    const liveTotal = calcLiveCartSubtotal(cartItems, livePricing);
+    const liveTotal = calcLiveCartSubtotal(
+      cartItems,
+      livePricing,
+      sizeConfigsByProductId,
+    );
     if (Object.keys(livePricing).length > 0) {
       return liveTotal;
     }
     return calcSubtotal({ prdouctsDetails: productsData, quantity: cartItems });
-  }, [cartItems, livePricing, productsData]);
+  }, [cartItems, livePricing, productsData, sizeConfigsByProductId]);
 
   const productCount = useMemo(
     () => calcProductCountStorage(cartItems),
@@ -392,7 +400,14 @@ function GuestCartSection({
                   <CartItemCard
                     key={node.id}
                     id={node.id}
-                    product={withLiveProductPricing(node, livePricing[node.id])}
+                    product={withLiveLinePricing(
+                      node,
+                      livePricing[node.id],
+                      toSizeConfigFromCartPayload(
+                        sizeConfigsByProductId[node.id],
+                      ),
+                      cartItems[node.id]?.size,
+                    )}
                     quantity={cartItems[node.id]?.quantity ?? 0}
                     selectedSize={cartItems[node.id]?.size}
                     sizeRequired={hasLabeledOptions}
