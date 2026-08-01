@@ -3,16 +3,18 @@
 import { cn, formatPrice } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { INDIAN_STATES } from "@/features/addresses/constants/indianStates";
 import type { CourierChargeBreakdown } from "@/lib/courier/calculate";
 
 export type CartOrderSummaryFieldsProps = {
   productCount: number;
   courierEnabled: boolean;
   offerCodesEnabled: boolean;
-  deliveryState: string;
-  onStateChange: (state: string) => void;
-  hasDeliveryStateSelected: boolean;
+  deliveryPincode: string;
+  onPincodeChange: (pincode: string) => void;
+  pincodeStatus: "idle" | "loading" | "ready" | "error";
+  pincodeLocalityLabel: string | null;
+  pincodeError: string | null;
+  pricingReady: boolean;
   promoInput: string;
   onPromoInputChange: (value: string) => void;
   onApplyPromo: () => void;
@@ -28,13 +30,16 @@ export type CartOrderSummaryFieldsProps = {
   totalAmount: number;
 };
 
-/** Delivery state, promo code, and price breakdown shown in cart checkout. */
+/** PIN-first delivery + price breakdown (hidden until PIN resolves). */
 export function CartOrderSummaryFields({
   courierEnabled,
   offerCodesEnabled,
-  deliveryState,
-  onStateChange,
-  hasDeliveryStateSelected,
+  deliveryPincode,
+  onPincodeChange,
+  pincodeStatus,
+  pincodeLocalityLabel,
+  pincodeError,
+  pricingReady,
   promoInput,
   onPromoInputChange,
   onApplyPromo,
@@ -49,39 +54,54 @@ export function CartOrderSummaryFields({
   gstAmount,
   totalAmount,
 }: CartOrderSummaryFieldsProps) {
-  const totalReady = !courierEnabled || Boolean(courierBreakdown);
-
   return (
     <>
       {courierEnabled ? (
-        <>
-          <label className="mb-3 block text-xs font-medium text-muted-foreground">
-            Delivery state
+        <div className="mb-4">
+          <label className="mb-2 block text-xs font-medium text-muted-foreground">
+            Delivery PIN code
           </label>
-          <select
+          <Input
+            value={deliveryPincode}
+            inputMode="numeric"
+            autoComplete="postal-code"
+            maxLength={6}
+            placeholder="Enter 6-digit PIN"
+            aria-invalid={
+              pincodeStatus === "error" ||
+              (deliveryPincode.length === 6 && pincodeStatus !== "ready")
+            }
             className={cn(
-              "mb-1 w-full rounded-md border bg-background px-3 py-2 text-sm",
-              !hasDeliveryStateSelected &&
+              "h-10",
+              (pincodeStatus === "error" ||
+                (deliveryPincode.length > 0 &&
+                  deliveryPincode.length < 6 &&
+                  pincodeStatus !== "loading")) &&
                 "border-destructive ring-1 ring-destructive/30",
             )}
-            value={deliveryState}
-            onChange={(event) => onStateChange(event.target.value)}
-          >
-            <option value="">Select state</option>
-            {INDIAN_STATES.map((state) => (
-              <option key={state} value={state}>
-                {state}
-              </option>
-            ))}
-          </select>
-          {!hasDeliveryStateSelected ? (
-            <p className="mb-3 text-xs text-destructive">
-              Delivery state is required to continue checkout.
+            onChange={(event) =>
+              onPincodeChange(event.target.value.replace(/\D/g, "").slice(0, 6))
+            }
+          />
+          {pincodeStatus === "loading" ? (
+            <p className="mt-1.5 text-xs text-muted-foreground">
+              Finding area and state…
             </p>
-          ) : (
-            <div className="mb-3" />
-          )}
-        </>
+          ) : null}
+          {pincodeStatus === "ready" && pincodeLocalityLabel ? (
+            <p className="mt-1.5 text-xs text-muted-foreground">
+              {pincodeLocalityLabel}
+            </p>
+          ) : null}
+          {pincodeStatus === "error" && pincodeError ? (
+            <p className="mt-1.5 text-xs text-destructive">{pincodeError}</p>
+          ) : null}
+          {!pricingReady && pincodeStatus !== "error" ? (
+            <p className="mt-1.5 text-xs text-muted-foreground">
+              Enter your PIN to see delivery charges and total.
+            </p>
+          ) : null}
+        </div>
       ) : null}
 
       {offerCodesEnabled ? (
@@ -122,46 +142,48 @@ export function CartOrderSummaryFields({
         </>
       ) : null}
 
-      <div className="space-y-2 text-sm">
-        <div className="flex items-center justify-between">
-          <span>Subtotal</span>
-          <span>{formatPrice(subtotal)}</span>
-        </div>
-        {offerCodesEnabled ? (
-          <>
+      {pricingReady ? (
+        <div className="space-y-2 text-sm">
+          <div className="flex items-center justify-between">
+            <span>Subtotal</span>
+            <span>{formatPrice(subtotal)}</span>
+          </div>
+          {offerCodesEnabled ? (
+            <>
+              <div className="flex items-center justify-between">
+                <span>Discount</span>
+                <span>
+                  {promoPercentage > 0
+                    ? `- ${formatPrice(discountAmount)}`
+                    : formatPrice(0)}
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span>Subtotal after discount</span>
+                <span>{formatPrice(discountedSubtotal)}</span>
+              </div>
+            </>
+          ) : null}
+          {courierEnabled ? (
             <div className="flex items-center justify-between">
-              <span>Discount</span>
+              <span>Courier</span>
               <span>
-                {promoPercentage > 0
-                  ? `- ${formatPrice(discountAmount)}`
+                {courierBreakdown
+                  ? formatPrice(courierBreakdown.charge)
                   : formatPrice(0)}
               </span>
             </div>
-            <div className="flex items-center justify-between">
-              <span>Subtotal after discount</span>
-              <span>{formatPrice(discountedSubtotal)}</span>
-            </div>
-          </>
-        ) : null}
-        {courierEnabled ? (
+          ) : null}
           <div className="flex items-center justify-between">
-            <span>Courier</span>
-            <span>
-              {courierBreakdown
-                ? formatPrice(courierBreakdown.charge)
-                : "Select state"}
-            </span>
+            <span>GST</span>
+            <span>{gstEnabled ? formatPrice(gstAmount) : "Not applied"}</span>
           </div>
-        ) : null}
-        <div className="flex items-center justify-between">
-          <span>GST</span>
-          <span>{gstEnabled ? formatPrice(gstAmount) : "Not applied"}</span>
+          <div className="flex items-center justify-between border-t pt-2 font-semibold">
+            <span>Total</span>
+            <span>{formatPrice(totalAmount)}</span>
+          </div>
         </div>
-        <div className="flex items-center justify-between border-t pt-2 font-semibold">
-          <span>Total</span>
-          <span>{totalReady ? formatPrice(totalAmount) : "Select state"}</span>
-        </div>
-      </div>
+      ) : null}
     </>
   );
 }

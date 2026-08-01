@@ -19,10 +19,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
 import CheckoutTermsNotice from "@/components/layouts/CheckoutTermsNotice";
-import { cn } from "@/lib/utils";
-import { calculateCourierCharge } from "@/lib/courier/calculate";
-import { useCourierChargesConfig } from "@/providers/CourierChargesProvider";
-import { INDIAN_STATES } from "../constants/indianStates";
+import { usePincodeLookup } from "../hooks/usePincodeLookup";
 import {
   addressFormSchema,
   type AddressFormValues,
@@ -62,10 +59,8 @@ export function AddAddressForm({
   defaultValues,
   persistDraft = false,
   dialogOpen = true,
-  checkoutQuantity = 1,
   disabled = false,
 }: Props) {
-  const courierConfig = useCourierChargesConfig();
   const initialValues = useMemo(
     () =>
       persistDraft
@@ -90,6 +85,8 @@ export function AddAddressForm({
   });
 
   const isSubmitting = form.formState.isSubmitting || disabled;
+  const postalCode = form.watch("postal_code");
+  const pincodeLookup = usePincodeLookup(postalCode);
 
   const wasDialogOpen = useRef(false);
   useEffect(() => {
@@ -110,16 +107,25 @@ export function AddAddressForm({
     return () => subscription.unsubscribe();
   }, [form, persistDraft]);
 
-  const selectedState = form.watch("state");
-  const courierPreview = useMemo(() => {
-    if (!courierConfig.enabled) return null;
-    if (!selectedState?.trim()) return null;
-    return calculateCourierCharge({
-      state: selectedState,
-      quantity: Math.max(1, Math.round(checkoutQuantity)),
-      config: courierConfig,
-    });
-  }, [checkoutQuantity, courierConfig, selectedState]);
+  useEffect(() => {
+    if (pincodeLookup.status !== "ready" || !pincodeLookup.result) return;
+    const result = pincodeLookup.result;
+    form.setValue("state", result.state, { shouldValidate: true });
+    const currentCity = String(form.getValues("city") ?? "").trim();
+    if (!currentCity) {
+      form.setValue("city", result.city, { shouldValidate: true });
+    }
+  }, [form, pincodeLookup.result, pincodeLookup.status]);
+
+  const localityLabel =
+    pincodeLookup.status === "ready" && pincodeLookup.result
+      ? [
+          pincodeLookup.result.areas[0] || pincodeLookup.result.district,
+          pincodeLookup.result.state,
+        ]
+          .filter(Boolean)
+          .join(", ")
+      : null;
 
   return (
     <Form {...form}>
@@ -196,19 +202,43 @@ export function AddAddressForm({
 
         <FormField
           control={form.control}
-          name="line1"
+          name="postal_code"
           render={({ field }) => (
             <FormItem>
               <FormLabel>
-                <RequiredLabel>Address</RequiredLabel>
+                <RequiredLabel>PIN Code</RequiredLabel>
               </FormLabel>
               <FormControl>
                 <Input
-                  placeholder="Enter address"
-                  autoComplete="street-address"
+                  placeholder="6-digit PIN code"
+                  inputMode="numeric"
+                  autoComplete="postal-code"
+                  maxLength={6}
                   {...field}
+                  onChange={(e) => {
+                    const digits = e.target.value
+                      .replace(/\D/g, "")
+                      .slice(0, 6);
+                    field.onChange(digits);
+                    if (digits.length < 6) {
+                      form.setValue("state", "");
+                    }
+                  }}
                 />
               </FormControl>
+              {pincodeLookup.status === "loading" ? (
+                <p className="text-xs text-muted-foreground">
+                  Finding area and state…
+                </p>
+              ) : null}
+              {localityLabel ? (
+                <p className="text-xs text-muted-foreground">{localityLabel}</p>
+              ) : null}
+              {pincodeLookup.status === "error" && pincodeLookup.message ? (
+                <p className="text-xs text-destructive">
+                  {pincodeLookup.message}
+                </p>
+              ) : null}
               <FormMessage />
             </FormItem>
           )}
@@ -217,29 +247,15 @@ export function AddAddressForm({
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <FormField
             control={form.control}
-            name="line2"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Address Line 2</FormLabel>
-                <FormControl>
-                  <Input placeholder="Optional" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          <FormField
-            control={form.control}
             name="city"
             render={({ field }) => (
               <FormItem>
                 <FormLabel>
-                  <RequiredLabel>City</RequiredLabel>
+                  <RequiredLabel>City / Area</RequiredLabel>
                 </FormLabel>
                 <FormControl>
                   <Input
-                    placeholder="Enter city"
+                    placeholder="Filled from PIN"
                     autoComplete="address-level2"
                     {...field}
                   />
@@ -248,9 +264,7 @@ export function AddAddressForm({
               </FormItem>
             )}
           />
-        </div>
 
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <FormField
             control={form.control}
             name="state"
@@ -260,49 +274,12 @@ export function AddAddressForm({
                   <RequiredLabel>State</RequiredLabel>
                 </FormLabel>
                 <FormControl>
-                  <select
-                    className={cn(
-                      "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
-                      !field.value && "text-muted-foreground",
-                    )}
-                    value={field.value}
-                    autoComplete="address-level1"
-                    onChange={(event) => field.onChange(event.target.value)}
-                  >
-                    <option value="">Select state</option>
-                    {INDIAN_STATES.map((state) => (
-                      <option key={state} value={state}>
-                        {state}
-                      </option>
-                    ))}
-                  </select>
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          <FormField
-            control={form.control}
-            name="postal_code"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>
-                  <RequiredLabel>PIN Code</RequiredLabel>
-                </FormLabel>
-                <FormControl>
                   <Input
-                    placeholder="6-digit PIN code"
-                    inputMode="numeric"
-                    autoComplete="postal-code"
-                    maxLength={6}
                     {...field}
-                    onChange={(e) => {
-                      const digits = e.target.value
-                        .replace(/\D/g, "")
-                        .slice(0, 6);
-                      field.onChange(digits);
-                    }}
+                    readOnly
+                    placeholder="Filled from PIN"
+                    autoComplete="address-level1"
+                    className="bg-muted/40"
                   />
                 </FormControl>
                 <FormMessage />
@@ -311,17 +288,39 @@ export function AddAddressForm({
           />
         </div>
 
-        {courierPreview ? (
-          <div className="rounded-md border border-[#E8A317]/40 bg-[#FFF7E6] p-3 text-sm text-[#7a5200]">
-            <p className="font-medium">
-              Estimated courier charge: Rs {courierPreview.charge}
-            </p>
-            <p className="mt-1 text-xs">
-              Based on state and {courierPreview.quantity} item(s). This is
-              shown before payment so customers can confirm total cost.
-            </p>
-          </div>
-        ) : null}
+        <FormField
+          control={form.control}
+          name="line1"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>
+                <RequiredLabel>Address</RequiredLabel>
+              </FormLabel>
+              <FormControl>
+                <Input
+                  placeholder="House / street / landmark"
+                  autoComplete="street-address"
+                  {...field}
+                />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
+          name="line2"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Address Line 2</FormLabel>
+              <FormControl>
+                <Input placeholder="Optional" {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
 
         <CheckoutTermsNotice />
         <div className="sticky bottom-0 -mx-4 flex flex-col-reverse gap-2 border-t bg-background/95 px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3 backdrop-blur supports-[backdrop-filter]:bg-background/80 sm:static sm:mx-0 sm:border-0 sm:bg-transparent sm:px-0 sm:pb-0 sm:pt-2 sm:backdrop-blur-none sm:flex-row sm:justify-end sm:gap-3">
@@ -337,7 +336,12 @@ export function AddAddressForm({
           <Button
             type="submit"
             className="w-full bg-[#E8A317] text-[#1a1a1a] hover:bg-[#d49210] sm:w-auto"
-            disabled={isSubmitting}
+            disabled={
+              isSubmitting ||
+              (Boolean(postalCode) &&
+                postalCode.length === 6 &&
+                pincodeLookup.status !== "ready")
+            }
           >
             {isSubmitting ? (
               <>

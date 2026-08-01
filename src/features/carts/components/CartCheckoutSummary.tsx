@@ -45,7 +45,7 @@ export function CartCheckoutSummary({
             <span className="text-xs font-medium text-muted-foreground">
               {headlineLabel}{" "}
             </span>
-            {formatPrice(headlineAmount)}
+            {headlineLabel === "Enter PIN" ? "—" : formatPrice(headlineAmount)}
           </p>
         </div>
         <div className="shrink-0 [&_button]:h-10 [&_button]:min-w-[6.5rem] [&_button]:w-auto [&_button]:px-4 [&_button]:text-sm">

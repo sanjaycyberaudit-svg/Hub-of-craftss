@@ -15,11 +15,11 @@ export const addressFormSchema = z.object({
   city: z.string().min(2, "Enter city").max(80),
   state: z
     .string()
-    .min(1, "Select a state")
+    .min(1, "Enter a valid PIN code to set state")
     .refine(
       (value) =>
         INDIAN_STATES.includes(value as (typeof INDIAN_STATES)[number]),
-      "Select a state",
+      "Enter a valid PIN code to set state",
     ),
   postal_code: z.string().regex(/^\d{6}$/, "Enter a valid 6-digit PIN code"),
 });

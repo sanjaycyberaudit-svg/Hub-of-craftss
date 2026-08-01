@@ -4,7 +4,7 @@ import { CACHE_TAGS } from "./constants";
 import { redisDelByPrefix } from "./redis";
 import { clearStorefrontMemoryCache } from "./storefront-cache";
 
-const REDIS_PREFIXES = [
+  const REDIS_PREFIXES = [
   "sf:products:",
   "sf:drafts",
   "sf:size:",
@@ -16,6 +16,7 @@ const REDIS_PREFIXES = [
   "sf:landing",
   "sf:recommendations:",
   "sf:shop-by-price",
+  "sf:pincode:",
 ] as const;
 
 /** Bust admin products table cache after catalog writes. */

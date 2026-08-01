@@ -105,9 +105,9 @@ function CheckoutButton({
           if (isLocked) return;
           if (requireDeliveryStateSelection && !hasDeliveryStateSelected) {
             toast({
-              title: "Select delivery state",
+              title: "Enter delivery PIN",
               description:
-                "Please select your delivery state in cart summary before checkout.",
+                "Please enter your 6-digit PIN code in cart summary before checkout.",
               variant: "destructive",
             });
             return;
