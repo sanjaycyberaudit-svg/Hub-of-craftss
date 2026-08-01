@@ -1,6 +1,16 @@
 import { createEnv } from "@t3-oss/env-nextjs"
 import { z } from "zod"
 
+const optionalUrl = z.preprocess(
+  (value) => (value === "" || value == null ? undefined : value),
+  z.string().url().optional(),
+)
+
+const optionalNonEmpty = z.preprocess(
+  (value) => (value === "" || value == null ? undefined : value),
+  z.string().min(1).optional(),
+)
+
 export const env = createEnv({
   /**
    * Specify your server-side environment variables schema here. This way you can ensure the app
@@ -16,6 +26,11 @@ export const env = createEnv({
     /** Optional Worker R2 proxy for Vercel (binding path; avoids dead S3 API keys). */
     R2_MEDIA_PROXY_URL: z.string().url().optional(),
     R2_MEDIA_PROXY_SECRET: z.string().min(16).optional(),
+    /** Optional Sentry (server). Prefer NEXT_PUBLIC_SENTRY_DSN for client+server. */
+    SENTRY_DSN: optionalUrl,
+    SENTRY_ORG: optionalNonEmpty,
+    SENTRY_PROJECT: optionalNonEmpty,
+    SENTRY_AUTH_TOKEN: optionalNonEmpty,
   },
 
   /**
@@ -31,6 +46,7 @@ export const env = createEnv({
     NEXT_PUBLIC_S3_REGION: z.string(),
     NEXT_PUBLIC_CDN_URL: z.string().url(),
     NEXT_PUBLIC_SUPABASE_URL: z.string(),
+    NEXT_PUBLIC_SENTRY_DSN: optionalUrl,
   },
 
   /**
@@ -54,6 +70,11 @@ export const env = createEnv({
     S3_SECRET_ACCESS_KEY: process.env.S3_SECRET_ACCESS_KEY,
     R2_MEDIA_PROXY_URL: process.env.R2_MEDIA_PROXY_URL,
     R2_MEDIA_PROXY_SECRET: process.env.R2_MEDIA_PROXY_SECRET,
+    NEXT_PUBLIC_SENTRY_DSN: process.env.NEXT_PUBLIC_SENTRY_DSN,
+    SENTRY_DSN: process.env.SENTRY_DSN,
+    SENTRY_ORG: process.env.SENTRY_ORG,
+    SENTRY_PROJECT: process.env.SENTRY_PROJECT,
+    SENTRY_AUTH_TOKEN: process.env.SENTRY_AUTH_TOKEN,
   },
   /**
    * Run `build` or `dev` with `SKIP_ENV_VALIDATION` to skip env validation.

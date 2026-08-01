@@ -1,4 +1,5 @@
 import { initOpenNextCloudflareForDev } from "@opennextjs/cloudflare";
+import { withSentryConfig } from "@sentry/nextjs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { buildNextSecurityHeaders } from "./security-headers.mjs";
@@ -135,7 +136,26 @@ const nextConfig = {
   },
 };
 
-export default nextConfig;
+const sentryAuthToken = process.env.SENTRY_AUTH_TOKEN?.trim();
+
+export default withSentryConfig(nextConfig, {
+  org: process.env.SENTRY_ORG?.trim() || undefined,
+  project: process.env.SENTRY_PROJECT?.trim() || undefined,
+  authToken: sentryAuthToken || undefined,
+  silent: !process.env.CI,
+  // Same-origin tunnel avoids ad blockers + keeps CSP connect-src on 'self'.
+  tunnelRoute: "/monitoring",
+  widenClientFileUpload: Boolean(sentryAuthToken),
+  sourcemaps: {
+    disable: !sentryAuthToken,
+  },
+  webpack: {
+    treeshake: {
+      removeDebugLogging: true,
+    },
+    automaticVercelMonitors: true,
+  },
+});
 
 // Cloudflare OpenNext local bindings — only for `next dev` on Workers tooling.
 // On Vercel this no-ops / is unused; guard so production Node never depends on it.

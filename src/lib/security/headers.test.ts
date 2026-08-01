@@ -27,6 +27,8 @@ describe("security headers", () => {
   it("allows Cashfree SDK and Supabase in the CSP allowlist", () => {
     expect(CONTENT_SECURITY_POLICY).toContain("https://sdk.cashfree.com");
     expect(CONTENT_SECURITY_POLICY).toContain("https://*.supabase.co");
+    expect(CONTENT_SECURITY_POLICY).toContain("https://*.ingest.sentry.io");
+    expect(CONTENT_SECURITY_POLICY).toContain("worker-src 'self' blob:");
     expect(CONTENT_SECURITY_POLICY).toContain("frame-ancestors 'self'");
   });
 });

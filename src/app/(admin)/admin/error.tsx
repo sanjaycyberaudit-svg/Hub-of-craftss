@@ -2,6 +2,7 @@
 
 import { ErrorPageShell } from "@/components/errors/ErrorPageShell";
 import { publicErrorMessage } from "@/lib/api/public-error";
+import * as Sentry from "@sentry/nextjs";
 import { useEffect } from "react";
 
 export default function AdminError({
@@ -13,6 +14,7 @@ export default function AdminError({
 }) {
   useEffect(() => {
     console.error("[admin]", error.digest, error);
+    Sentry.captureException(error);
   }, [error]);
 
   return (
