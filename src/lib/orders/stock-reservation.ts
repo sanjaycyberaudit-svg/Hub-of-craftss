@@ -433,7 +433,10 @@ export async function deductPaidOrderStockAtomic(
           );
         }
 
-        if (line.size || (line.selections && Object.keys(line.selections).length > 0)) {
+        if (
+          line.size ||
+          (line.selections && Object.keys(line.selections).length > 0)
+        ) {
           const sizeOk = await lockAndDecrementOptionStock(
             tx,
             line.productId,

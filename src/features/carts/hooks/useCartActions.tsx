@@ -59,7 +59,10 @@ function useCartActions(
     },
   });
 
-  const authAddOrUpdateProduct = async (quantity: number, opts: AddOpts = {}) => {
+  const authAddOrUpdateProduct = async (
+    quantity: number,
+    opts: AddOpts = {},
+  ) => {
     const size = opts.size;
     const selections = opts.selections;
     const existedProduct = data?.cartsCollection.edges.find(

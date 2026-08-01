@@ -83,7 +83,9 @@ export function readOptionValue(row: Record<string, unknown>): string {
   return normalizeOptionValue(row.size);
 }
 
-function normalizeChoiceRow(row: Record<string, unknown>): ProductOptionChoice | null {
+function normalizeChoiceRow(
+  row: Record<string, unknown>,
+): ProductOptionChoice | null {
   const value = readOptionValue(row);
   const qty = normalizeQty(row.qty);
   const price = normalizeOptionPrice(row.price);
