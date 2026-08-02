@@ -4,6 +4,8 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -351,6 +353,9 @@ function ProductFrom({ product, galleryMediaIds = [] }: ProductsFormProps) {
   const [knownVariantTypes, setKnownVariantTypes] = useState<string[]>([
     ...DEFAULT_VARIANT_TYPE_NAMES,
   ]);
+  const [customTypeDialogOpen, setCustomTypeDialogOpen] = useState(false);
+  const [customTypeNameDraft, setCustomTypeNameDraft] = useState("");
+  const [customTypeError, setCustomTypeError] = useState<string | null>(null);
   const localFileInputRef = useRef<HTMLInputElement>(null);
 
   const [{ data }] = useQuery({
@@ -950,6 +955,45 @@ function ProductFrom({ product, galleryMediaIds = [] }: ProductsFormProps) {
     }
   };
 
+  const openCustomTypeDialog = () => {
+    setCustomTypeNameDraft("");
+    setCustomTypeError(null);
+    setCustomTypeDialogOpen(true);
+  };
+
+  const confirmCustomTypeName = () => {
+    const name = customTypeNameDraft.trim().slice(0, PRODUCT_OPTION_NAME_MAX);
+    if (!name) {
+      setCustomTypeError("Enter a type name.");
+      return;
+    }
+    const key = name.toLowerCase();
+    const activeGroup = sizeConfig.groups.find(
+      (group) => group.id === activeVariantGroupId,
+    );
+    const renamingUntitled = Boolean(activeGroup && !activeGroup.name.trim());
+    const duplicate = sizeConfig.groups.some((group) => {
+      if (renamingUntitled && group.id === activeVariantGroupId) return false;
+      return group.name.trim().toLowerCase() === key;
+    });
+    if (duplicate) {
+      setCustomTypeError("This product already has that type.");
+      return;
+    }
+    if (renamingUntitled) {
+      const index = sizeConfig.groups.findIndex(
+        (group) => group.id === activeVariantGroupId,
+      );
+      if (index >= 0) updateGroupName(index, name);
+    } else {
+      addVariantGroup(name);
+    }
+    setKnownVariantTypes((prev) => mergeVariantTypeNames(prev, [name]));
+    setCustomTypeDialogOpen(false);
+    setCustomTypeNameDraft("");
+    setCustomTypeError(null);
+  };
+
   const updateSizeOption = (
     groupIndex: number,
     optionIndex: number,
@@ -1021,15 +1065,19 @@ function ProductFrom({ product, galleryMediaIds = [] }: ProductsFormProps) {
 
   const selectVariantGroup = (value: string) => {
     if (value === ADD_CUSTOM_VARIANT_VALUE) {
-      addVariantGroup("");
+      openCustomTypeDialog();
       return;
     }
     if (value.startsWith(ADD_TYPE_PREFIX)) {
       const name = value.slice(ADD_TYPE_PREFIX.length).trim();
-      addVariantGroup(name || "");
+      if (name) addVariantGroup(name);
       return;
     }
     setActiveVariantGroupId(value);
+    const group = sizeConfig.groups.find((item) => item.id === value);
+    if (group && !group.name.trim()) {
+      openCustomTypeDialog();
+    }
   };
 
   const variantsEnabled = sizeConfig.enabled;
@@ -1522,25 +1570,6 @@ function ProductFrom({ product, galleryMediaIds = [] }: ProductsFormProps) {
                 </Button>
               </div>
 
-              {!activeVariantGroup.name.trim() ? (
-                <div className="space-y-1">
-                  <FormLabel className="text-sm">Name this type</FormLabel>
-                  <Input
-                    autoFocus
-                    value={activeVariantGroup.name}
-                    maxLength={PRODUCT_OPTION_NAME_MAX}
-                    placeholder="e.g. Finish / Style"
-                    onChange={(event) =>
-                      updateGroupName(activeGroupIndex, event.target.value)
-                    }
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    Required for Custom types. Saved names appear in the
-                    dropdown for other products.
-                  </p>
-                </div>
-              ) : null}
-
               <div className="space-y-2">
                 <FormLabel className="text-sm">
                   Values, stock &amp; price
@@ -1841,6 +1870,65 @@ function ProductFrom({ product, galleryMediaIds = [] }: ProductsFormProps) {
               )}
             />
           )}
+
+          {!inBulkMode ? (
+            <Dialog
+              open={customTypeDialogOpen}
+              onOpenChange={(open) => {
+                setCustomTypeDialogOpen(open);
+                if (!open) {
+                  setCustomTypeNameDraft("");
+                  setCustomTypeError(null);
+                }
+              }}
+            >
+              <DialogContent className="sm:max-w-md">
+                <DialogHeader>
+                  <DialogTitle>Custom variant type</DialogTitle>
+                  <DialogDescription>
+                    Enter the label customers will see (e.g. Finish, Style).
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-2">
+                  <FormLabel htmlFor="custom-variant-type-name">
+                    Type name
+                  </FormLabel>
+                  <Input
+                    id="custom-variant-type-name"
+                    autoFocus
+                    value={customTypeNameDraft}
+                    maxLength={PRODUCT_OPTION_NAME_MAX}
+                    placeholder="e.g. Finish"
+                    onChange={(event) => {
+                      setCustomTypeNameDraft(event.target.value);
+                      if (customTypeError) setCustomTypeError(null);
+                    }}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter") {
+                        event.preventDefault();
+                        confirmCustomTypeName();
+                      }
+                    }}
+                  />
+                  {customTypeError ? (
+                    <p className="text-sm text-destructive">{customTypeError}</p>
+                  ) : null}
+                </div>
+                <DialogFooter className="gap-2 sm:gap-0">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setCustomTypeDialogOpen(false)}
+                  >
+                    Cancel
+                  </Button>
+                  <Button type="button" onClick={confirmCustomTypeName}>
+                    Add type
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+          ) : null}
 
           {!inBulkMode ? (
             <Dialog
