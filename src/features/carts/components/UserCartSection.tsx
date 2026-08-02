@@ -29,6 +29,7 @@ import CartItemCard from "@/features/carts/components/CartItemCard";
 import { CartCheckoutSummary } from "./CartCheckoutSummary";
 import { CartOrderSummaryFields } from "./CartOrderSummaryFields";
 import { CartItemsList, cartPageBottomSpacerClass } from "./CartItemsList";
+import { FreeShippingProgress } from "./FreeShippingProgress";
 import {
   loadCheckoutAddressDraft,
   saveCheckoutAddressDraft,
@@ -539,6 +540,11 @@ function UserCartSection({
             cartPageBottomSpacerClass(),
           )}
         >
+          <FreeShippingProgress
+            discountedSubtotal={discountedSubtotal}
+            config={courierConfig}
+          />
+
           <CartItemsList>
             {cart.map(({ node }) =>
               (() => {

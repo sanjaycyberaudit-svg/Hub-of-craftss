@@ -26,6 +26,7 @@ import BulkOrderGuardDialog from "./BulkOrderGuardDialog";
 import { CartCheckoutSummary } from "./CartCheckoutSummary";
 import { CartOrderSummaryFields } from "./CartOrderSummaryFields";
 import { CartItemsList, cartPageBottomSpacerClass } from "./CartItemsList";
+import { FreeShippingProgress } from "./FreeShippingProgress";
 import useCartStore, {
   CartItems,
   calcProductCountStorage,
@@ -409,6 +410,11 @@ function GuestCartSection({
             cartPageBottomSpacerClass(),
           )}
         >
+          <FreeShippingProgress
+            discountedSubtotal={discountedSubtotal}
+            config={courierConfig}
+          />
+
           <CartItemsList>
             {cartLines.map(({ node }) =>
               (() => {
