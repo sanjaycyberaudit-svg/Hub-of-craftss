@@ -23,6 +23,7 @@ import {
   Select,
   SelectContent,
   SelectItem,
+  SelectSeparator,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
@@ -68,6 +69,7 @@ import {
   PRODUCT_OPTION_NAME_MAX,
   PRODUCT_OPTION_VALUE_MAX,
 } from "@/lib/products/sizeConfig-shared";
+import { DEFAULT_VARIANT_TYPE_NAMES } from "@/lib/products/variant-type-catalog-shared";
 import { formatPrice } from "@/lib/utils";
 import { ProductPriceDisplay } from "@/features/products/components/ProductPriceDisplay";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -171,7 +173,8 @@ function createEmptyGroup(name = DEFAULT_PRODUCT_OPTION_NAME): SizeGroupForm {
   };
 }
 
-const ADD_NEW_VARIANT_VALUE = "__add_new_variant__";
+const ADD_CUSTOM_VARIANT_VALUE = "__add_custom_variant__";
+const ADD_TYPE_PREFIX = "__add_type__:";
 
 function normalizeSizeQtyInput(raw: unknown) {
   const value = Number(String(raw ?? "").replace(/[^0-9.]/g, ""));
@@ -342,6 +345,9 @@ function ProductFrom({ product, galleryMediaIds = [] }: ProductsFormProps) {
   const [activeVariantGroupId, setActiveVariantGroupId] = useState<string>(
     () => sizeConfig.groups[0]?.id ?? "",
   );
+  const [knownVariantTypes, setKnownVariantTypes] = useState<string[]>([
+    ...DEFAULT_VARIANT_TYPE_NAMES,
+  ]);
   const localFileInputRef = useRef<HTMLInputElement>(null);
 
   const [{ data }] = useQuery({
@@ -424,6 +430,30 @@ function ProductFrom({ product, galleryMediaIds = [] }: ProductsFormProps) {
       active = false;
     };
   }, [form, product]);
+
+  useEffect(() => {
+    let active = true;
+    const loadVariantTypes = async () => {
+      try {
+        const response = await fetchWithTimeout(
+          "/api/admin/products/variant-types",
+          { cache: "no-store" },
+        );
+        if (!response.ok) return;
+        const payload = (await response.json()) as { names?: string[] };
+        if (!active) return;
+        if (Array.isArray(payload.names) && payload.names.length > 0) {
+          setKnownVariantTypes(payload.names.map(String).filter(Boolean));
+        }
+      } catch {
+        // Keep defaults on failure.
+      }
+    };
+    void loadVariantTypes();
+    return () => {
+      active = false;
+    };
+  }, []);
 
   useEffect(() => {
     if (!product?.id) return;
@@ -982,8 +1012,13 @@ function ProductFrom({ product, galleryMediaIds = [] }: ProductsFormProps) {
   };
 
   const selectVariantGroup = (value: string) => {
-    if (value === ADD_NEW_VARIANT_VALUE) {
+    if (value === ADD_CUSTOM_VARIANT_VALUE) {
       addVariantGroup("");
+      return;
+    }
+    if (value.startsWith(ADD_TYPE_PREFIX)) {
+      const name = value.slice(ADD_TYPE_PREFIX.length).trim();
+      addVariantGroup(name || "");
       return;
     }
     setActiveVariantGroupId(value);
@@ -999,6 +1034,22 @@ function ProductFrom({ product, galleryMediaIds = [] }: ProductsFormProps) {
       : sizeConfig.groups[0];
   const activeGroupIndex =
     activeVariantGroupIndex >= 0 ? activeVariantGroupIndex : 0;
+  const usedVariantTypeKeys = useMemo(
+    () =>
+      new Set(
+        sizeConfig.groups
+          .map((group) => group.name.trim().toLowerCase())
+          .filter(Boolean),
+      ),
+    [sizeConfig.groups],
+  );
+  const availableKnownVariantTypes = useMemo(
+    () =>
+      knownVariantTypes.filter(
+        (name) => !usedVariantTypeKeys.has(name.trim().toLowerCase()),
+      ),
+    [knownVariantTypes, usedVariantTypeKeys],
+  );
 
   return (
     <Form {...form}>
@@ -1432,8 +1483,19 @@ function ProductFrom({ product, galleryMediaIds = [] }: ProductsFormProps) {
                           {group.name.trim() || "Untitled"}
                         </SelectItem>
                       ))}
-                      <SelectItem value={ADD_NEW_VARIANT_VALUE}>
-                        Add new…
+                      {availableKnownVariantTypes.length > 0 ? (
+                        <SelectSeparator />
+                      ) : null}
+                      {availableKnownVariantTypes.map((name) => (
+                        <SelectItem
+                          key={`${ADD_TYPE_PREFIX}${name}`}
+                          value={`${ADD_TYPE_PREFIX}${name}`}
+                        >
+                          Add {name}
+                        </SelectItem>
+                      ))}
+                      <SelectItem value={ADD_CUSTOM_VARIANT_VALUE}>
+                        Custom…
                       </SelectItem>
                     </SelectContent>
                   </Select>

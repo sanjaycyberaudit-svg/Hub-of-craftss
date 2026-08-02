@@ -9,6 +9,7 @@ import {
   serializeProductSizeConfig,
   type ProductSizeConfig,
 } from "./sizeConfig-shared";
+import { registerVariantTypeNames } from "./variant-type-catalog";
 
 export * from "./sizeConfig-shared";
 
@@ -98,6 +99,20 @@ export async function upsertProductSizeConfig(params: {
         updatedAt: new Date().toISOString(),
       },
     });
+
+  if (normalized.enabled) {
+    const groupNames = normalized.groups
+      .map((group) => group.name)
+      .filter(Boolean);
+    try {
+      await registerVariantTypeNames(groupNames, params.updatedBy);
+    } catch (error) {
+      console.error(
+        "[sizeConfig] registerVariantTypeNames failed:",
+        error,
+      );
+    }
+  }
 
   await invalidateStorefrontCache();
 }
