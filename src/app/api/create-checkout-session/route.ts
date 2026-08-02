@@ -324,6 +324,7 @@ export async function POST(request: Request) {
     const courierBreakdown = calculateCourierCharge({
       state: checkout.shipping.state,
       quantity: totalQuantity,
+      orderAmount: discountedSubtotal,
       config: courierConfig,
     });
     const courierCharge = courierConfig.enabled ? courierBreakdown.charge : 0;

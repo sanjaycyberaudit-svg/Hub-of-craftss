@@ -10,6 +10,8 @@ const defaultConfig: CourierChargesConfig = {
   restOfIndiaBase: 75,
   qty2To4AddOn: 40,
   qty5PlusFlat: 200,
+  freeShippingEnabled: false,
+  freeShippingMin: 999,
   gstEnabled: true,
   gstPercentage: 5,
 };

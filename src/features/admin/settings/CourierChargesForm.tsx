@@ -29,6 +29,8 @@ type CourierFormState = {
   restOfIndiaBase: number;
   qty2To4AddOn: number;
   qty5PlusFlat: number;
+  freeShippingEnabled: boolean;
+  freeShippingMin: number;
   gstEnabled: boolean;
   gstPercentage: number;
 };
@@ -40,6 +42,8 @@ const DEFAULT_VALUES: CourierFormState = {
   restOfIndiaBase: 75,
   qty2To4AddOn: 40,
   qty5PlusFlat: 200,
+  freeShippingEnabled: false,
+  freeShippingMin: 999,
   gstEnabled: true,
   gstPercentage: 5,
 };
@@ -98,6 +102,13 @@ export function CourierChargesForm() {
             value.qty5PlusFlat,
             DEFAULT_VALUES.qty5PlusFlat,
           ),
+          freeShippingEnabled: Boolean(
+            value.freeShippingEnabled ?? DEFAULT_VALUES.freeShippingEnabled,
+          ),
+          freeShippingMin: toAmount(
+            value.freeShippingMin,
+            DEFAULT_VALUES.freeShippingMin,
+          ),
           gstEnabled: Boolean(value.gstEnabled ?? DEFAULT_VALUES.gstEnabled),
           gstPercentage: toPercentage(
             value.gstPercentage,
@@ -144,6 +155,8 @@ export function CourierChargesForm() {
             restOfIndiaBase: form.restOfIndiaBase,
             qty2To4AddOn: form.qty2To4AddOn,
             qty5PlusFlat: form.qty5PlusFlat,
+            freeShippingEnabled: form.freeShippingEnabled,
+            freeShippingMin: form.freeShippingMin,
             gstEnabled: form.gstEnabled,
             gstPercentage: toPercentage(form.gstPercentage, 5),
           },
@@ -157,7 +170,7 @@ export function CourierChargesForm() {
       toast({
         title: "Courier & GST settings saved",
         description:
-          "Checkout now uses updated courier slabs and GST settings.",
+          "Checkout now uses updated courier, free shipping, and GST settings.",
       });
     } catch (error) {
       toast({
@@ -258,6 +271,40 @@ export function CourierChargesForm() {
         <p className="text-xs text-muted-foreground">
           Qty 2-4 uses base + add-on. Qty 5+ uses flat courier value.
         </p>
+
+        <div className="rounded-md border border-border p-3 space-y-3">
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={form.freeShippingEnabled}
+              onChange={(event) =>
+                setForm((prev) => ({
+                  ...prev,
+                  freeShippingEnabled: event.target.checked,
+                }))
+              }
+            />
+            Enable free shipping
+          </label>
+          <div className="space-y-2">
+            <Label htmlFor="free-shipping-min">Free shipping above (₹)</Label>
+            <Input
+              id="free-shipping-min"
+              type="number"
+              min={0}
+              disabled={!form.freeShippingEnabled}
+              value={form.freeShippingMin}
+              onChange={(event) =>
+                setAmount("freeShippingMin", event.target.value)
+              }
+            />
+            <p className="text-xs text-muted-foreground">
+              When order value after discount reaches this amount, courier is
+              ₹0. Below it, state and quantity rates still apply.
+            </p>
+          </div>
+        </div>
+
         <div className="rounded-md border border-border p-3">
           <label className="flex items-center gap-2 text-sm">
             <input

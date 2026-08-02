@@ -103,6 +103,8 @@ const courierChargesPayloadSchema = z.object({
   restOfIndiaBase: z.number().int().min(0).max(9999),
   qty2To4AddOn: z.number().int().min(0).max(9999),
   qty5PlusFlat: z.number().int().min(0).max(9999),
+  freeShippingEnabled: z.boolean(),
+  freeShippingMin: z.number().int().min(0).max(999999),
   gstEnabled: z.boolean(),
   gstPercentage: z.number().min(0).max(50),
 });
@@ -430,6 +432,10 @@ export async function POST(request: NextRequest) {
         restOfIndiaBase: Number(incomingValue.restOfIndiaBase ?? 75),
         qty2To4AddOn: Number(incomingValue.qty2To4AddOn ?? 40),
         qty5PlusFlat: Number(incomingValue.qty5PlusFlat ?? 200),
+        freeShippingEnabled: Boolean(
+          incomingValue.freeShippingEnabled ?? false,
+        ),
+        freeShippingMin: Number(incomingValue.freeShippingMin ?? 999),
         gstEnabled: Boolean(incomingValue.gstEnabled ?? true),
         gstPercentage: Number(incomingValue.gstPercentage ?? 5),
       });

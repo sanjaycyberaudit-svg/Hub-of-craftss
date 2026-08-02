@@ -121,15 +121,6 @@ function GuestCartSection({
     [cartItems],
   );
   const pincodeLookup = usePincodeLookup(deliveryPincode);
-  const courierBreakdown = useMemo(() => {
-    if (!courierConfig.enabled || !deliveryState) return null;
-    return calculateCourierCharge({
-      state: deliveryState,
-      quantity: productCount,
-      config: courierConfig,
-    });
-  }, [courierConfig, deliveryState, productCount]);
-  const courierCharge = courierBreakdown?.charge ?? 0;
   const activeOfferCodes = useMemo(() => {
     const map = new Map<string, number>();
     if (offerCodesConfig.enabled) {
@@ -148,6 +139,16 @@ function GuestCartSection({
     : 0;
   const discountAmount = Math.round(subtotal * promoPercentage * 100) / 10000;
   const discountedSubtotal = Math.max(0, subtotal - discountAmount);
+  const courierBreakdown = useMemo(() => {
+    if (!courierConfig.enabled || !deliveryState) return null;
+    return calculateCourierCharge({
+      state: deliveryState,
+      quantity: productCount,
+      orderAmount: discountedSubtotal,
+      config: courierConfig,
+    });
+  }, [courierConfig, deliveryState, discountedSubtotal, productCount]);
+  const courierCharge = courierBreakdown?.charge ?? 0;
   const courierEnabled = courierConfig.enabled;
   const offerCodesEnabled = activeOfferCodes.size > 0;
   const pricingReady =

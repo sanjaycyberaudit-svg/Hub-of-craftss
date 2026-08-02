@@ -168,9 +168,11 @@ export function CartOrderSummaryFields({
             <div className="flex items-center justify-between">
               <span>Courier</span>
               <span>
-                {courierBreakdown
-                  ? formatPrice(courierBreakdown.charge)
-                  : formatPrice(0)}
+                {courierBreakdown?.ruleApplied === "free_shipping"
+                  ? "Free"
+                  : courierBreakdown
+                    ? formatPrice(courierBreakdown.charge)
+                    : formatPrice(0)}
               </span>
             </div>
           ) : null}

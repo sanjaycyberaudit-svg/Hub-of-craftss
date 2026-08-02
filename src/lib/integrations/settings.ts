@@ -194,6 +194,8 @@ const DEFAULT_COURIER_CONFIG: Omit<CourierChargesConfig, "enabled"> = {
   restOfIndiaBase: 75,
   qty2To4AddOn: 40,
   qty5PlusFlat: 200,
+  freeShippingEnabled: false,
+  freeShippingMin: 999,
   gstEnabled: true,
   gstPercentage: 5,
 };
@@ -310,6 +312,14 @@ export async function resolveCourierChargesConfig(): Promise<CourierChargesConfi
       qty5PlusFlat: toRoundedAmount(
         value.qty5PlusFlat,
         DEFAULT_COURIER_CONFIG.qty5PlusFlat,
+      ),
+      freeShippingEnabled: Boolean(
+        value.freeShippingEnabled ??
+          DEFAULT_COURIER_CONFIG.freeShippingEnabled,
+      ),
+      freeShippingMin: toRoundedAmount(
+        value.freeShippingMin,
+        DEFAULT_COURIER_CONFIG.freeShippingMin,
       ),
       gstEnabled: Boolean(
         value.gstEnabled ?? DEFAULT_COURIER_CONFIG.gstEnabled,
@@ -593,6 +603,13 @@ function parseCourierFromRow(
     qty5PlusFlat: toRoundedAmount(
       value.qty5PlusFlat,
       DEFAULT_COURIER_CONFIG.qty5PlusFlat,
+    ),
+    freeShippingEnabled: Boolean(
+      value.freeShippingEnabled ?? DEFAULT_COURIER_CONFIG.freeShippingEnabled,
+    ),
+    freeShippingMin: toRoundedAmount(
+      value.freeShippingMin,
+      DEFAULT_COURIER_CONFIG.freeShippingMin,
     ),
     gstEnabled: Boolean(value.gstEnabled ?? DEFAULT_COURIER_CONFIG.gstEnabled),
     gstPercentage: toRoundedPercentage(

@@ -5,6 +5,10 @@ export type CourierChargesConfig = {
   restOfIndiaBase: number;
   qty2To4AddOn: number;
   qty5PlusFlat: number;
+  /** When true, courier is ₹0 if orderAmount >= freeShippingMin. */
+  freeShippingEnabled: boolean;
+  /** Discounted merchandise subtotal threshold (rupees, integer). */
+  freeShippingMin: number;
   gstEnabled: boolean;
   gstPercentage: number;
 };
@@ -14,7 +18,11 @@ export type CourierChargeBreakdown = {
   normalizedState: string;
   quantity: number;
   charge: number;
-  ruleApplied: "qty1_base" | "qty2_4_add_on" | "qty5_plus_flat";
+  ruleApplied:
+    | "free_shipping"
+    | "qty1_base"
+    | "qty2_4_add_on"
+    | "qty5_plus_flat";
   region: "tamil_nadu" | "south_states" | "rest_of_india";
 };
 
@@ -34,6 +42,8 @@ export function normalizeStateForCourier(state: string): string {
 export function calculateCourierCharge(params: {
   state: string;
   quantity: number;
+  /** Discounted merchandise subtotal (after promo, before courier/GST). */
+  orderAmount?: number;
   config: CourierChargesConfig;
 }): CourierChargeBreakdown {
   const normalizedState = normalizeStateForCourier(params.state);
@@ -47,6 +57,23 @@ export function calculateCourierCharge(params: {
     : SOUTH_STATES.has(normalizedState)
       ? "south_states"
       : "rest_of_india";
+
+  const orderAmount = Number(params.orderAmount);
+  const freeMin = Math.max(0, Math.round(Number(config.freeShippingMin) || 0));
+  if (
+    config.freeShippingEnabled &&
+    Number.isFinite(orderAmount) &&
+    orderAmount >= freeMin
+  ) {
+    return {
+      state: params.state,
+      normalizedState,
+      quantity,
+      charge: 0,
+      ruleApplied: "free_shipping",
+      region,
+    };
+  }
 
   const base =
     region === "tamil_nadu"
