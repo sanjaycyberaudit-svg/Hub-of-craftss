@@ -69,7 +69,10 @@ import {
   PRODUCT_OPTION_NAME_MAX,
   PRODUCT_OPTION_VALUE_MAX,
 } from "@/lib/products/sizeConfig-shared";
-import { DEFAULT_VARIANT_TYPE_NAMES } from "@/lib/products/variant-type-catalog-shared";
+import {
+  DEFAULT_VARIANT_TYPE_NAMES,
+  mergeVariantTypeNames,
+} from "@/lib/products/variant-type-catalog-shared";
 import { formatPrice } from "@/lib/utils";
 import { ProductPriceDisplay } from "@/features/products/components/ProductPriceDisplay";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -929,17 +932,22 @@ function ProductFrom({ product, galleryMediaIds = [] }: ProductsFormProps) {
   };
 
   const updateGroupName = (groupIndex: number, name: string) => {
+    const nextName = name.slice(0, PRODUCT_OPTION_NAME_MAX);
     setSizeConfig((prev) => ({
       ...prev,
       groups: prev.groups.map((group, i) =>
         i === groupIndex
           ? {
               ...group,
-              name: name.slice(0, PRODUCT_OPTION_NAME_MAX),
+              name: nextName,
             }
           : group,
       ),
     }));
+    const trimmed = nextName.trim();
+    if (trimmed) {
+      setKnownVariantTypes((prev) => mergeVariantTypeNames(prev, [trimmed]));
+    }
   };
 
   const updateSizeOption = (
@@ -1499,6 +1507,10 @@ function ProductFrom({ product, galleryMediaIds = [] }: ProductsFormProps) {
                       </SelectItem>
                     </SelectContent>
                   </Select>
+                  <p className="text-xs text-muted-foreground">
+                    Choose Size, Magnet, Colour, or Custom. This label shows on
+                    the product page.
+                  </p>
                 </div>
                 <Button
                   type="button"
@@ -1510,17 +1522,24 @@ function ProductFrom({ product, galleryMediaIds = [] }: ProductsFormProps) {
                 </Button>
               </div>
 
-              <div className="space-y-1">
-                <FormLabel className="text-sm">Type name</FormLabel>
-                <Input
-                  value={activeVariantGroup.name}
-                  maxLength={PRODUCT_OPTION_NAME_MAX}
-                  placeholder="Size / Magnet / Colour"
-                  onChange={(event) =>
-                    updateGroupName(activeGroupIndex, event.target.value)
-                  }
-                />
-              </div>
+              {!activeVariantGroup.name.trim() ? (
+                <div className="space-y-1">
+                  <FormLabel className="text-sm">Name this type</FormLabel>
+                  <Input
+                    autoFocus
+                    value={activeVariantGroup.name}
+                    maxLength={PRODUCT_OPTION_NAME_MAX}
+                    placeholder="e.g. Finish / Style"
+                    onChange={(event) =>
+                      updateGroupName(activeGroupIndex, event.target.value)
+                    }
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Required for Custom types. Saved names appear in the
+                    dropdown for other products.
+                  </p>
+                </div>
+              ) : null}
 
               <div className="space-y-2">
                 <FormLabel className="text-sm">
