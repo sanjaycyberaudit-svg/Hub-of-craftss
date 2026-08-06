@@ -2,16 +2,30 @@ import dotenv from "dotenv";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
 import postgres from "postgres";
+import {
+  identityAuthCallbackUrls,
+  loadProjectIdentity,
+} from "./lib/load-project-identity.mjs";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 dotenv.config({ path: join(root, ".env.local") });
 
-const projectRef = process.env.NEXT_PUBLIC_SUPABASE_PROJECT_REF;
+const identity = loadProjectIdentity();
+const projectRef =
+  process.env.NEXT_PUBLIC_SUPABASE_PROJECT_REF || identity.supabase.projectRef;
 const supabaseUrl =
   process.env.NEXT_PUBLIC_SUPABASE_URL ??
+  identity.supabase.url ??
   `https://${projectRef}.supabase.co`;
 const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 const serviceRole = process.env.DATABASE_SERVICE_ROLE;
+
+if (projectRef !== identity.supabase.projectRef) {
+  console.error(
+    `Refusing verify: NEXT_PUBLIC_SUPABASE_PROJECT_REF=${projectRef} ≠ identity ${identity.supabase.projectRef}`,
+  );
+  process.exit(1);
+}
 
 const allowLiveEmailTest =
   process.argv.includes("--send-test-email") ||
@@ -175,9 +189,12 @@ console.log("  Google OAuth:", googleReady ? "ENABLED in Supabase" : "NOT ENABLE
 if (!googleReady) {
   console.log("\nGoogle redirect URI for Google Cloud Console:");
   console.log(`  ${supabaseUrl.replace(/\/$/, "")}/auth/v1/callback`);
-  console.log("\nApp callback URLs for Supabase → Authentication → URL Configuration:");
-  console.log("  http://localhost:3000/auth/callback");
-  console.log("  https://ssr-tex-shop.vercel.app/auth/callback");
+  console.log(
+    "\nApp callback URLs for Supabase → Authentication → URL Configuration (from project.identity.json):",
+  );
+  for (const url of identityAuthCallbackUrls(identity)) {
+    console.log(`  ${url}`);
+  }
 }
 
 process.exit(signup.ok && db.ok ? 0 : 1);

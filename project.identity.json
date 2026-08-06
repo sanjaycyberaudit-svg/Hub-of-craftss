@@ -1,0 +1,73 @@
+{
+  "$schema": "./project.identity.schema.json",
+  "version": 1,
+  "project": {
+    "name": "Hub of craftss",
+    "slug": "hub-of-craftss",
+    "repo": "sanjaycyberaudit-svg/Hub-of-craftss",
+    "branch": "main"
+  },
+  "site": {
+    "canonicalOrigin": "https://hubsofcraftss.com",
+    "wwwOrigin": "https://www.hubsofcraftss.com",
+    "localOrigins": [
+      "http://localhost:3000",
+      "http://127.0.0.1:3000"
+    ]
+  },
+  "supabase": {
+    "projectRef": "xytdexahcdyhykvuwpys",
+    "url": "https://xytdexahcdyhykvuwpys.supabase.co",
+    "regionHint": "ap-south-1"
+  },
+  "cloudflare": {
+    "accountEmail": "shaarunew01@gmail.com",
+    "accountId": "542992b23690c0c07bb23e5fecffa6ec",
+    "workerName": "hub-of-craftss",
+    "mediaWorkerName": "hub-of-craftss-media",
+    "productionWranglerConfig": "wrangler.workers.new-account.jsonc",
+    "mediaWranglerConfig": "workers/r2-media-proxy/wrangler.jsonc",
+    "r2": {
+      "mediaBucket": "hubofcraftss-cdn",
+      "nextCacheBucket": "hubofcraftss-next-cache",
+      "s3Endpoint": "https://542992b23690c0c07bb23e5fecffa6ec.r2.cloudflarestorage.com",
+      "publicCdnHint": "https://pub-d036df4365494925a278f4ecf244316d.r2.dev"
+    }
+  },
+  "vercel": {
+    "teamSlug": "shaarunew01-4571s-projects",
+    "projectSlug": "hubs-of-craftss-project",
+    "productionHost": "hubsofcraftss.com"
+  },
+  "github": {
+    "owner": "sanjaycyberaudit-svg",
+    "repo": "Hub-of-craftss",
+    "pushAccount": "sanjaycyberaudit-svg"
+  },
+  "authRedirectOrigins": [
+    "https://hubsofcraftss.com",
+    "https://www.hubsofcraftss.com",
+    "http://localhost:3000",
+    "http://127.0.0.1:3000"
+  ],
+  "forbidden": {
+    "description": "Never use these for Hub of craftss deploys, R2, env, or wrangler login.",
+    "cloudflareAccountEmails": [
+      "sripalanitextilesonline@gmail.com"
+    ],
+    "supabaseProjectRefs": [],
+    "siteHosts": [
+      "sairaghavendratex.com",
+      "www.sairaghavendratex.com",
+      "ssr-tex-shop.vercel.app",
+      "hubofcraftss.com",
+      "www.hubofcraftss.com"
+    ]
+  },
+  "notes": [
+    "Secrets stay in .env.local / Vercel / Cloudflare — never commit them.",
+    "This file is the only public source of truth for project identity.",
+    "Run npm run validate:identity before auth, R2, wrangler, or deploy work.",
+    "If Cloudflare/Supabase/Vercel/site IDs change, update THIS file first, then configs."
+  ]
+}

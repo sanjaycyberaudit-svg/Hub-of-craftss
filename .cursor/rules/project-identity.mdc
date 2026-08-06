@@ -1,0 +1,16 @@
+---
+description: Always use project.identity.json as Hub of craftss source of truth for auth, Cloudflare, Supabase, Vercel, and site hosts.
+alwaysApply: true
+---
+
+# Project identity (Hub of craftss)
+
+Before any auth, Cloudflare, R2, Supabase, Vercel, wrangler, deploy, or env work in this repo:
+
+1. Read **`project.identity.json`** at the repo root. It is the only public source of truth for project IDs and hosts.
+2. Do **not** use textiles / other-shop Cloudflare accounts, Supabase projects, or site hosts listed under `forbidden`.
+3. If an ID or host must change: **update `project.identity.json` first**, then update wrangler / env / scripts to match.
+4. Run **`npm run validate:identity`** (and `npm run validate:identity:login` when touching Cloudflare login) after identity or env changes.
+5. Never commit secrets (`.env.local`, API keys). Identity file holds public pins only.
+
+Canonical values live in `project.identity.json` (`site`, `supabase`, `cloudflare`, `vercel`, `github`, `authRedirectOrigins`).

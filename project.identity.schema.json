@@ -1,0 +1,126 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "project.identity.schema.json",
+  "title": "Hub of craftss project identity",
+  "type": "object",
+  "required": [
+    "version",
+    "project",
+    "site",
+    "supabase",
+    "cloudflare",
+    "vercel",
+    "github",
+    "authRedirectOrigins",
+    "forbidden"
+  ],
+  "properties": {
+    "version": { "type": "integer", "minimum": 1 },
+    "project": {
+      "type": "object",
+      "required": ["name", "slug", "repo", "branch"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "slug": { "type": "string", "minLength": 1 },
+        "repo": { "type": "string", "minLength": 1 },
+        "branch": { "type": "string", "minLength": 1 }
+      }
+    },
+    "site": {
+      "type": "object",
+      "required": ["canonicalOrigin", "wwwOrigin", "localOrigins"],
+      "properties": {
+        "canonicalOrigin": { "type": "string", "format": "uri" },
+        "wwwOrigin": { "type": "string", "format": "uri" },
+        "localOrigins": {
+          "type": "array",
+          "items": { "type": "string", "format": "uri" },
+          "minItems": 1
+        }
+      }
+    },
+    "supabase": {
+      "type": "object",
+      "required": ["projectRef", "url"],
+      "properties": {
+        "projectRef": { "type": "string", "minLength": 10 },
+        "url": { "type": "string", "format": "uri" },
+        "regionHint": { "type": "string" }
+      }
+    },
+    "cloudflare": {
+      "type": "object",
+      "required": [
+        "accountEmail",
+        "accountId",
+        "workerName",
+        "productionWranglerConfig",
+        "r2"
+      ],
+      "properties": {
+        "accountEmail": { "type": "string" },
+        "accountId": { "type": "string", "minLength": 32 },
+        "workerName": { "type": "string" },
+        "mediaWorkerName": { "type": "string" },
+        "productionWranglerConfig": { "type": "string" },
+        "mediaWranglerConfig": { "type": "string" },
+        "r2": {
+          "type": "object",
+          "required": ["mediaBucket", "nextCacheBucket", "s3Endpoint"],
+          "properties": {
+            "mediaBucket": { "type": "string" },
+            "nextCacheBucket": { "type": "string" },
+            "s3Endpoint": { "type": "string", "format": "uri" },
+            "publicCdnHint": { "type": "string" }
+          }
+        }
+      }
+    },
+    "vercel": {
+      "type": "object",
+      "required": ["teamSlug", "projectSlug", "productionHost"],
+      "properties": {
+        "teamSlug": { "type": "string" },
+        "projectSlug": { "type": "string" },
+        "productionHost": { "type": "string" }
+      }
+    },
+    "github": {
+      "type": "object",
+      "required": ["owner", "repo", "pushAccount"],
+      "properties": {
+        "owner": { "type": "string" },
+        "repo": { "type": "string" },
+        "pushAccount": { "type": "string" }
+      }
+    },
+    "authRedirectOrigins": {
+      "type": "array",
+      "items": { "type": "string", "format": "uri" },
+      "minItems": 1
+    },
+    "forbidden": {
+      "type": "object",
+      "required": ["cloudflareAccountEmails", "siteHosts"],
+      "properties": {
+        "description": { "type": "string" },
+        "cloudflareAccountEmails": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "supabaseProjectRefs": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "siteHosts": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    },
+    "notes": {
+      "type": "array",
+      "items": { "type": "string" }
+    }
+  }
+}
