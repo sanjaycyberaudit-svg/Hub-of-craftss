@@ -1,9 +1,11 @@
 import db from "@/lib/supabase/db";
 import { collections, medias, products } from "@/lib/supabase/schema";
+import { buildAdminProductSearchPattern } from "@/lib/admin/admin-product-search";
 import { and, desc, eq, ilike, lt, or, sql, type SQL } from "drizzle-orm";
 import { cache } from "react";
 
 export const ADMIN_PRODUCTS_LIST_TAG = "admin-products-list";
+export { buildAdminProductSearchPattern };
 
 export type AdminProductsStockFilter = "all" | "low" | "out";
 
@@ -114,15 +116,15 @@ function buildAdminProductsWhereClause(params: {
   lowStockThreshold: number;
 }): SQL | undefined {
   const conditions: SQL[] = [];
-  const normalizedQuery = params.query.replace(/[%_]/g, "\\$&");
+  const searchPattern = buildAdminProductSearchPattern(params.query);
 
-  if (normalizedQuery) {
+  if (searchPattern) {
     conditions.push(
       or(
-        ilike(products.name, `%${normalizedQuery}%`),
-        ilike(products.slug, `%${normalizedQuery}%`),
-        ilike(products.productCode, `%${normalizedQuery}%`),
-        ilike(collections.label, `%${normalizedQuery}%`),
+        ilike(products.name, searchPattern),
+        ilike(products.slug, searchPattern),
+        ilike(products.productCode, searchPattern),
+        ilike(collections.label, searchPattern),
       )!,
     );
   }

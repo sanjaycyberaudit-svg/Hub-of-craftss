@@ -872,6 +872,17 @@ async function handleDelete(
     };
   }
 
+  if (outcome.alreadyGoneIds.length > 0) {
+    return {
+      ok: true,
+      requestId,
+      action: "delete",
+      message: "Product already removed.",
+      productId,
+      alreadyGone: true,
+    };
+  }
+
   return {
     ok: false,
     requestId,

@@ -4,6 +4,7 @@ import {
   mediaPurgeAtIso,
   UNPAID_ORDER_RETENTION_DAYS,
 } from "@/lib/admin/product-lifecycle-policy";
+import { classifyProductDeleteTargets } from "@/lib/admin/product-lifecycle-classify";
 import { deleteMediaStorageKeys } from "@/lib/storage/deleteMediaFiles";
 import db from "@/lib/supabase/db";
 import {
@@ -19,8 +20,12 @@ import { and, eq, inArray, isNotNull, lte, sql } from "drizzle-orm";
 export type ProductLifecycleOutcome = {
   deletedIds: string[];
   archivedIds: string[];
+  /** Idempotent DELETE: ids that were already absent from the catalog. */
+  alreadyGoneIds: string[];
   blocked: { id: string; reason: string }[];
 };
+
+export { classifyProductDeleteTargets } from "@/lib/admin/product-lifecycle-classify";
 
 export async function getProductIdsWithPaidOrders(
   productIds: string[],
@@ -155,30 +160,23 @@ export async function deleteOrArchiveProducts(
   options?: { clearCollection?: boolean },
 ): Promise<ProductLifecycleOutcome> {
   const uniqueIds = [...new Set(productIds)];
-  const existingRows = await db
-    .select({ id: products.id })
-    .from(products)
-    .where(inArray(products.id, uniqueIds));
+  const existingRows =
+    uniqueIds.length > 0
+      ? await db
+          .select({ id: products.id })
+          .from(products)
+          .where(inArray(products.id, uniqueIds))
+      : [];
   const existingIds = new Set(existingRows.map((row) => row.id));
   const paidLinked = await getProductIdsWithPaidOrders(uniqueIds);
+  const { toDelete, toArchive, alreadyGoneIds } = classifyProductDeleteTargets(
+    uniqueIds,
+    existingIds,
+    paidLinked,
+  );
 
   const deletedIds: string[] = [];
   const archivedIds: string[] = [];
-  const blocked: { id: string; reason: string }[] = [];
-  const toDelete: string[] = [];
-  const toArchive: string[] = [];
-
-  for (const id of uniqueIds) {
-    if (!existingIds.has(id)) {
-      blocked.push({ id, reason: "Product not found." });
-      continue;
-    }
-    if (paidLinked.has(id)) {
-      toArchive.push(id);
-    } else {
-      toDelete.push(id);
-    }
-  }
 
   if (toDelete.length > 0) {
     await deleteProductsCompletely(toDelete);
@@ -190,7 +188,8 @@ export async function deleteOrArchiveProducts(
     archivedIds.push(...toArchive);
   }
 
-  return { deletedIds, archivedIds, blocked };
+  // DELETE is idempotent: missing ids succeed as alreadyGone, never as blocked.
+  return { deletedIds, archivedIds, alreadyGoneIds, blocked: [] };
 }
 
 export async function deleteCategoryWithProducts(collectionId: string) {
@@ -232,6 +231,7 @@ export async function deleteCategoryProductsBatch(
 ): Promise<{
   deletedIds: string[];
   archivedIds: string[];
+  alreadyGoneIds: string[];
   blocked: { id: string; reason: string }[];
   remaining: number;
   done: boolean;
@@ -259,7 +259,12 @@ export async function deleteCategoryProductsBatch(
   const productOutcome =
     batchIds.length > 0
       ? await deleteOrArchiveProducts(batchIds, { clearCollection: true })
-      : { deletedIds: [], archivedIds: [], blocked: [] };
+      : {
+          deletedIds: [],
+          archivedIds: [],
+          alreadyGoneIds: [],
+          blocked: [],
+        };
 
   const [{ remaining }] = await db
     .select({ remaining: sql<number>`count(*)::int` })

@@ -55,6 +55,7 @@ function ProductRowActions({ productId }: { productId: string }) {
       const payload = (await res.json().catch(() => null)) as {
         deletedIds?: string[];
         archivedIds?: string[];
+        alreadyGoneIds?: string[];
         blocked?: { id: string; reason: string }[];
         message?: string;
       } | null;
@@ -74,6 +75,11 @@ function ProductRowActions({ productId }: { productId: string }) {
           description:
             "Drafted and removed from shop. Photos auto-delete after 30 days; order text is kept.",
         });
+      } else if ((payload?.alreadyGoneIds ?? []).length > 0) {
+        toast({
+          title: "Already removed",
+          description: "That product is no longer in the catalog.",
+        });
       } else {
         toast({ title: "Product deleted." });
       }
@@ -84,6 +90,7 @@ function ProductRowActions({ productId }: { productId: string }) {
         description: error instanceof Error ? error.message : "Please retry.",
         variant: "destructive",
       });
+      router.refresh();
     }
   };
 
