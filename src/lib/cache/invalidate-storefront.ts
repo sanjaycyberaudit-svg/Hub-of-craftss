@@ -4,7 +4,7 @@ import { CACHE_TAGS } from "./constants";
 import { redisDelByPrefix } from "./redis";
 import { clearStorefrontMemoryCache } from "./storefront-cache";
 
-  const REDIS_PREFIXES = [
+const REDIS_PREFIXES = [
   "sf:products:",
   "sf:drafts",
   "sf:size:",
@@ -18,6 +18,17 @@ import { clearStorefrontMemoryCache } from "./storefront-cache";
   "sf:shop-by-price",
   "sf:pincode:",
 ] as const;
+
+/** Narrow prefixes for category create/update/delete (avoids full KEYS scans). */
+const COLLECTION_REDIS_PREFIXES = [
+  "sf:collection:",
+  "sf:landing",
+  "sf:products:",
+] as const;
+
+async function clearRedisPrefixes(prefixes: readonly string[]) {
+  await Promise.all(prefixes.map((prefix) => redisDelByPrefix(prefix)));
+}
 
 /** Bust admin products table cache after catalog writes. */
 export function invalidateAdminProductsCache() {
@@ -40,7 +51,7 @@ export async function invalidateStorefrontCache() {
   }
 
   try {
-    await Promise.all(REDIS_PREFIXES.map((prefix) => redisDelByPrefix(prefix)));
+    await clearRedisPrefixes(REDIS_PREFIXES);
   } catch (error) {
     console.warn("[cache] redis prefix clear failed:", error);
   }
@@ -49,5 +60,32 @@ export async function invalidateStorefrontCache() {
     clearStorefrontMemoryCache("sf:");
   } catch (error) {
     console.warn("[cache] memory clear failed:", error);
+  }
+}
+
+/**
+ * Category-only catalog changes: fewer Redis KEYS scans + less Fluid Active CPU
+ * than a full storefront bust.
+ */
+export async function invalidateStorefrontCollectionsCache() {
+  try {
+    revalidateTag(CACHE_TAGS.collections);
+    revalidateTag(CACHE_TAGS.products);
+  } catch (error) {
+    console.warn("[cache] collection tag revalidate failed:", error);
+  }
+
+  try {
+    await clearRedisPrefixes(COLLECTION_REDIS_PREFIXES);
+  } catch (error) {
+    console.warn("[cache] collection redis clear failed:", error);
+  }
+
+  try {
+    for (const prefix of COLLECTION_REDIS_PREFIXES) {
+      clearStorefrontMemoryCache(prefix);
+    }
+  } catch (error) {
+    console.warn("[cache] collection memory clear failed:", error);
   }
 }

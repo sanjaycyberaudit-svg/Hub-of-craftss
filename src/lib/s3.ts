@@ -9,8 +9,14 @@ import { AwsClient } from "aws4fetch";
  * - Worker put/get/delete: R2 binding (no S3 signature — avoids 401s from
  *   aws4fetch + global_fetch_strictly_public on Workers)
  *
- * SSR Tex uses Supabase Storage instead; Hub cannot copy that path 1:1.
+ * `trusted-server` — route already authenticated (e.g. Velo API key).
  */
+export type MediaWriteAuth = "admin-session" | "trusted-server";
+
+async function assertMediaWriteAuth(auth: MediaWriteAuth = "admin-session") {
+  if (auth === "trusted-server") return;
+  await requireAdminActionUser();
+}
 
 type R2BucketLike = {
   put: (
@@ -118,8 +124,9 @@ export async function createPresignedPutUrl(params: {
   key: string;
   contentType: string;
   expiresInSeconds?: number;
+  auth?: MediaWriteAuth;
 }) {
-  await requireAdminActionUser();
+  await assertMediaWriteAuth(params.auth ?? "admin-session");
   const expires = params.expiresInSeconds ?? 60 * 10;
   const url = `${objectUrl(params.key)}?X-Amz-Expires=${expires}`;
 
@@ -131,8 +138,11 @@ export async function createPresignedPutUrl(params: {
   return String(signed.url);
 }
 
-export async function putObject(params: PutObjectParams) {
-  await requireAdminActionUser();
+export async function putObject(
+  params: PutObjectParams,
+  options?: { auth?: MediaWriteAuth },
+) {
+  await assertMediaWriteAuth(options?.auth ?? "admin-session");
 
   const cfEnv = await getCloudflareEnv();
   const r2 = (cfEnv?.MEDIA_BUCKET as R2BucketLike | undefined) ?? null;
@@ -197,8 +207,9 @@ export async function putObject(params: PutObjectParams) {
 export async function getObjectBuffer(params: {
   key: string;
   maxBytes?: number;
+  auth?: MediaWriteAuth;
 }) {
-  await requireAdminActionUser();
+  await assertMediaWriteAuth(params.auth ?? "admin-session");
 
   const cfEnv = await getCloudflareEnv();
   const r2 = (cfEnv?.MEDIA_BUCKET as R2BucketLike | undefined) ?? null;
@@ -254,8 +265,11 @@ export async function getObjectBuffer(params: {
   return Buffer.from(bytes.buffer, bytes.byteOffset, bytes.byteLength);
 }
 
-export async function deleteObjects(params: { keys: string[] }) {
-  await requireAdminActionUser();
+export async function deleteObjects(params: {
+  keys: string[];
+  auth?: MediaWriteAuth;
+}) {
+  await assertMediaWriteAuth(params.auth ?? "admin-session");
   const keys = [...new Set(params.keys.map((k) => k.trim()).filter(Boolean))];
   if (keys.length === 0) return;
 

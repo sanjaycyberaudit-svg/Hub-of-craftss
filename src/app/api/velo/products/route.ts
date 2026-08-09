@@ -7,6 +7,7 @@ import {
   touchVeloApiKeyUsage,
 } from "@/lib/integrations/velo";
 import { invalidateStorefrontCache } from "@/lib/cache/invalidate-storefront";
+import { veloActionNeedsRouteCacheInvalidation } from "@/lib/integrations/velo-cache-policy";
 import { NextRequest, NextResponse } from "next/server";
 
 const VELO_CORS_ORIGINS = new Set([
@@ -75,9 +76,15 @@ export async function POST(request: NextRequest) {
   }
 
   const result = await handleVeloProductsRequest(body);
-  if (result.ok) {
-    await invalidateStorefrontCache();
+
+  // Product writes only — once, non-blocking. Reads and collection mutations
+  // must not full-bust (collections already use scoped invalidate in handler).
+  if (result.ok && veloActionNeedsRouteCacheInvalidation(body.action)) {
+    void invalidateStorefrontCache().catch((error) => {
+      console.error("[velo/products] invalidateStorefrontCache failed:", error);
+    });
   }
+
   const status = result.ok ? 200 : 400;
 
   return NextResponse.json(result, {

@@ -247,24 +247,38 @@ export async function deleteCategoryProductsBatch(
     return null;
   }
 
-  const productRows = await db
-    .select({ id: products.id })
+  const [{ productCount }] = await db
+    .select({ productCount: sql<number>`count(*)::int` })
     .from(products)
     .where(eq(products.collectionId, collectionId));
 
-  const batchIds = productRows
-    .slice(0, Math.max(1, batchSize))
-    .map((row) => row.id);
+  const totalProducts = Number(productCount ?? 0);
 
-  const productOutcome =
-    batchIds.length > 0
-      ? await deleteOrArchiveProducts(batchIds, { clearCollection: true })
-      : {
-          deletedIds: [],
-          archivedIds: [],
-          alreadyGoneIds: [],
-          blocked: [],
-        };
+  // Empty category: delete the row and return — do not run product batch delete.
+  if (totalProducts === 0) {
+    await db.delete(collections).where(eq(collections.id, collectionId));
+    return {
+      deletedIds: [],
+      archivedIds: [],
+      alreadyGoneIds: [],
+      blocked: [],
+      remaining: 0,
+      done: true,
+      collectionDeleted: true,
+    };
+  }
+
+  const productRows = await db
+    .select({ id: products.id })
+    .from(products)
+    .where(eq(products.collectionId, collectionId))
+    .limit(Math.max(1, batchSize));
+
+  const batchIds = productRows.map((row) => row.id);
+
+  const productOutcome = await deleteOrArchiveProducts(batchIds, {
+    clearCollection: true,
+  });
 
   const [{ remaining }] = await db
     .select({ remaining: sql<number>`count(*)::int` })

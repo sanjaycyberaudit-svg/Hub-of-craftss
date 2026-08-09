@@ -13,6 +13,7 @@ import {
   getObjectBuffer,
   hasServerMediaWritePath,
   putObject,
+  type MediaWriteAuth,
 } from "@/lib/s3";
 import db from "@/lib/supabase/db";
 import { medias } from "@/lib/supabase/schema";
@@ -24,9 +25,13 @@ import {
   toMediaAltText,
 } from "./safeUploadFileName";
 import { uploadMediaToR2 } from "./uploadMedia";
+import {
+  createMediaProxyUploadToken,
+  mediaProxyUploadUrl,
+} from "./velo-upload-token";
 
-export type DirectUploadPurpose = "upload" | "product-draft";
-export type DirectUploadMode = "worker" | "presigned";
+export type DirectUploadPurpose = "upload" | "product-draft" | "velo-product";
+export type DirectUploadMode = "worker" | "presigned" | "proxy";
 
 const STAGING_PREFIX = "uploads/staging/";
 
@@ -42,8 +47,11 @@ export function isValidStagingPath(path: string): boolean {
   return /^uploads\/staging\/[A-Za-z0-9_-]+\.[a-z0-9]+$/i.test(path);
 }
 
-async function deleteStagingFile(storagePath: string) {
-  await deleteObjects({ keys: [storagePath] });
+async function deleteStagingFile(
+  storagePath: string,
+  auth: MediaWriteAuth = "admin-session",
+) {
+  await deleteObjects({ keys: [storagePath], auth });
 }
 
 async function hasMediaBucketBinding(): Promise<boolean> {
@@ -58,11 +66,7 @@ async function hasMediaBucketBinding(): Promise<boolean> {
   }
 }
 
-export async function createDirectUploadSession(params: {
-  fileName: string;
-  contentType: string;
-  fileSize: number;
-}) {
+function assertUploadLimits(params: { fileSize: number; contentType: string }) {
   if (params.fileSize <= 0) {
     throw new Error("File is empty.");
   }
@@ -74,16 +78,45 @@ export async function createDirectUploadSession(params: {
   if (!params.contentType.startsWith("image/")) {
     throw new Error("Only image files are allowed.");
   }
+}
+
+export async function createDirectUploadSession(params: {
+  fileName: string;
+  contentType: string;
+  fileSize: number;
+  auth?: MediaWriteAuth;
+  /** Prefer client→media-proxy PUT (skips Vercel Fluid for image bytes). */
+  preferProxyUpload?: boolean;
+}) {
+  const auth = params.auth ?? "admin-session";
+  assertUploadLimits(params);
 
   const storagePath = buildStagingPath(sanitizeUploadFileName(params.fileName));
 
-  // Prefer server staging (Worker R2 binding or Vercel→media-proxy).
-  // Presigned S3 PUTs fail when R2 API tokens are stale (401 Unauthorized).
+  if (params.preferProxyUpload && hasServerMediaWritePath()) {
+    try {
+      const { token, expiresAt } = createMediaProxyUploadToken(storagePath);
+      return {
+        storagePath,
+        uploadMode: "proxy" as DirectUploadMode,
+        signedUrl: null as string | null,
+        uploadUrl: mediaProxyUploadUrl(storagePath),
+        uploadToken: token,
+        uploadTokenExpiresAt: expiresAt,
+      };
+    } catch (error) {
+      logServerError("directUpload/proxySession", error);
+    }
+  }
+
   if ((await hasMediaBucketBinding()) || hasServerMediaWritePath()) {
     return {
       storagePath,
       uploadMode: "worker" as DirectUploadMode,
       signedUrl: null as string | null,
+      uploadUrl: null as string | null,
+      uploadToken: null as string | null,
+      uploadTokenExpiresAt: null as number | null,
     };
   }
 
@@ -94,6 +127,7 @@ export async function createDirectUploadSession(params: {
       key: storagePath,
       contentType: params.contentType || "application/octet-stream",
       expiresInSeconds: 60 * 10,
+      auth,
     });
   } catch (err) {
     error = err;
@@ -108,15 +142,19 @@ export async function createDirectUploadSession(params: {
     storagePath,
     uploadMode: "presigned" as DirectUploadMode,
     signedUrl,
+    uploadUrl: signedUrl,
+    uploadToken: null as string | null,
+    uploadTokenExpiresAt: null as number | null,
   };
 }
 
-/** Stage bytes into R2 via MEDIA_BUCKET (or local S3 fallback). */
 export async function stageDirectUpload(params: {
   storagePath: string;
   body: ArrayBuffer | Uint8Array | Buffer;
   contentType: string;
+  auth?: MediaWriteAuth;
 }) {
+  const auth = params.auth ?? "admin-session";
   if (!isValidStagingPath(params.storagePath)) {
     throw new Error("Invalid staging path.");
   }
@@ -136,12 +174,15 @@ export async function stageDirectUpload(params: {
     );
   }
 
-  await putObject({
-    Bucket: env.NEXT_PUBLIC_S3_BUCKET,
-    Key: params.storagePath,
-    Body: params.body,
-    ContentType: params.contentType || "application/octet-stream",
-  });
+  await putObject(
+    {
+      Bucket: env.NEXT_PUBLIC_S3_BUCKET,
+      Key: params.storagePath,
+      Body: params.body,
+      ContentType: params.contentType || "application/octet-stream",
+    },
+    { auth },
+  );
 
   return { storagePath: params.storagePath };
 }
@@ -150,7 +191,9 @@ export async function finalizeDirectUpload(params: {
   storagePath: string;
   originalFileName: string;
   purpose: DirectUploadPurpose;
+  auth?: MediaWriteAuth;
 }) {
+  const auth = params.auth ?? "admin-session";
   if (!isValidStagingPath(params.storagePath)) {
     throw new Error("Invalid staging path.");
   }
@@ -161,20 +204,21 @@ export async function finalizeDirectUpload(params: {
     buffer = await getObjectBuffer({
       key: stagingKey,
       maxBytes: MAX_PROCESSED_IMAGE_BYTES,
+      auth,
     });
   } catch (error) {
-    await deleteStagingFile(stagingKey);
+    await deleteStagingFile(stagingKey, auth);
     throw error instanceof Error
       ? error
       : new Error("Uploaded file not found. Try uploading again.");
   }
 
   if (buffer.length === 0) {
-    await deleteStagingFile(stagingKey);
+    await deleteStagingFile(stagingKey, auth);
     throw new Error("Empty file.");
   }
   if (buffer.length > MAX_PROCESSED_IMAGE_BYTES) {
-    await deleteStagingFile(stagingKey);
+    await deleteStagingFile(stagingKey, auth);
     throw new Error(
       "Image is too large after upload. Compress under 1 MB and retry.",
     );
@@ -187,16 +231,19 @@ export async function finalizeDirectUpload(params: {
   try {
     processed = await processUploadedImageBuffer(buffer, safeName);
   } catch (error) {
-    await deleteStagingFile(stagingKey);
+    await deleteStagingFile(stagingKey, auth);
     throw error instanceof Error
       ? error
       : new Error("Image processing failed.");
   }
-  // Release staging buffer reference before the final put.
   buffer = Buffer.alloc(0);
 
   const namePrefix =
-    params.purpose === "product-draft" ? "product-draft" : "upload";
+    params.purpose === "product-draft"
+      ? "product-draft"
+      : params.purpose === "velo-product"
+        ? "velo-product"
+        : "upload";
 
   let finalKey: string;
   try {
@@ -205,9 +252,10 @@ export async function finalizeDirectUpload(params: {
       processed.contentType,
       processed.extension,
       namePrefix,
+      { auth },
     );
   } catch (error) {
-    await deleteStagingFile(stagingKey);
+    await deleteStagingFile(stagingKey, auth);
     throw error instanceof Error ? error : new Error("Storage upload failed.");
   }
 
@@ -216,7 +264,7 @@ export async function finalizeDirectUpload(params: {
     .values({ alt, key: finalKey })
     .returning({ id: medias.id });
 
-  await deleteStagingFile(stagingKey);
+  await deleteStagingFile(stagingKey, auth);
 
   return {
     mediaId: insertedMedia.id,

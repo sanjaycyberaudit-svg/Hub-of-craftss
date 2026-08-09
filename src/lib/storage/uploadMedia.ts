@@ -1,6 +1,6 @@
 import { nanoid } from "nanoid";
 import { env } from "@/env.mjs";
-import { putObject } from "@/lib/s3";
+import { putObject, type MediaWriteAuth } from "@/lib/s3";
 
 export async function ensureMediaBucket() {
   // Legacy no-op: Supabase Storage is no longer required for new uploads.
@@ -12,16 +12,20 @@ export async function uploadMediaToR2(
   contentType: string,
   extension: string,
   namePrefix = "upload",
+  options?: { auth?: MediaWriteAuth },
 ): Promise<string> {
   const key = `uploads/${namePrefix}-${nanoid()}.${extension}`;
 
-  await putObject({
-    Bucket: env.NEXT_PUBLIC_S3_BUCKET,
-    Key: key,
-    Body: buffer,
-    ContentType: contentType,
-    CacheControl: "public, max-age=31536000, immutable",
-  });
+  await putObject(
+    {
+      Bucket: env.NEXT_PUBLIC_S3_BUCKET,
+      Key: key,
+      Body: buffer,
+      ContentType: contentType,
+      CacheControl: "public, max-age=31536000, immutable",
+    },
+    { auth: options?.auth ?? "admin-session" },
+  );
 
   return key;
 }

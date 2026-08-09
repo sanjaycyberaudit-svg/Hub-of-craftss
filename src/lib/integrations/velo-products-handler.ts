@@ -1,5 +1,10 @@
 import { publicErrorMessage } from "@/lib/api/public-error";
-import { deleteOrArchiveProducts } from "@/lib/admin/product-lifecycle";
+import {
+  deleteCategoryProductsBatch,
+  deleteOrArchiveProducts,
+} from "@/lib/admin/product-lifecycle";
+import { invalidateStorefrontCollectionsCache } from "@/lib/cache/invalidate-storefront";
+import { veloActionSkipsIdempotency } from "@/lib/integrations/velo-cache-policy";
 import {
   getProductSizeConfigsByProductIds,
   normalizeProductSizeConfig,
@@ -17,13 +22,14 @@ import {
   productMedias,
   products,
 } from "@/lib/supabase/schema";
-import { slugify } from "@/lib/utils";
-import { and, asc, desc, eq, ilike, inArray, or, sql } from "drizzle-orm";
+import { keytoUrl, slugify } from "@/lib/utils";
+import { and, asc, desc, eq, ilike, inArray, isNotNull, ne, or, sql } from "drizzle-orm";
 import { processUploadedImageBuffer } from "@/lib/image/processUpload";
 import {
   sanitizeUploadFileName,
   toMediaAltText,
 } from "@/lib/storage/safeUploadFileName";
+import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
 const IDEM_PREFIX = "velo_idempotency_";
@@ -167,7 +173,99 @@ export type VeloProductsAction =
   | "upsert"
   | "bulk_upsert"
   | "delete"
-  | "meta";
+  | "meta"
+  | "upsertCollection"
+  | "deleteCollection";
+
+const upsertCollectionDataSchema = z.object({
+  id: z.string().trim().min(1).optional(),
+  name: z.string().trim().min(1),
+  description: z.string().trim().min(1),
+  featuredImageMediaId: z.string().trim().min(1).optional(),
+  imageBase64: z.string().optional(),
+  imageFileName: z.string().optional(),
+});
+
+const deleteCollectionDataSchema = z.object({
+  id: z.string().trim().min(1),
+  batchSize: z.number().int().min(1).max(10).optional(),
+});
+
+function collectionNameToSlug(name: string) {
+  return slugify(name.trim()) || "category";
+}
+
+async function buildUniqueCollectionSlug(name: string, excludeId?: string) {
+  const base = collectionNameToSlug(name);
+  let candidate = base;
+  let suffix = 2;
+
+  while (true) {
+    const existing = await db
+      .select({ id: collections.id })
+      .from(collections)
+      .where(
+        excludeId
+          ? and(eq(collections.slug, candidate), ne(collections.id, excludeId))
+          : eq(collections.slug, candidate),
+      )
+      .limit(1);
+
+    if (existing.length === 0) return candidate;
+
+    candidate = `${base}-${suffix}`;
+    suffix += 1;
+  }
+}
+
+async function revalidateCollectionPages() {
+  revalidatePath("/collections");
+  revalidatePath("/collections", "layout");
+  revalidatePath("/shop");
+  revalidatePath("/admin/collections");
+  await invalidateStorefrontCollectionsCache();
+}
+
+/** Prefer newest product photo in the category when no category image is set. */
+async function findProductMediaForCollection(
+  collectionId: string,
+): Promise<string | null> {
+  const [row] = await db
+    .select({ featuredImageId: products.featuredImageId })
+    .from(products)
+    .where(
+      and(
+        eq(products.collectionId, collectionId),
+        isNotNull(products.featuredImageId),
+      ),
+    )
+    .orderBy(desc(products.createdAt))
+    .limit(1);
+  return row?.featuredImageId ?? null;
+}
+
+/** After a product upload, fill empty category image from that product photo. */
+async function backfillCollectionImageIfEmpty(
+  collectionId: string | null | undefined,
+  mediaId: string | null | undefined,
+) {
+  const cid = collectionId?.trim();
+  const mid = mediaId?.trim();
+  if (!cid || !mid) return;
+
+  const [col] = await db
+    .select({ featuredImageId: collections.featuredImageId })
+    .from(collections)
+    .where(eq(collections.id, cid))
+    .limit(1);
+  if (!col || col.featuredImageId) return;
+
+  await db
+    .update(collections)
+    .set({ featuredImageId: mid })
+    .where(eq(collections.id, cid));
+  await revalidateCollectionPages();
+}
 
 export type VeloProductsRequest = {
   action: VeloProductsAction;
@@ -245,6 +343,7 @@ async function uploadBase64Image(
     processed.contentType,
     processed.extension,
     "velo-product",
+    { auth: "trusted-server" },
   );
 
   const [inserted] = await db
@@ -463,6 +562,7 @@ async function performUpsert(data: z.infer<typeof upsertDataSchema>) {
     await ensureProductMediaLink(updated.id, mediaId);
     await saveSizeConfig(updated.id, sizeConfig);
     await saveExternalProductMapping(data.externalProductId, updated.id);
+    await backfillCollectionImageIfEmpty(data.collectionId, mediaId);
 
     return {
       created: false,
@@ -502,6 +602,7 @@ async function performUpsert(data: z.infer<typeof upsertDataSchema>) {
   await ensureProductMediaLink(created.id, mediaId);
   await saveSizeConfig(created.id, sizeConfig);
   await saveExternalProductMapping(data.externalProductId, created.id);
+  await backfillCollectionImageIfEmpty(data.collectionId, mediaId);
 
   return {
     created: true,
@@ -530,7 +631,7 @@ export async function handleVeloProductsRequest(
   }
 
   const cached = await getIdempotentResponse(requestId);
-  if (cached) return cached;
+  if (cached && !veloActionSkipsIdempotency(body.action)) return cached;
 
   let response: VeloProductsResponse;
 
@@ -550,6 +651,12 @@ export async function handleVeloProductsRequest(
         break;
       case "meta":
         response = await handleMeta(requestId, body.data);
+        break;
+      case "upsertCollection":
+        response = await handleUpsertCollection(requestId, body.data);
+        break;
+      case "deleteCollection":
+        response = await handleDeleteCollection(requestId, body.data);
         break;
       default:
         response = {
@@ -572,7 +679,7 @@ export async function handleVeloProductsRequest(
     };
   }
 
-  if (response.ok) {
+  if (response.ok && !veloActionSkipsIdempotency(body.action)) {
     await saveIdempotentResponse(requestId, response);
   }
 
@@ -925,3 +1032,235 @@ async function handleMeta(
     defaultSizes: DEFAULT_SIZES,
   };
 }
+
+async function handleUpsertCollection(
+  requestId: string,
+  data: Record<string, unknown>,
+): Promise<VeloProductsResponse> {
+  const parsed = upsertCollectionDataSchema.safeParse(data);
+  if (!parsed.success) {
+    const parseError = parsed as z.SafeParseError<
+      z.infer<typeof upsertCollectionDataSchema>
+    >;
+    return {
+      ok: false,
+      requestId,
+      action: "upsertCollection",
+      message: "Invalid category payload.",
+      errors: parseError.error.issues.map((issue) => issue.message),
+    };
+  }
+
+  const name = parsed.data.name.trim();
+  const description = parsed.data.description.trim();
+  const existingId = parsed.data.id?.trim();
+
+  let featuredImageId: string | null = null;
+  try {
+    if (parsed.data.featuredImageMediaId || parsed.data.imageBase64) {
+      featuredImageId = await resolveMediaId(
+        parsed.data.featuredImageMediaId,
+        parsed.data.imageBase64,
+        parsed.data.imageFileName || "category.jpg",
+      );
+    } else if (existingId) {
+      const [existing] = await db
+        .select({ featuredImageId: collections.featuredImageId })
+        .from(collections)
+        .where(eq(collections.id, existingId))
+        .limit(1);
+      if (!existing) {
+        return {
+          ok: false,
+          requestId,
+          action: "upsertCollection",
+          message: "Category not found.",
+          errors: ["Category not found."],
+        };
+      }
+      featuredImageId =
+        existing.featuredImageId ??
+        (await findProductMediaForCollection(existingId));
+    }
+  } catch (error) {
+    const message = publicErrorMessage(
+      error,
+      "Could not process category image.",
+    );
+    return {
+      ok: false,
+      requestId,
+      action: "upsertCollection",
+      message,
+      errors: [message],
+    };
+  }
+
+  if (existingId) {
+    const [existing] = await db
+      .select({ id: collections.id })
+      .from(collections)
+      .where(eq(collections.id, existingId))
+      .limit(1);
+    if (!existing) {
+      return {
+        ok: false,
+        requestId,
+        action: "upsertCollection",
+        message: "Category not found.",
+        errors: ["Category not found."],
+      };
+    }
+
+    const slug = await buildUniqueCollectionSlug(name, existingId);
+    await db
+      .update(collections)
+      .set({
+        slug,
+        label: name,
+        title: name,
+        description,
+        featuredImageId,
+      })
+      .where(eq(collections.id, existingId));
+    await revalidateCollectionPages();
+
+    const [media] = featuredImageId
+      ? await db
+          .select({ key: medias.key })
+          .from(medias)
+          .where(eq(medias.id, featuredImageId))
+          .limit(1)
+      : [null];
+
+    return {
+      ok: true,
+      requestId,
+      action: "upsertCollection",
+      message: "Category updated.",
+      collection: {
+        id: existingId,
+        label: name,
+        slug,
+        description,
+        featuredImageId,
+        imageUrl: media?.key ? keytoUrl(media.key) : null,
+      },
+    };
+  }
+
+  const slug = await buildUniqueCollectionSlug(name);
+  const [created] = await db
+    .insert(collections)
+    .values({
+      slug,
+      label: name,
+      title: name,
+      description,
+      featuredImageId,
+    })
+    .returning({ id: collections.id });
+
+  if (!featuredImageId) {
+    const fromProduct = await findProductMediaForCollection(created.id);
+    if (fromProduct) {
+      featuredImageId = fromProduct;
+      await db
+        .update(collections)
+        .set({ featuredImageId: fromProduct })
+        .where(eq(collections.id, created.id));
+    }
+  }
+
+  await revalidateCollectionPages();
+
+  const [media] = featuredImageId
+    ? await db
+        .select({ key: medias.key })
+        .from(medias)
+        .where(eq(medias.id, featuredImageId))
+        .limit(1)
+    : [null];
+
+  return {
+    ok: true,
+    requestId,
+    action: "upsertCollection",
+    message: featuredImageId
+      ? "Category created."
+      : "Category created. Image will use a product photo after you upload products to this category.",
+    collection: {
+      id: created.id,
+      label: name,
+      slug,
+      description,
+      featuredImageId,
+      imageUrl: media?.key ? keytoUrl(media.key) : null,
+    },
+  };
+}
+
+async function handleDeleteCollection(
+  requestId: string,
+  data: Record<string, unknown>,
+): Promise<VeloProductsResponse> {
+  const parsed = deleteCollectionDataSchema.safeParse(data);
+  if (!parsed.success) {
+    return {
+      ok: false,
+      requestId,
+      action: "deleteCollection",
+      message: "Category id is required.",
+      errors: ["Category id is required."],
+    };
+  }
+
+  try {
+    const outcome = await deleteCategoryProductsBatch(
+      parsed.data.id,
+      parsed.data.batchSize,
+    );
+    if (!outcome) {
+      return {
+        ok: false,
+        requestId,
+        action: "deleteCollection",
+        message: "Category not found.",
+        errors: ["Category not found."],
+      };
+    }
+
+    if (outcome.done) {
+      await revalidateCollectionPages();
+    }
+
+    return {
+      ok: true,
+      requestId,
+      action: "deleteCollection",
+      message: outcome.done
+        ? "Category deleted."
+        : `Category delete in progress (${outcome.remaining} product(s) remaining).`,
+      deletedId: parsed.data.id,
+      deletedIds: outcome.deletedIds,
+      archivedIds: outcome.archivedIds,
+      blocked: outcome.blocked,
+      remaining: outcome.remaining,
+      done: outcome.done,
+      collectionDeleted: outcome.collectionDeleted,
+    };
+  } catch (error) {
+    const raw = error instanceof Error ? error.message : "";
+    const message = /order_lines|23503|foreign key/i.test(raw)
+      ? "A product in this category is still linked to an order. Retry — products with order history are archived and the category is removed when clear."
+      : publicErrorMessage(error, "Failed to delete category.");
+    return {
+      ok: false,
+      requestId,
+      action: "deleteCollection",
+      message,
+      errors: [message],
+    };
+  }
+}
+
