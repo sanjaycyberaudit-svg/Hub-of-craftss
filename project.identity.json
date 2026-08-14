@@ -31,7 +31,8 @@
       "mediaBucket": "hubofcraftss-cdn",
       "nextCacheBucket": "hubofcraftss-next-cache",
       "s3Endpoint": "https://542992b23690c0c07bb23e5fecffa6ec.r2.cloudflarestorage.com",
-      "publicCdnHint": "https://pub-d036df4365494925a278f4ecf244316d.r2.dev"
+      "publicCdnHint": "https://pub-d036df4365494925a278f4ecf244316d.r2.dev",
+      "mediaProxyUrl": "https://hub-of-craftss-media.shaarunew01.workers.dev"
     }
   },
   "vercel": {
