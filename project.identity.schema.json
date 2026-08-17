@@ -71,8 +71,7 @@
             "mediaBucket": { "type": "string" },
             "nextCacheBucket": { "type": "string" },
             "s3Endpoint": { "type": "string", "format": "uri" },
-            "publicCdnHint": { "type": "string" },
-            "mediaProxyUrl": { "type": "string", "format": "uri" }
+            "publicCdnHint": { "type": "string" }
           }
         }
       }

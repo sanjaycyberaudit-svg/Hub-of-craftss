@@ -34,7 +34,7 @@ const TOKEN_PREFIX = "uv1";
 const STAGING_PREFIX = "uploads/staging/";
 
 const CORS_ORIGINS = new Set([
-  "https://hubs-of-craftss-project.vercel.app",
+  "https://software-saree-order.vercel.app",
   "https://hubsofcraftss.com",
   "https://www.hubsofcraftss.com",
   "http://localhost:3000",
@@ -43,16 +43,9 @@ const CORS_ORIGINS = new Set([
   "capacitor://localhost",
 ]);
 
-function isAllowedCorsOrigin(origin: string): boolean {
-  if (!origin) return false;
-  if (CORS_ORIGINS.has(origin)) return true;
-  // Preview / alias deploys while custom domain is paused.
-  return /^https:\/\/hubs-of-craftss-project[\w-]*\.vercel\.app$/i.test(origin);
-}
-
 function corsHeaders(request: Request): HeadersInit {
   const origin = request.headers.get("origin") ?? "";
-  const allowOrigin = isAllowedCorsOrigin(origin) ? origin : "*";
+  const allowOrigin = CORS_ORIGINS.has(origin) ? origin : "*";
   return {
     "Access-Control-Allow-Origin": allowOrigin,
     "Access-Control-Allow-Methods": "GET, PUT, DELETE, OPTIONS",
