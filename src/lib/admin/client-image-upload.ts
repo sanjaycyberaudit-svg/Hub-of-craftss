@@ -499,48 +499,11 @@ async function uploadViaDirectStorage(
       const init = (await initRes.json()) as {
         storagePath: string;
         signedUrl?: string | null;
-        uploadMode?: "worker" | "presigned" | "proxy";
-        uploadUrl?: string | null;
-        uploadToken?: string | null;
+        uploadMode?: "worker" | "presigned";
       };
 
       let putOk = false;
-      // Prefer media-proxy PUT (same path as Velo) so image bytes skip Vercel.
-      if (
-        init.uploadMode === "proxy" &&
-        init.uploadUrl &&
-        init.uploadToken
-      ) {
-        // eslint-disable-next-line no-await-in-loop
-        const putRes = await fetchWithTimeout(init.uploadUrl, {
-          method: "PUT",
-          body: safeFile,
-          headers: {
-            Authorization: `Bearer ${init.uploadToken}`,
-            "Content-Type": safeFile.type || "application/octet-stream",
-          },
-          timeoutMs: UPLOAD_REQUEST_TIMEOUT_MS,
-        });
-        putOk = putRes.ok;
-        if (!putOk) {
-          lastError = `Media proxy upload failed (${putRes.status}).`;
-        }
-      } else if (init.signedUrl && init.uploadMode !== "worker") {
-        // eslint-disable-next-line no-await-in-loop
-        const putRes = await fetch(init.signedUrl, {
-          method: "PUT",
-          body: safeFile,
-          headers: {
-            // Signed without Content-Type; still send length — R2 returns 411 otherwise.
-            "Content-Length": String(safeFile.size),
-          },
-        });
-        putOk = putRes.ok;
-        if (!putOk) {
-          lastError = `Storage upload failed (${putRes.status}).`;
-        }
-      } else {
-        // Fallback: stage through Vercel when proxy/presigned unavailable.
+      if (init.uploadMode === "worker" || !init.signedUrl) {
         const stageData = new FormData();
         stageData.append("storagePath", init.storagePath);
         stageData.append("file", safeFile);
@@ -560,6 +523,20 @@ async function uploadViaDirectStorage(
           };
           lastError =
             payload.message ?? `Storage upload failed (${stageRes.status}).`;
+        }
+      } else {
+        // eslint-disable-next-line no-await-in-loop
+        const putRes = await fetch(init.signedUrl, {
+          method: "PUT",
+          body: safeFile,
+          headers: {
+            // Signed without Content-Type; still send length — R2 returns 411 otherwise.
+            "Content-Length": String(safeFile.size),
+          },
+        });
+        putOk = putRes.ok;
+        if (!putOk) {
+          lastError = `Storage upload failed (${putRes.status}).`;
         }
       }
 
