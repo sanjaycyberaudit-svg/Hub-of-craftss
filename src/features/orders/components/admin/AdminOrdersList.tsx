@@ -16,7 +16,11 @@ import {
 } from "@/components/ui/select";
 import { useToast } from "@/components/ui/use-toast";
 import type { AdminOrderListView } from "@/lib/admin/getAdminOrdersList";
-import { adminOrderToPdfLabel } from "@/lib/pdf/admin-order-pdf-label";
+import {
+  adminOrderToPackingSlip,
+  adminOrderToPdfLabel,
+} from "@/lib/pdf/admin-order-pdf-label";
+import { downloadOrderPdf as downloadPackingSlipPdf } from "@/lib/pdf/packing-slip-pdf";
 import {
   downloadOrderPdf,
   PdfAddressTooLongError,
@@ -82,6 +86,8 @@ function AdminOrderRow({
 }) {
   const { toast } = useToast();
   const [downloadingPdf, setDownloadingPdf] = React.useState(false);
+  const [downloadingPackingSlip, setDownloadingPackingSlip] =
+    React.useState(false);
 
   const copyAddress = async (event: React.MouseEvent<HTMLButtonElement>) => {
     event.preventDefault();
@@ -131,6 +137,31 @@ function AdminOrderRow({
     }
   };
 
+  const downloadPackingSlip = async (
+    event: React.MouseEvent<HTMLButtonElement>,
+  ) => {
+    event.preventDefault();
+    event.stopPropagation();
+    if (downloadingPackingSlip) return;
+
+    setDownloadingPackingSlip(true);
+    try {
+      await downloadPackingSlipPdf(adminOrderToPackingSlip(order));
+      toast({
+        title: "Packing slip downloaded",
+        description: "Packing slip PDF saved to your downloads.",
+      });
+    } catch (error) {
+      toast({
+        title: "Failed to generate packing slip",
+        description: error instanceof Error ? error.message : "Unknown error",
+        variant: "destructive",
+      });
+    } finally {
+      setDownloadingPackingSlip(false);
+    }
+  };
+
   return (
     <Link
       href={`/admin/orders/${order.id}`}
@@ -141,7 +172,7 @@ function AdminOrderRow({
           <div className="flex flex-wrap items-center gap-2">
             <p className="font-semibold">#{order.id}</p>
             <Badge variant="outline" className="capitalize">
-              {order.orderStatus ?? "pending"}
+              {(order.orderStatus ?? "pending").trim().toLowerCase()}
             </Badge>
             <Badge
               variant="outline"
@@ -196,22 +227,40 @@ function AdminOrderRow({
             {formatPrice(order.amount)}
           </p>
           {enablePdf ? (
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              className="w-full sm:w-auto"
-              disabled={downloadingPdf}
-              onClick={(event) => void downloadPdf(event)}
-              title="Download shipping label PDF"
-            >
-              {downloadingPdf ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                <FileDown className="mr-2 h-4 w-4" />
-              )}
-              {downloadingPdf ? "Generating…" : "PDF"}
-            </Button>
+            <>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="w-full sm:w-auto"
+                disabled={downloadingPdf}
+                onClick={(event) => void downloadPdf(event)}
+                title="Download shipping label PDF"
+              >
+                {downloadingPdf ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <FileDown className="mr-2 h-4 w-4" />
+                )}
+                {downloadingPdf ? "Generating…" : "Label"}
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="w-full sm:w-auto"
+                disabled={downloadingPackingSlip}
+                onClick={(event) => void downloadPackingSlip(event)}
+                title="Download packing slip PDF"
+              >
+                {downloadingPackingSlip ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <FileDown className="mr-2 h-4 w-4" />
+                )}
+                {downloadingPackingSlip ? "Generating…" : "Packing slip"}
+              </Button>
+            </>
           ) : null}
           <Button
             type="button"

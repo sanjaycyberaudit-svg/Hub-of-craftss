@@ -2,9 +2,11 @@
 
 import { useState, useCallback } from "react";
 import Link from "next/link";
-import { PhoneCall, ShoppingBag } from "lucide-react";
+import { Mail, PhoneCall, ShoppingBag } from "lucide-react";
 import { Icons } from "@/components/layouts/icons";
 import { useCartCount } from "@/features/carts/hooks/useCartCount";
+import { shopMailtoHref } from "@/lib/contact/links";
+import { useStorefrontContact } from "@/providers/ShopContactProvider";
 import { useMobileMenu } from "./MobileMenuContext";
 import {
   FloatingContactPicker,
@@ -27,6 +29,8 @@ const floatingActionButtonClass =
 export function StoreFloatingActions() {
   const { isOpen: menuOpen } = useMobileMenu();
   const cartCount = useCartCount();
+  const contact = useStorefrontContact();
+  const mailHref = shopMailtoHref(contact.email);
   const [openPicker, setOpenPicker] = useState<ContactPickerMode | null>(null);
 
   const handlePickerChange = useCallback(
@@ -69,6 +73,16 @@ export function StoreFloatingActions() {
           <ShoppingBag className="h-5 w-5" strokeWidth={1.75} />
           <CartBadge count={cartCount} />
         </Link>
+
+        {mailHref ? (
+          <a
+            href={mailHref}
+            className={`${floatingActionButtonClass} border border-border bg-card text-foreground shadow-[0_4px_16px_rgba(192,48,120,0.12)]`}
+            aria-label={`Email Hub of craftss at ${contact.email}`}
+          >
+            <Mail className="h-5 w-5" strokeWidth={1.75} />
+          </a>
+        ) : null}
 
         <FloatingContactPicker
           mode="whatsapp"

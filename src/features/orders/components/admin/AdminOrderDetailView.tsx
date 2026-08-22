@@ -1,27 +1,45 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   CheckSquare,
   Copy,
+  ExternalLink,
   FileDown,
   Loader2,
   PackageCheck,
+  Plus,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/components/ui/use-toast";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { formatOrderDateTimeIst } from "@/lib/datetime/india";
-import { adminOrderToPdfLabel } from "@/lib/pdf/admin-order-pdf-label";
+import {
+  adminOrderToPackingSlip,
+  adminOrderToPdfLabel,
+} from "@/lib/pdf/admin-order-pdf-label";
+import { downloadOrderPdf as downloadPackingSlipPdf } from "@/lib/pdf/packing-slip-pdf";
 import {
   downloadOrderPdf,
   PdfAddressTooLongError,
 } from "@/lib/pdf/shipping-label-pdf";
 import { formatPrice } from "@/lib/utils";
+import { buildDispatchNotificationText } from "@/lib/dispatch/dispatch-message";
+import type { OrderDispatchInfo } from "@/lib/dispatch/get-order-dispatch-info";
+
+type DispatchCourierOption = {
+  id: string;
+  name: string;
+  trackingUrlTemplate: string | null;
+};
 
 type OrderItemView = {
   id: string;
@@ -62,6 +80,10 @@ type Props = {
   items: OrderItemView[];
   copyAddressText: string;
   courierCopyText: string;
+  dispatchCouriers: DispatchCourierOption[];
+  dispatchInfo: OrderDispatchInfo | null;
+  dispatchNotificationText: string | null;
+  adminUserId: string;
 };
 
 async function copyTextToClipboard(text: string) {
@@ -90,10 +112,26 @@ export function AdminOrderDetailView({
   items,
   copyAddressText,
   courierCopyText,
+  dispatchCouriers,
+  dispatchInfo,
+  dispatchNotificationText,
+  adminUserId,
 }: Props) {
   const { toast } = useToast();
+  const router = useRouter();
   const [packedMap, setPackedMap] = useState<Record<string, boolean>>({});
   const [downloadingPdf, setDownloadingPdf] = useState(false);
+  const [downloadingPackingSlip, setDownloadingPackingSlip] = useState(false);
+  const [dispatchOpen, setDispatchOpen] = useState(false);
+  const [couriers, setCouriers] = useState(dispatchCouriers);
+  const [courierId, setCourierId] = useState(dispatchCouriers[0]?.id ?? "");
+  const [trackingNumber, setTrackingNumber] = useState("");
+  const [newCourierName, setNewCourierName] = useState("");
+  const [newCourierTemplate, setNewCourierTemplate] = useState("");
+  const [showAddCourier, setShowAddCourier] = useState(false);
+  const [savingCourier, setSavingCourier] = useState(false);
+  const [dispatching, setDispatching] = useState(false);
+  const [dispatchError, setDispatchError] = useState<string | null>(null);
 
   const packedCount = useMemo(
     () => Object.values(packedMap).filter(Boolean).length,
@@ -105,6 +143,95 @@ export function AdminOrderDetailView({
   const isPaid = ["paid", "success", "captured"].includes(
     order.paymentStatus.trim().toLowerCase(),
   );
+  const orderStatusNorm = (order.orderStatus ?? "").trim().toLowerCase();
+  const canDispatch = isPaid && orderStatusNorm === "preparing";
+  const selectedCourier = couriers.find((courier) => courier.id === courierId);
+
+  useEffect(() => {
+    const remembered = window.localStorage.getItem(
+      `dispatch:lastCourier:${adminUserId}`,
+    );
+    if (remembered && couriers.some((courier) => courier.id === remembered)) {
+      setCourierId(remembered);
+    }
+  }, [adminUserId, couriers]);
+
+  async function saveCourier() {
+    setSavingCourier(true);
+    setDispatchError(null);
+    try {
+      const response = await fetch("/api/admin/dispatch-couriers", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: newCourierName,
+          trackingUrlTemplate: newCourierTemplate || null,
+        }),
+      });
+      const payload = await response.json();
+      if (!response.ok)
+        throw new Error(payload.message || "Could not save courier.");
+      setCouriers((current) =>
+        [
+          ...current.filter((item) => item.id !== payload.courier.id),
+          payload.courier,
+        ].sort((a, b) => a.name.localeCompare(b.name)),
+      );
+      setCourierId(payload.courier.id);
+      setNewCourierName("");
+      setNewCourierTemplate("");
+      setShowAddCourier(false);
+    } catch (error) {
+      setDispatchError(
+        error instanceof Error ? error.message : "Could not save courier.",
+      );
+    } finally {
+      setSavingCourier(false);
+    }
+  }
+
+  async function dispatchOrder() {
+    if (!courierId) return setDispatchError("Please select a courier.");
+    setDispatching(true);
+    setDispatchError(null);
+    try {
+      const response = await fetch(`/api/admin/orders/${order.id}/dispatch`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          courierId,
+          trackingNumber: trackingNumber || null,
+        }),
+      });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.message || "Dispatch failed.");
+      window.localStorage.setItem(
+        `dispatch:lastCourier:${adminUserId}`,
+        courierId,
+      );
+      const notificationText = buildDispatchNotificationText({
+        orderId: order.id,
+        customerName: order.customerName,
+        courierName: payload.courier.name,
+        trackingNumber: payload.trackingNumber,
+        dispatchedAt: payload.dispatchedAt,
+        trackingUrlTemplate: selectedCourier?.trackingUrlTemplate,
+      });
+      await copyTextToClipboard(notificationText);
+      toast({
+        title: "Order dispatched",
+        description: "Dispatch message copied to the clipboard.",
+      });
+      setDispatchOpen(false);
+      router.refresh();
+    } catch (error) {
+      setDispatchError(
+        error instanceof Error ? error.message : "Dispatch failed.",
+      );
+    } finally {
+      setDispatching(false);
+    }
+  }
 
   const copyHandler = async (text: string, label: string) => {
     try {
@@ -153,6 +280,42 @@ export function AdminOrderDetailView({
     }
   };
 
+  const downloadPackingSlip = async () => {
+    if (downloadingPackingSlip) return;
+    setDownloadingPackingSlip(true);
+    try {
+      await downloadPackingSlipPdf(
+        adminOrderToPackingSlip({
+          id: order.id,
+          createdAt: order.createdAt,
+          customerName: order.customerName,
+          customerMobile: order.customerMobile,
+          shippingAddress: order.shippingAddress,
+          lines: items.map((item) => ({
+            id: item.id,
+            quantity: item.quantity,
+            productName: item.productName,
+            productCode: item.productCode,
+            imageUrl: item.imageUrl,
+            imageAlt: item.imageAlt,
+          })),
+        }),
+      );
+      toast({
+        title: "Packing slip downloaded",
+        description: "Packing slip PDF saved to your downloads.",
+      });
+    } catch (error) {
+      toast({
+        title: "Failed to generate packing slip",
+        description: error instanceof Error ? error.message : "Unknown error",
+        variant: "destructive",
+      });
+    } finally {
+      setDownloadingPackingSlip(false);
+    }
+  };
+
   return (
     <div className="space-y-5">
       <div className="flex flex-wrap gap-2">
@@ -160,17 +323,43 @@ export function AdminOrderDetailView({
           <Link href="/admin/orders">Back to Orders</Link>
         </Button>
         {isPaid ? (
+          <>
+            <Button
+              onClick={() => void downloadPdf()}
+              disabled={downloadingPdf}
+              title="Download shipping label PDF"
+            >
+              {downloadingPdf ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <FileDown className="mr-2 h-4 w-4" />
+              )}
+              {downloadingPdf ? "Generating…" : "Label PDF"}
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => void downloadPackingSlip()}
+              disabled={downloadingPackingSlip}
+              title="Download packing slip PDF"
+            >
+              {downloadingPackingSlip ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <FileDown className="mr-2 h-4 w-4" />
+              )}
+              {downloadingPackingSlip ? "Generating…" : "Packing slip"}
+            </Button>
+          </>
+        ) : null}
+        {canDispatch ? (
           <Button
-            onClick={() => void downloadPdf()}
-            disabled={downloadingPdf}
-            title="Download shipping label PDF"
+            onClick={() => {
+              setDispatchError(null);
+              setDispatchOpen(true);
+            }}
           >
-            {downloadingPdf ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            ) : (
-              <FileDown className="mr-2 h-4 w-4" />
-            )}
-            {downloadingPdf ? "Generating…" : "PDF"}
+            <PackageCheck className="mr-2 h-4 w-4" />
+            Dispatch
           </Button>
         ) : null}
         <Button
@@ -186,7 +375,139 @@ export function AdminOrderDetailView({
           <PackageCheck className="mr-2 h-4 w-4" />
           Copy Courier Text
         </Button>
+        {dispatchNotificationText ? (
+          <Button
+            variant="outline"
+            onClick={() =>
+              void copyHandler(dispatchNotificationText, "Dispatch message")
+            }
+          >
+            <Copy className="mr-2 h-4 w-4" />
+            Copy Dispatch Message
+          </Button>
+        ) : null}
+        {dispatchInfo?.trackingUrl ? (
+          <Button asChild variant="outline">
+            <a
+              href={dispatchInfo.trackingUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <ExternalLink className="mr-2 h-4 w-4" />
+              Open Tracking
+            </a>
+          </Button>
+        ) : null}
       </div>
+
+      <Dialog open={dispatchOpen} onOpenChange={setDispatchOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <div className="space-y-4">
+            <div>
+              <h2 className="text-lg font-semibold">Dispatch order</h2>
+              <p className="text-sm text-muted-foreground">
+                Choose a courier and optionally add a tracking number.
+              </p>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="dispatch-courier">Courier</Label>
+              <select
+                id="dispatch-courier"
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                value={courierId}
+                onChange={(event) => setCourierId(event.target.value)}
+                disabled={dispatching || showAddCourier}
+              >
+                <option value="">Select courier</option>
+                {couriers.map((courier) => (
+                  <option key={courier.id} value={courier.id}>
+                    {courier.name}
+                  </option>
+                ))}
+              </select>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => setShowAddCourier((value) => !value)}
+              >
+                <Plus className="mr-2 h-4 w-4" />
+                Add new courier
+              </Button>
+            </div>
+            {showAddCourier ? (
+              <div className="space-y-3 rounded-md border p-3">
+                <div className="space-y-2">
+                  <Label htmlFor="new-courier-name">Courier name</Label>
+                  <Input
+                    id="new-courier-name"
+                    value={newCourierName}
+                    onChange={(event) => setNewCourierName(event.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="new-courier-template">
+                    Tracking URL template (optional)
+                  </Label>
+                  <Input
+                    id="new-courier-template"
+                    value={newCourierTemplate}
+                    placeholder="https://track.example.com/{tracking}"
+                    onChange={(event) =>
+                      setNewCourierTemplate(event.target.value)
+                    }
+                  />
+                </div>
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={() => void saveCourier()}
+                  disabled={savingCourier || newCourierName.trim().length < 2}
+                >
+                  {savingCourier ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : null}
+                  Save courier
+                </Button>
+              </div>
+            ) : null}
+            <div className="space-y-2">
+              <Label htmlFor="tracking-number">
+                Tracking number (optional)
+              </Label>
+              <Input
+                id="tracking-number"
+                value={trackingNumber}
+                onChange={(event) => setTrackingNumber(event.target.value)}
+                disabled={dispatching}
+              />
+            </div>
+            {dispatchError ? (
+              <p className="text-sm text-destructive">{dispatchError}</p>
+            ) : null}
+            <div className="flex justify-end gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setDispatchOpen(false)}
+                disabled={dispatching}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                onClick={() => void dispatchOrder()}
+                disabled={dispatching || !courierId || showAddCourier}
+              >
+                {dispatching ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : null}
+                Confirm dispatch
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <div className="grid gap-4 lg:grid-cols-3">
         <Card className="lg:col-span-2">
@@ -270,6 +591,29 @@ export function AdminOrderDetailView({
         </Card>
 
         <div className="space-y-4">
+          {dispatchInfo ? (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Dispatch Details</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2 text-sm">
+                <p>
+                  <span className="text-muted-foreground">Courier:</span>{" "}
+                  {dispatchInfo.courierName}
+                </p>
+                <p>
+                  <span className="text-muted-foreground">Dispatched:</span>{" "}
+                  {formatOrderDateTimeIst(dispatchInfo.dispatchedAt)}
+                </p>
+                {dispatchInfo.trackingNumber ? (
+                  <p className="break-all">
+                    <span className="text-muted-foreground">Tracking:</span>{" "}
+                    {dispatchInfo.trackingNumber}
+                  </p>
+                ) : null}
+              </CardContent>
+            </Card>
+          ) : null}
           <Card>
             <CardHeader>
               <CardTitle className="text-base">Order Summary</CardTitle>
@@ -289,7 +633,7 @@ export function AdminOrderDetailView({
               </p>
               <div className="flex flex-wrap gap-2 pt-1">
                 <Badge variant="outline" className="capitalize">
-                  {order.orderStatus ?? "pending"}
+                  {(order.orderStatus ?? "pending").trim().toLowerCase()}
                 </Badge>
                 <Badge variant="outline" className="capitalize">
                   {order.paymentStatus}

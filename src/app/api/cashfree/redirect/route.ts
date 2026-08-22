@@ -22,7 +22,8 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    await syncCashfreeOrderPayment(orderId);
+    // Mark paid fast on return; side effects run without blocking the buyer.
+    await syncCashfreeOrderPayment(orderId, { runSideEffects: false });
   } catch (error) {
     console.error("[cashfree] redirect sync failed:", error);
   }

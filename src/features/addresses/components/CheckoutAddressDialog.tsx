@@ -138,8 +138,8 @@ export function CheckoutAddressDialog({
     onProgress?.(creatingOrderProgress());
     try {
       const shipping = await getSavedShippingAddress(selectedId);
-      await onComplete(shipping);
       onOpenChange(false);
+      await onComplete(shipping);
     } catch (err) {
       onCheckoutError?.();
       toast({
@@ -161,8 +161,8 @@ export function CheckoutAddressDialog({
         guest ? null : userId ?? null,
         { setAsDefault: !guest && addresses.length === 0 },
       );
-      await onComplete(saved);
       onOpenChange(false);
+      await onComplete(saved);
     } catch (err) {
       onCheckoutError?.();
       toast({

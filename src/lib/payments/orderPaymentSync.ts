@@ -260,7 +260,12 @@ export async function syncPhonePeOrderPayment(input: SyncInput) {
   };
 }
 
-export async function syncCashfreeOrderPayment(orderId: string) {
+export async function syncCashfreeOrderPayment(
+  orderId: string,
+  options?: { runSideEffects?: boolean },
+) {
+  const runSideEffects = options?.runSideEffects !== false;
+
   const currentOrder = await db.query.orders.findFirst({
     where: eq(orders.id, orderId),
   });
@@ -272,7 +277,13 @@ export async function syncCashfreeOrderPayment(orderId: string) {
   if (currentOrder.payment_status === "paid") {
     // Complete any side effects a prior attempt missed (idempotent no-op
     // when everything already ran).
-    await ensurePaidOrderSideEffects(currentOrder);
+    if (runSideEffects) {
+      await ensurePaidOrderSideEffects(currentOrder);
+    } else {
+      void ensurePaidOrderSideEffects(currentOrder).catch((error) => {
+        console.error("[payments] Cashfree side effects deferred:", error);
+      });
+    }
     return {
       orderId: currentOrder.id,
       state: "PAID",
@@ -363,7 +374,13 @@ export async function syncCashfreeOrderPayment(orderId: string) {
   }
 
   if (isPaid) {
-    await runPaidOrderSideEffects(updated);
+    if (runSideEffects) {
+      await runPaidOrderSideEffects(updated);
+    } else {
+      void runPaidOrderSideEffects(updated).catch((error) => {
+        console.error("[payments] Cashfree side effects deferred:", error);
+      });
+    }
   } else if (isTerminalFailure) {
     await maybeReleaseUnpaidReservation(updated.id, "payment_failed");
   } else {

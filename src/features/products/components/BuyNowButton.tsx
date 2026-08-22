@@ -43,7 +43,11 @@ function BuyNowButton({ productId, quantity = 1, stock }: BuyNowButtonProps) {
   );
 
   const handleCheckoutComplete = async (shipping: SavedShippingAddress) => {
+    setOpen(false);
     setIsProcessing(true);
+    await new Promise<void>((resolve) => {
+      window.setTimeout(() => resolve(), 500);
+    });
     try {
       await startCheckout({
         order: { [productId]: { quantity } },
@@ -59,7 +63,6 @@ function BuyNowButton({ productId, quantity = 1, stock }: BuyNowButtonProps) {
         description: err instanceof Error ? err.message : "Please try again.",
         variant: "destructive",
       });
-      throw err;
     } finally {
       setIsProcessing(false);
     }

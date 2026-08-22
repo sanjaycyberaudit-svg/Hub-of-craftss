@@ -9,6 +9,17 @@ export function whatsAppHrefFromPhone(phoneHref: string): string {
   return buildWhatsAppHref(phoneHref);
 }
 
+/** Build mailto only when the shop email looks usable. */
+export function shopMailtoHref(
+  email: string | null | undefined,
+): string | null {
+  const value = String(email ?? "")
+    .trim()
+    .toLowerCase();
+  if (!value || !value.includes("@") || /\s/.test(value)) return null;
+  return `mailto:${value}`;
+}
+
 export type StoreContact = {
   name: string;
   phone: string;

@@ -1,5 +1,6 @@
 import { siteConfig } from "@/config/site";
 import type { AdminOrderListView } from "@/lib/admin/getAdminOrdersList";
+import type { PackingSlipOrder } from "@/lib/pdf/packing-slip-format";
 import type { PdfLabelOrder } from "@/lib/pdf/shipping-label-pdf";
 
 /** Shop FROM block for parcel labels (matches Software-Saree-order sender_details). */
@@ -30,4 +31,35 @@ export function adminOrdersToPdfLabels(
 ): PdfLabelOrder[] {
   const sender = buildAdminPdfSenderDetails();
   return orders.map((order) => adminOrderToPdfLabel(order, sender));
+}
+
+export function adminOrderToPackingSlip(
+  order: Pick<
+    AdminOrderListView,
+    | "id"
+    | "createdAt"
+    | "customerName"
+    | "customerMobile"
+    | "shippingAddress"
+    | "lines"
+  >,
+): PackingSlipOrder {
+  return {
+    id: order.id,
+    createdAt: order.createdAt,
+    customerName: order.customerName,
+    customerMobile: order.customerMobile,
+    shippingAddress: order.shippingAddress,
+    items: (order.lines ?? []).map((line) => ({
+      name: line.productName,
+      quantity: line.quantity,
+      imageUrl: line.imageUrl,
+    })),
+  };
+}
+
+export function adminOrdersToPackingSlips(
+  orders: Parameters<typeof adminOrderToPackingSlip>[0][],
+): PackingSlipOrder[] {
+  return orders.map((order) => adminOrderToPackingSlip(order));
 }

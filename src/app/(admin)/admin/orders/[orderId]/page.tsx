@@ -8,17 +8,21 @@ import {
   resolveOrderLineProductSlug,
 } from "@/lib/orders/order-line-display";
 import { buildShippingAddressCopyText } from "@/lib/orders/shipping-address-text";
+import { getOrderDispatchInfo } from "@/lib/dispatch/get-order-dispatch-info";
+import { buildDispatchNotificationText } from "@/lib/dispatch/dispatch-message";
 import { formatOrderDateTimeIst } from "@/lib/datetime/india";
 import { keytoUrl } from "@/lib/utils";
 import db from "@/lib/supabase/db";
+import { getSessionUser, isAdminUser } from "@/lib/auth/admin";
 import {
   address,
+  dispatchCouriers,
   medias,
   orderLines,
   orders,
   products,
 } from "@/lib/supabase/schema";
-import { eq } from "drizzle-orm";
+import { asc, eq } from "drizzle-orm";
 import { notFound } from "next/navigation";
 
 export const dynamic = "force-dynamic";
@@ -41,13 +45,19 @@ function buildCourierCopyText(payload: {
     quantity: number;
   }[];
   addressText: string;
+  dispatchInfo?: {
+    courierName: string;
+    trackingNumber: string | null;
+    dispatchedAt: string;
+    trackingUrl: string | null;
+  } | null;
 }) {
   const itemLines = payload.items.map((item, idx) => {
     const code = item.productCode ? ` [${item.productCode}]` : "";
     return `${idx + 1}. ${item.productName}${code} x ${item.quantity}`;
   });
 
-  return [
+  const lines = [
     `ORDER DISPATCH NOTE`,
     `Order ID: ${payload.orderId}`,
     `Date: ${formatOrderDateTimeIst(payload.createdAt)}`,
@@ -60,11 +70,27 @@ function buildCourierCopyText(payload: {
     ``,
     `Shipping Address:`,
     payload.addressText,
-  ].join("\n");
+  ];
+  if (payload.dispatchInfo) {
+    lines.push(
+      "",
+      `Courier: ${payload.dispatchInfo.courierName}`,
+      `Dispatched: ${formatOrderDateTimeIst(payload.dispatchInfo.dispatchedAt)}`,
+    );
+    if (payload.dispatchInfo.trackingNumber) {
+      lines.push(`Tracking number: ${payload.dispatchInfo.trackingNumber}`);
+    }
+    if (payload.dispatchInfo.trackingUrl) {
+      lines.push(`Track here: ${payload.dispatchInfo.trackingUrl}`);
+    }
+  }
+  return lines.join("\n");
 }
 
 async function OrderDetailPage({ params }: AdminOrderDetailPageProps) {
   const { orderId } = await params;
+  const user = await getSessionUser();
+  if (!user || !(await isAdminUser(user))) return notFound();
 
   const orderRows = await db
     .select({
@@ -161,6 +187,7 @@ async function OrderDetailPage({ params }: AdminOrderDetailPageProps) {
     shippingAddress,
   };
 
+  const dispatchInfo = await getOrderDispatchInfo(orderId);
   const addressText = buildShippingAddressCopyText({
     customerName: orderView.customerName,
     customerMobile: orderView.customerMobile,
@@ -178,7 +205,27 @@ async function OrderDetailPage({ params }: AdminOrderDetailPageProps) {
       quantity: item.quantity,
     })),
     addressText,
+    dispatchInfo,
   });
+  const dispatchNotificationText = dispatchInfo
+    ? buildDispatchNotificationText({
+        orderId: order.id,
+        customerName: order.customerName,
+        courierName: dispatchInfo.courierName,
+        trackingNumber: dispatchInfo.trackingNumber,
+        dispatchedAt: dispatchInfo.dispatchedAt,
+        trackingUrlTemplate: dispatchInfo.trackingUrlTemplate,
+      })
+    : null;
+  const dispatchCouriersList = await db
+    .select({
+      id: dispatchCouriers.id,
+      name: dispatchCouriers.name,
+      trackingUrlTemplate: dispatchCouriers.trackingUrlTemplate,
+    })
+    .from(dispatchCouriers)
+    .where(eq(dispatchCouriers.isActive, true))
+    .orderBy(asc(dispatchCouriers.name));
 
   return (
     <AdminShell
@@ -191,6 +238,10 @@ async function OrderDetailPage({ params }: AdminOrderDetailPageProps) {
         items={itemViews}
         copyAddressText={addressText}
         courierCopyText={courierCopyText}
+        dispatchCouriers={dispatchCouriersList}
+        dispatchInfo={dispatchInfo}
+        dispatchNotificationText={dispatchNotificationText}
+        adminUserId={user.id}
       />
     </AdminShell>
   );

@@ -70,7 +70,11 @@ function CheckoutButton({
   );
 
   const handleCheckoutComplete = async (shipping: SavedShippingAddress) => {
+    setOpen(false);
     setIsLoading(true);
+    await new Promise<void>((resolve) => {
+      window.setTimeout(() => resolve(), 500);
+    });
     try {
       await startCheckout({
         order,
@@ -88,7 +92,6 @@ function CheckoutButton({
         description: err instanceof Error ? err.message : "Please try again.",
         variant: "destructive",
       });
-      throw err;
     } finally {
       setIsLoading(false);
     }
