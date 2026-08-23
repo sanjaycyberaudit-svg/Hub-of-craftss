@@ -16,14 +16,14 @@ export const revalidate = 120;
 export const metadata: Metadata = {
   title: "Featured Products",
   description:
-    "Discover handpicked featured craft supplies at Hub of craftss — premium styles for weddings, festivals and special occasions.",
+    "Discover handpicked featured craft supplies at Hub of craftss — terracotta materials, DIY kits, and creative tools.",
   alternates: {
     canonical: "/featured",
   },
   openGraph: {
     title: "Featured Products | Hub of craftss",
     description:
-      "Discover handpicked featured craft supplies at Hub of craftss for weddings and festivals.",
+      "Discover handpicked featured craft supplies at Hub of craftss.",
     url: "/featured",
   },
 };

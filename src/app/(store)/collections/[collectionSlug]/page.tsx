@@ -35,18 +35,25 @@ interface CategoryPageProps {
 
 export async function generateMetadata({ params }: CategoryPageProps) {
   const resolvedParams = await params;
-  const collectionName = toTitleCase(unslugify(resolvedParams.collectionSlug));
-  const path = `/collections/${resolvedParams.collectionSlug}`;
+  const slugFallback = toTitleCase(unslugify(resolvedParams.collectionSlug));
+  const data = await getCollectionPageCached(resolvedParams.collectionSlug);
+  const collection = data?.collectionsCollection?.edges?.[0]?.node;
+  const titleName =
+    collection?.label?.trim() ||
+    (collection?.slug
+      ? toTitleCase(unslugify(collection.slug))
+      : slugFallback);
+  const path = `/collections/${collection?.slug ?? resolvedParams.collectionSlug}`;
 
   return {
-    title: `${collectionName} Sarees`,
-    description: `Shop ${collectionName} craft supplies at Hub of craftss. Premium terracotta and craft supplies with secure online ordering.`,
+    title: titleName,
+    description: `Shop ${titleName} craft supplies at Hub of craftss. Premium terracotta and art & craft materials with secure online ordering.`,
     alternates: {
       canonical: path,
     },
     openGraph: {
-      title: `${collectionName} Sarees | Hub of craftss`,
-      description: `Shop ${collectionName} craft supplies at Hub of craftss.`,
+      title: `${titleName} | Hub of craftss`,
+      description: `Shop ${titleName} craft supplies at Hub of craftss.`,
       url: path,
     },
   };

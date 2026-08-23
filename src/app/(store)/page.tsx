@@ -23,7 +23,9 @@ import type { Metadata } from "next";
 export const revalidate = 120;
 
 export const metadata: Metadata = {
-  title: "Hub of craftss | Make · Craft · Create",
+  title: {
+    absolute: "Hub of craftss | Make · Craft · Create",
+  },
   description:
     "Shop terracotta raw materials and art & craft supplies at Hub of craftss by Shaaru in Madurai. Make · Craft · Create.",
   alternates: {

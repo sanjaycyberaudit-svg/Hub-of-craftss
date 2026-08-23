@@ -28,14 +28,14 @@ export const revalidate = 120;
 export const metadata: Metadata = {
   title: "Shop All Products",
   description:
-    "Browse all silk, cotton, wedding and festive craft supplies at Hub of craftss. Shop online with secure checkout and delivery across India.",
+    "Browse terracotta raw materials and art & craft supplies at Hub of craftss. Shop online with secure checkout and delivery across India.",
   alternates: {
     canonical: "/shop",
   },
   openGraph: {
     title: "Shop All Products | Hub of craftss",
     description:
-      "Browse all silk, cotton, wedding and festive craft supplies at Hub of craftss.",
+      "Browse terracotta and art & craft supplies at Hub of craftss.",
     url: "/shop",
   },
 };
@@ -83,7 +83,7 @@ async function ProductsPage({ searchParams }: ProductsPageProps) {
         heading={priceHeading ? "Shop by Price" : "Shop Now"}
         description={
           priceHeading
-            ? `Sarees priced ${priceHeading}. Use filters below to refine further.`
+            ? `Products priced ${priceHeading}. Use filters below to refine further.`
             : undefined
         }
       />
