@@ -20,10 +20,8 @@ function isOrderNotFoundError(error: unknown): boolean {
 export async function POST(request: NextRequest) {
   const signature = request.headers.get("x-webhook-signature")?.trim() ?? "";
   const timestamp = request.headers.get("x-webhook-timestamp")?.trim() ?? "";
-  const idempotencyKey =
-    request.headers.get("x-idempotency-key")?.trim() ?? "";
-  const webhookVersion =
-    request.headers.get("x-webhook-version")?.trim() ?? "";
+  const idempotencyKey = request.headers.get("x-idempotency-key")?.trim() ?? "";
+  const webhookVersion = request.headers.get("x-webhook-version")?.trim() ?? "";
 
   if (!signature || !timestamp) {
     return NextResponse.json(

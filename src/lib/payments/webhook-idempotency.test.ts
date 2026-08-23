@@ -70,9 +70,7 @@ describe("payment webhook event keys", () => {
       rawBody: '{"a":1}',
     });
 
-    expect(withIdem).toBe(
-      "PAYMENT_SUCCESS_WEBHOOK:order_1:idem:idem-abc",
-    );
+    expect(withIdem).toBe("PAYMENT_SUCCESS_WEBHOOK:order_1:idem:idem-abc");
     expect(withIdem).not.toBe(hashed);
   });
 

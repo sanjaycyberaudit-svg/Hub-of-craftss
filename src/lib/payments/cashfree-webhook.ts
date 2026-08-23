@@ -28,9 +28,7 @@ const ORDER_LIFECYCLE_WEBHOOK_TYPES = new Set([
   "PAYMENT_USER_DROPPED",
 ]);
 
-export function getCashfreeWebhookType(
-  body: Record<string, unknown>,
-): string {
+export function getCashfreeWebhookType(body: Record<string, unknown>): string {
   return String(body.type ?? body.event ?? "webhook").trim() || "webhook";
 }
 
