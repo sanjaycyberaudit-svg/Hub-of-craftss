@@ -40,9 +40,7 @@ export async function generateMetadata({ params }: CategoryPageProps) {
   const collection = data?.collectionsCollection?.edges?.[0]?.node;
   const titleName =
     collection?.label?.trim() ||
-    (collection?.slug
-      ? toTitleCase(unslugify(collection.slug))
-      : slugFallback);
+    (collection?.slug ? toTitleCase(unslugify(collection.slug)) : slugFallback);
   const path = `/collections/${collection?.slug ?? resolvedParams.collectionSlug}`;
 
   return {
