@@ -3,7 +3,7 @@ import { syncCashfreeOrderPayment } from "@/lib/payments/orderPaymentSync";
 import db from "@/lib/supabase/db";
 import { orders } from "@/lib/supabase/schema";
 import { eq } from "drizzle-orm";
-import { NextRequest, NextResponse } from "next/server";
+import { after, NextRequest, NextResponse } from "next/server";
 
 export async function GET(request: NextRequest) {
   const orderId = request.nextUrl.searchParams.get("order_id")?.trim() ?? "";
@@ -22,11 +22,22 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    // Mark paid fast on return; side effects run without blocking the buyer.
+    // Mark paid fast on return; do not block the buyer on WhatsApp/inventory.
     await syncCashfreeOrderPayment(orderId, { runSideEffects: false });
   } catch (error) {
     console.error("[cashfree] redirect sync failed:", error);
   }
+
+  // Finish side effects after the redirect response (Next.js keeps the work
+  // alive). Webhook path also awaits effects — either path can complete them
+  // idempotently if the other is slow or missing.
+  after(() => {
+    void syncCashfreeOrderPayment(orderId, { runSideEffects: true }).catch(
+      (error) => {
+        console.error("[cashfree] redirect side effects failed:", error);
+      },
+    );
+  });
 
   // Never mint a token here — only honor the checkout-issued HMAC in return_url.
   const redirectPath = resolvePaymentReturnPath({

@@ -1,4 +1,10 @@
 import { verifyCashfreeWebhookSignature } from "@/lib/payments/cashfree";
+import {
+  decideMissingCashfreeOrderId,
+  extractCashfreeWebhookOrderId,
+  extractCashfreeWebhookPaymentId,
+  getCashfreeWebhookType,
+} from "@/lib/payments/cashfree-webhook";
 import { syncCashfreeOrderPayment } from "@/lib/payments/orderPaymentSync";
 import {
   cashfreeWebhookEventKey,
@@ -6,14 +12,29 @@ import {
 } from "@/lib/payments/webhook-idempotency";
 import { NextRequest, NextResponse } from "next/server";
 
+function isOrderNotFoundError(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error ?? "");
+  return /order not found/i.test(message);
+}
+
 export async function POST(request: NextRequest) {
   const signature = request.headers.get("x-webhook-signature")?.trim() ?? "";
   const timestamp = request.headers.get("x-webhook-timestamp")?.trim() ?? "";
+  const idempotencyKey =
+    request.headers.get("x-idempotency-key")?.trim() ?? "";
+  const webhookVersion =
+    request.headers.get("x-webhook-version")?.trim() ?? "";
+
   if (!signature || !timestamp) {
     return NextResponse.json(
       { ok: false, message: "Missing webhook signature headers" },
       { status: 400 },
     );
+  }
+
+  // Docs list x-webhook-version as mandatory; accept older deliveries but log.
+  if (!webhookVersion) {
+    console.warn("[cashfree] webhook missing x-webhook-version header");
   }
 
   const rawBody = await request.text();
@@ -40,33 +61,36 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const rawData = body?.data as Record<string, unknown> | undefined;
-  const orderEntity = rawData?.order as Record<string, unknown> | undefined;
-  const paymentEntity = rawData?.payment as Record<string, unknown> | undefined;
-  const orderId = String(
-    (orderEntity?.order_id as string) ||
-      (rawData?.order_id as string) ||
-      (body?.order_id as string) ||
-      "",
-  ).trim();
+  const webhookType = getCashfreeWebhookType(body);
+  const orderId = extractCashfreeWebhookOrderId(body);
 
   if (!orderId) {
-    return NextResponse.json({ ok: true, skipped: true });
+    const decision = decideMissingCashfreeOrderId(webhookType);
+    if (decision.action === "retry") {
+      console.error(
+        "[cashfree] payment webhook missing order_id — requesting retry",
+        { webhookType },
+      );
+      return NextResponse.json(
+        { ok: false, retry: true, reason: decision.reason, webhookType },
+        { status: 422 },
+      );
+    }
+    return NextResponse.json({
+      ok: true,
+      skipped: true,
+      reason: decision.reason,
+      webhookType,
+    });
   }
 
-  const webhookType = String(body?.type ?? body?.event ?? "webhook").trim();
-  const paymentId = String(
-    (paymentEntity?.cf_payment_id as string) ||
-      (paymentEntity?.payment_id as string) ||
-      (rawData?.cf_payment_id as string) ||
-      "",
-  ).trim();
-
+  const paymentId = extractCashfreeWebhookPaymentId(body);
   const eventId = cashfreeWebhookEventKey({
     orderId,
     webhookType,
     paymentId: paymentId || null,
     rawBody,
+    idempotencyKey: idempotencyKey || null,
   });
 
   try {
@@ -74,7 +98,9 @@ export async function POST(request: NextRequest) {
       provider: "cashfree",
       eventId,
       orderId,
-      handler: async () => syncCashfreeOrderPayment(orderId),
+      // Webhook is authoritative for inventory/WhatsApp; always await effects.
+      handler: async () =>
+        syncCashfreeOrderPayment(orderId, { runSideEffects: true }),
     });
 
     if (outcome.status === "skipped") {
@@ -96,6 +122,16 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ ok: true, ...outcome.result });
   } catch (error) {
+    // Unknown merchant order_id cannot be fixed by retries — ack to stop loops.
+    if (isOrderNotFoundError(error)) {
+      console.error("[cashfree] webhook for unknown order:", orderId);
+      return NextResponse.json({
+        ok: true,
+        skipped: true,
+        reason: "order_not_found",
+        orderId,
+      });
+    }
     console.error("[cashfree] webhook sync failed:", error);
     return NextResponse.json({ ok: false }, { status: 500 });
   }

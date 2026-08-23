@@ -55,6 +55,27 @@ describe("payment webhook event keys", () => {
     expect(first).not.toBe(secondBuy);
   });
 
+  it("uses Cashfree x-idempotency-key when payment id is absent", () => {
+    const withIdem = cashfreeWebhookEventKey({
+      orderId: "order_1",
+      webhookType: "PAYMENT_SUCCESS_WEBHOOK",
+      paymentId: null,
+      rawBody: '{"a":1}',
+      idempotencyKey: "idem-abc",
+    });
+    const hashed = cashfreeWebhookEventKey({
+      orderId: "order_1",
+      webhookType: "PAYMENT_SUCCESS_WEBHOOK",
+      paymentId: null,
+      rawBody: '{"a":1}',
+    });
+
+    expect(withIdem).toBe(
+      "PAYMENT_SUCCESS_WEBHOOK:order_1:idem:idem-abc",
+    );
+    expect(withIdem).not.toBe(hashed);
+  });
+
   it("hashes stable short digests", () => {
     expect(shortPayloadHash("hello")).toHaveLength(24);
     expect(shortPayloadHash("hello")).toBe(shortPayloadHash("hello"));

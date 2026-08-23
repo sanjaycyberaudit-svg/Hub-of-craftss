@@ -19,18 +19,22 @@ export function phonePeWebhookEventKey(input: {
 }
 
 /**
- * Cashfree: prefer payment/order ids from payload; fall back to body hash so
- * retries of the same delivery collide, while a new payment does not.
+ * Cashfree: prefer payment/order ids from payload; then dashboard
+ * x-idempotency-key; fall back to body hash so retries collide while a new
+ * payment does not.
  */
 export function cashfreeWebhookEventKey(input: {
   orderId: string;
   webhookType?: string | null;
   paymentId?: string | null;
   rawBody: string;
+  idempotencyKey?: string | null;
 }): string {
   const orderId = String(input.orderId ?? "").trim();
   const type = String(input.webhookType ?? "webhook").trim() || "webhook";
   const paymentId = String(input.paymentId ?? "").trim();
   if (paymentId) return `${type}:${orderId}:${paymentId}`;
+  const idempotencyKey = String(input.idempotencyKey ?? "").trim();
+  if (idempotencyKey) return `${type}:${orderId}:idem:${idempotencyKey}`;
   return `${type}:${orderId}:${shortPayloadHash(input.rawBody)}`;
 }

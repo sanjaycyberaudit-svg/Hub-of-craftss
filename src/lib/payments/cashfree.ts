@@ -13,6 +13,10 @@ import {
   validateCashfreeOrderId,
   validateCashfreeRuntimeConfig,
 } from "@/lib/payments/cashfree-standards";
+import {
+  parseCashfreeWebhookTimestampMs,
+  resolveCashfreeWebhookSecrets,
+} from "@/lib/payments/cashfree-webhook";
 import { getCanonicalSiteOrigin } from "@/lib/auth/site-urls";
 import { getURL } from "@/lib/utils";
 import { normalizeIndianMobile } from "@/lib/payments/phonepe";
@@ -223,6 +227,19 @@ export async function fetchCashfreeOrderStatus(orderId: string) {
   return data;
 }
 
+function signaturesMatch(computed: string, provided: string): boolean {
+  const computedBuffer = Buffer.from(computed);
+  const providedBuffer = Buffer.from(provided);
+  if (computedBuffer.length !== providedBuffer.length) return false;
+  return crypto.timingSafeEqual(computedBuffer, providedBuffer);
+}
+
+/**
+ * Verify Cashfree webhook HMAC per docs:
+ * HMAC-SHA256(secret, timestamp + rawBody) → base64, compare to
+ * x-webhook-signature. Tries env override secrets then admin clientSecret
+ * so local/Vercel rotation does not break deliveries.
+ */
 export async function verifyCashfreeWebhookSignature(params: {
   rawBody: string;
   timestamp: string;
@@ -233,26 +250,28 @@ export async function verifyCashfreeWebhookSignature(params: {
     throw new Error("Cashfree config is not enabled");
   }
 
-  const ts = Number.parseInt(params.timestamp.trim(), 10);
-  if (!Number.isFinite(ts)) return false;
+  const tsMs = parseCashfreeWebhookTimestampMs(params.timestamp);
+  if (tsMs === null) return false;
 
   const now = Date.now();
-  if (Math.abs(now - ts) > CASHFREE_WEBHOOK_MAX_DRIFT_MS) {
+  if (Math.abs(now - tsMs) > CASHFREE_WEBHOOK_MAX_DRIFT_MS) {
     return false;
   }
 
-  const computed = signCashfreeWebhookPayload(
-    params.rawBody,
-    params.timestamp,
-    config.clientSecret,
-  );
   const provided = params.signature.trim();
+  if (!provided) return false;
 
-  const computedBuffer = Buffer.from(computed);
-  const providedBuffer = Buffer.from(provided);
-  if (computedBuffer.length !== providedBuffer.length) {
-    return false;
+  const secrets = resolveCashfreeWebhookSecrets(config.clientSecret);
+  if (secrets.length === 0) return false;
+
+  for (const secret of secrets) {
+    const computed = signCashfreeWebhookPayload(
+      params.rawBody,
+      params.timestamp.trim(),
+      secret,
+    );
+    if (signaturesMatch(computed, provided)) return true;
   }
 
-  return crypto.timingSafeEqual(computedBuffer, providedBuffer);
+  return false;
 }
