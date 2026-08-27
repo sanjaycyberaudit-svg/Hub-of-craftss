@@ -1,4 +1,5 @@
 import InfoPage from "@/components/layouts/InfoPage";
+import { siteConfig } from "@/config/site";
 import {
   resolveStorefrontContact,
   resolveStorefrontSocial,
@@ -9,7 +10,7 @@ import { Metadata } from "next";
 export const metadata: Metadata = {
   title: "Contact | Hub of craftss",
   description:
-    "Contact Hub of craftss — phone, email, WhatsApp, and store address",
+    "Contact Hub of craftss — phone, email, WhatsApp, and store address in Madurai.",
 };
 
 export const revalidate = 60;
@@ -20,17 +21,31 @@ export default async function ContactPage() {
     resolveStorefrontContact(),
   ]);
 
+  const tradeName = siteConfig.tradeName || siteConfig.name;
+  // Brand address/email come from siteConfig so incomplete admin overrides
+  // (e.g. "Madurai rural") cannot blank the contact page.
+  const email = siteConfig.email?.trim() || contact.email?.trim() || "";
+  const addressLines =
+    siteConfig.addressLines.length > 0
+      ? siteConfig.addressLines
+      : contact.addressLines;
+
   return (
     <InfoPage
       heading="Contact Us"
       description="Reach Hub of craftss by Instagram, email, or visit our store in Madurai."
     >
+      <section className="space-y-3">
+        <h2 className="text-base font-semibold text-foreground">Trade name</h2>
+        <p className="font-medium tracking-wide text-foreground">{tradeName}</p>
+      </section>
+
       <section id="store" className="space-y-3">
         <h2 className="text-base font-semibold text-foreground">
           Visit our store
         </h2>
         <address className="not-italic space-y-0.5">
-          {contact.addressLines.map((line) => (
+          {addressLines.map((line) => (
             <p key={line}>{line}</p>
           ))}
           {contact.gstin ? (
@@ -39,17 +54,25 @@ export default async function ContactPage() {
               {contact.gstin}
             </p>
           ) : null}
-          {contact.email ? (
-            <p>
-              <Link
-                href={`mailto:${contact.email}`}
-                className="text-primary hover:underline"
-              >
-                {contact.email}
-              </Link>
-            </p>
-          ) : null}
         </address>
+      </section>
+
+      <section className="space-y-3">
+        <h2 className="text-base font-semibold text-foreground">Email</h2>
+        {email ? (
+          <p>
+            <Link
+              href={`mailto:${email}`}
+              className="text-primary hover:underline"
+            >
+              {email}
+            </Link>
+          </p>
+        ) : (
+          <p className="text-muted-foreground">
+            Email coming soon. Message us on Instagram for orders and queries.
+          </p>
+        )}
       </section>
 
       <section className="space-y-3">

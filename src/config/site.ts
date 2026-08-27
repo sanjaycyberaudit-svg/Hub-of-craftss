@@ -9,19 +9,21 @@ const ADDRESS_LINES = [
   "Madurai – 625107, Tamil Nadu",
 ] as const;
 
-/** Contacts — add phone/WhatsApp when available */
+/** Contacts — proprietor phone */
 const CONTACTS = [
   {
     name: "Shaaru",
-    phone: "",
-    phoneHref: "",
+    phone: "8870669160",
+    phoneHref: "tel:+918870669160",
   },
 ] as const;
 
 const PHONE = CONTACTS[0].phone;
 const PHONE_HREF = CONTACTS[0].phoneHref;
-const EMAIL = "";
+const EMAIL = "hocbyshaaru@gmail.com";
 const GSTIN = "";
+/** Registered / trade style shown on contact & legal surfaces */
+const TRADE_NAME = "HUBS OF CRAFTSS";
 
 const SOCIAL = {
   instagram: "https://www.instagram.com/hub_of_craftss_by_shaaru/",
@@ -34,6 +36,8 @@ export const siteConfig = {
   /** Title-case shop board line (navbar/footer wordmark) */
   shopBoardName: "Hub of craftss",
   name: "Hub of craftss",
+  /** Trade / business name (contact page, packing slips, etc.) */
+  tradeName: TRADE_NAME,
   shortName: "HOC",
   tagline: "Make · Craft · Create",
   /** Town shown on shop board / navbar */

@@ -1,12 +1,6 @@
 import { Suspense } from "react";
 import Header from "@/components/layouts/Header";
 import { Shell } from "@/components/layouts/Shell";
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/components/ui/accordion";
 import { AddProductToCartForm } from "@/features/carts";
 import { ProductCommentsSection } from "@/features/comments";
 import {
@@ -264,8 +258,8 @@ async function ProductDetailPage({ params }: Props) {
             </Suspense>
           </section>
 
-          <section className="space-y-6">
-            {description?.trim() ? (
+          {description?.trim() ? (
+            <section className="space-y-6">
               <div>
                 <h2 className="text-lg font-semibold tracking-wide mb-3">
                   About this product
@@ -274,32 +268,8 @@ async function ProductDetailPage({ params }: Props) {
                   {description.trim()}
                 </p>
               </div>
-            ) : null}
-
-            <Accordion type="single" collapsible>
-              <AccordionItem value="item-1">
-                <AccordionTrigger>Is it accessible?</AccordionTrigger>
-                <AccordionContent>
-                  Yes. It adheres to the WAI-ARIA design pattern.
-                </AccordionContent>
-              </AccordionItem>
-              <AccordionItem value="item-2">
-                <AccordionTrigger>Is it accessible?</AccordionTrigger>
-                <AccordionContent>
-                  Yes. It adheres to the WAI-ARIA design pattern.
-                </AccordionContent>
-              </AccordionItem>
-              <AccordionItem value="item-3">
-                <AccordionTrigger>Ship & Returns</AccordionTrigger>
-                <AccordionContent>
-                  Shipping across Tamil Nadu and India. Free delivery on
-                  selected orders — contact us on WhatsApp for details. Returns
-                  or exchanges may be accepted within 7 days for unused items
-                  with packaging; please call before returning.
-                </AccordionContent>
-              </AccordionItem>
-            </Accordion>
-          </section>
+            </section>
+          ) : null}
         </div>
       </div>
 
