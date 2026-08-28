@@ -47,6 +47,11 @@ import EmptyCart from "@/features/carts/components/EmptyCart";
 import { RemoveCartsMutation, updateCartsMutation } from "../query";
 import useCartStore, { CartItems } from "../useCartStore";
 import {
+  readRemoveCartAffectedCount,
+  readUpdateCartAffectedCount,
+} from "../cart-graphql-utils";
+import { graphqlCartToCartItems } from "../cart-storage-sync";
+import {
   calcLiveCartSubtotal,
   useCartLivePricing,
 } from "../hooks/useCartLivePricing";
@@ -121,8 +126,13 @@ function UserCartSection({
   const [, updateCartProduct] = useMutation(updateCartsMutation);
   const [, removeCart] = useMutation(RemoveCartsMutation);
   const localCart = useCartStore((s) => s.cart);
+  const replaceCart = useCartStore((s) => s.replaceCart);
+  const removeProductStorage = useCartStore((s) => s.removeProduct);
   const setProductSize = useCartStore((s) => s.setProductSize);
   const setProductSelections = useCartStore((s) => s.setProductSelections);
+  const [optimisticallyRemovedIds, setOptimisticallyRemovedIds] = useState<
+    Set<string>
+  >(() => new Set());
   const [sizeConfigsByProductId, setSizeConfigsByProductId] = useState<
     Record<string, CartSizeConfig>
   >(() => initialSizeConfigs ?? {});
@@ -138,17 +148,35 @@ function UserCartSection({
 
   const cart: CartEdge[] =
     cartData?.cartsCollection?.edges?.filter((edge) => edge.node.product) ?? [];
+
+  const visibleCart = useMemo(
+    () =>
+      cart.filter(
+        (edge) =>
+          edge.node.product_id &&
+          !optimisticallyRemovedIds.has(edge.node.product_id),
+      ),
+    [cart, optimisticallyRemovedIds],
+  );
+
+  useEffect(() => {
+    if (!cartData?.cartsCollection) return;
+    replaceCart(
+      graphqlCartToCartItems(cartData, useCartStore.getState().cart),
+    );
+  }, [cartData, replaceCart]);
+
   const cartProductIds = useMemo(
     () =>
-      cart
+      visibleCart
         .map((edge) => edge.node.product_id)
         .filter((productId): productId is string => Boolean(productId)),
-    [cart],
+    [visibleCart],
   );
   const { pricing: livePricing } = useCartLivePricing(cartProductIds);
   const subtotal = useMemo(() => {
     const quantities = Object.fromEntries(
-      cart.map((edge) => [
+      visibleCart.map((edge) => [
         edge.node.product_id,
         {
           quantity: edge.node.quantity,
@@ -165,9 +193,12 @@ function UserCartSection({
     if (Object.keys(livePricing).length > 0) {
       return liveTotal;
     }
-    return calcSubtotal(cart);
-  }, [cart, livePricing, localCart, sizeConfigsByProductId]);
-  const productCount = useMemo(() => calcProductCount(cart), [cart]);
+    return calcSubtotal(visibleCart);
+  }, [visibleCart, livePricing, localCart, sizeConfigsByProductId]);
+  const productCount = useMemo(
+    () => calcProductCount(visibleCart),
+    [visibleCart],
+  );
   const pincodeLookup = usePincodeLookup(deliveryPincode);
   const activeOfferCodes = useMemo(() => {
     const map = new Map<string, number>();
@@ -361,7 +392,7 @@ function UserCartSection({
 
   const missingSizeProductNames = useMemo(
     () =>
-      cart
+      visibleCart
         .filter(({ node }) => {
           const sizeConfig = toSizeConfigFromCartPayload(
             sizeConfigsByProductId[node.product_id],
@@ -379,7 +410,7 @@ function UserCartSection({
         })
         .map(({ node }) => node.product?.name)
         .filter((name): name is string => Boolean(name)),
-    [cart, localCart, sizeConfigsByProductId],
+    [visibleCart, localCart, sizeConfigsByProductId],
   );
 
   if (fetching && !cartData) {
@@ -426,11 +457,20 @@ function UserCartSection({
       newQuantity: quantity + 1,
     });
 
-    if (res.error)
+    if (res.error) {
       toast({
         title: "Error",
         description: expectedErrorsHandler({ error: res.error }),
       });
+    } else if (readUpdateCartAffectedCount(res.data) < 1) {
+      toast({
+        title: "Error",
+        description: "Could not update cart. Please try again.",
+        variant: "destructive",
+      });
+    } else {
+      reexecuteQuery({ requestPolicy: "network-only" });
+    }
 
     setIsLoading(false);
   };
@@ -445,11 +485,20 @@ function UserCartSection({
         newQuantity: quantity - 1,
       });
 
-      if (res.error)
+      if (res.error) {
         toast({
           title: "Error",
           description: expectedErrorsHandler({ error: res.error }),
         });
+      } else if (readUpdateCartAffectedCount(res.data) < 1) {
+        toast({
+          title: "Error",
+          description: "Could not update cart. Please try again.",
+          variant: "destructive",
+        });
+      } else {
+        reexecuteQuery({ requestPolicy: "network-only" });
+      }
 
       setIsLoading(false);
     } else {
@@ -458,16 +507,40 @@ function UserCartSection({
   };
 
   const removeHandler = async (productId: string) => {
+    setOptimisticallyRemovedIds((prev) => new Set(prev).add(productId));
+    removeProductStorage(productId);
     setIsLoading(true);
 
     const res = await removeCart({ productId, userId: user.id });
+    const removedCount = readRemoveCartAffectedCount(res.data);
 
     if (res.error) {
+      setOptimisticallyRemovedIds((prev) => {
+        const next = new Set(prev);
+        next.delete(productId);
+        return next;
+      });
       toast({
         title: "Error",
         description: expectedErrorsHandler({ error: res.error }),
       });
+    } else if (removedCount < 1) {
+      setOptimisticallyRemovedIds((prev) => {
+        const next = new Set(prev);
+        next.delete(productId);
+        return next;
+      });
+      toast({
+        title: "Error",
+        description: "Could not remove item from cart. Please try again.",
+        variant: "destructive",
+      });
     } else {
+      setOptimisticallyRemovedIds((prev) => {
+        const next = new Set(prev);
+        next.delete(productId);
+        return next;
+      });
       toast({ title: "Removed a Product." });
       reexecuteQuery({ requestPolicy: "network-only" });
     }
@@ -476,22 +549,23 @@ function UserCartSection({
   };
 
   const createCartObject = (
-    data: DocumentType<typeof FetchCartQuery>,
+    source: DocumentType<typeof FetchCartQuery> | null | undefined,
   ): CartItems => {
-    const cart: CartItems = {};
-    data.cartsCollection.edges.forEach((item) => {
+    if (!source?.cartsCollection) return {};
+    const next: CartItems = {};
+    source.cartsCollection.edges.forEach((item) => {
       const product = item.node.product;
       if (!product) return;
-      cart[product.id] = {
+      next[product.id] = {
         quantity: item.node.quantity,
         size: localCart[product.id]?.size,
         selections: localCart[product.id]?.selections,
       };
     });
-    return cart;
+    return next;
   };
 
-  const order = createCartObject(data);
+  const order = createCartObject(cartData);
 
   const summaryFields = {
     productCount,
@@ -532,7 +606,7 @@ function UserCartSection({
 
   return (
     <>
-      {data.cartsCollection && cart.length > 0 ? (
+      {cartData?.cartsCollection && visibleCart.length > 0 ? (
         <section
           aria-label="Cart Section"
           className={cn(
@@ -546,7 +620,7 @@ function UserCartSection({
           />
 
           <CartItemsList>
-            {cart.map(({ node }) =>
+            {visibleCart.map(({ node }) =>
               (() => {
                 const sizeConfig = toSizeConfigFromCartPayload(
                   sizeConfigsByProductId[node.product_id],

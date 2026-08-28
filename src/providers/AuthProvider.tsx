@@ -1,9 +1,9 @@
 "use client";
 
 import useCartStore, { type CartItems } from "@/features/carts/useCartStore";
+import { readClientCartCookie } from "@/features/carts/read-client-cart-cookie";
 import { useToast } from "@/components/ui/use-toast";
 import { AuthUser, Session } from "@supabase/supabase-js";
-import { nanoid } from "nanoid";
 import { createContext, useContext, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "../lib/supabase/client";
@@ -29,6 +29,7 @@ interface SupabaseAuthProviderProps {
 }
 
 const WELCOME_TOAST_KEY = "auth:welcomed-user-id";
+const MERGED_GUEST_CART_KEY = "auth:merged-guest-cart-user-id";
 
 function hasWelcomedInSession(userId: string) {
   try {
@@ -49,6 +50,30 @@ function markWelcomedInSession(userId: string) {
 function clearWelcomedInSession() {
   try {
     sessionStorage.removeItem(WELCOME_TOAST_KEY);
+  } catch {
+    // Ignore storage access failures (private mode/restrictions).
+  }
+}
+
+function hasMergedGuestCartForUser(userId: string) {
+  try {
+    return sessionStorage.getItem(MERGED_GUEST_CART_KEY) === userId;
+  } catch {
+    return false;
+  }
+}
+
+function markGuestCartMergedForUser(userId: string) {
+  try {
+    sessionStorage.setItem(MERGED_GUEST_CART_KEY, userId);
+  } catch {
+    // Ignore storage access failures (private mode/restrictions).
+  }
+}
+
+function clearMergedGuestCartMarker() {
+  try {
+    sessionStorage.removeItem(MERGED_GUEST_CART_KEY);
   } catch {
     // Ignore storage access failures (private mode/restrictions).
   }
@@ -98,6 +123,7 @@ export const SupabaseAuthProvider: React.FC<SupabaseAuthProviderProps> = ({
             supabase.auth.getUser().then(({ data }) => {
               setUser(data.user);
               if (data.user?.id) {
+                markGuestCartMergedForUser(data.user.id);
                 loadWishlistForUser(data.user.id);
               }
             });
@@ -119,29 +145,39 @@ export const SupabaseAuthProvider: React.FC<SupabaseAuthProviderProps> = ({
               setUser(data.user);
 
               if (!data.user) return;
+              if (hasMergedGuestCartForUser(data.user.id)) return;
 
               try {
-                const raw = localStorage.getItem("cart");
-                if (raw) {
-                  const parsed = JSON.parse(raw) as { cart?: CartItems };
-                  const cart = parsed?.cart;
-                  if (cart && typeof cart === "object") {
-                    const storageCarts = Object.entries(cart).map(
-                      ([productId, productValue]) => ({
-                        id: nanoid(),
-                        productId,
-                        quantity: productValue.quantity,
-                        userId: data.user!.id,
-                      }),
+                const cart = readClientCartCookie();
+                if (cart && typeof cart === "object") {
+                  const storageCarts = Object.entries(cart)
+                    .map(([productId, productValue]) => {
+                      const quantity = Number(productValue.quantity ?? 0);
+                      if (!Number.isFinite(quantity) || quantity <= 0) {
+                        return null;
+                      }
+                      return {
+                        product_id: productId,
+                        user_id: data.user!.id,
+                        quantity,
+                      };
+                    })
+                    .filter(
+                      (row): row is NonNullable<typeof row> => row !== null,
                     );
 
-                    if (storageCarts.length > 0) {
-                      supabase.from("carts").insert(storageCarts);
-                    }
+                  markGuestCartMergedForUser(data.user.id);
+
+                  if (storageCarts.length > 0) {
+                    void supabase.from("carts").upsert(storageCarts, {
+                      onConflict: "user_id,product_id",
+                    });
                   }
+                } else {
+                  markGuestCartMergedForUser(data.user.id);
                 }
               } catch {
-                // Ignore invalid guest cart payload in localStorage.
+                markGuestCartMergedForUser(data.user.id);
               }
             });
 
@@ -166,6 +202,7 @@ export const SupabaseAuthProvider: React.FC<SupabaseAuthProviderProps> = ({
             setUser(null);
             lastWelcomedUserId.current = null;
             clearWelcomedInSession();
+            clearMergedGuestCartMarker();
             removeAllCartStorage();
             break;
 
