@@ -1,4 +1,8 @@
 import { buildShippingAddressCopyText } from "@/lib/orders/shipping-address-text";
+import {
+  resolveCheckoutOutcome,
+  type CheckoutOutcome,
+} from "@/lib/checkout/checkout-outcome";
 import db from "@/lib/supabase/db";
 import {
   address,
@@ -38,6 +42,7 @@ export type AdminOrderListView = {
   amount: number;
   orderStatus: string | null;
   paymentStatus: string;
+  checkoutOutcome: CheckoutOutcome | null;
   customerName: string | null;
   customerMobile: string | null;
   shippingAddress: {
@@ -163,6 +168,7 @@ export async function getAdminOrdersList(
       amount: orders.amount,
       orderStatus: orders.order_status,
       paymentStatus: orders.payment_status,
+      paymentMeta: orders.payment_meta,
       customerName: orders.name,
       customerMobile: orders.customer_mobile,
       addressLine1: address.line1,
@@ -205,6 +211,10 @@ export async function getAdminOrdersList(
       amount: Number(row.amount),
       orderStatus: row.orderStatus,
       paymentStatus: row.paymentStatus,
+      checkoutOutcome: resolveCheckoutOutcome({
+        paymentStatus: row.paymentStatus,
+        paymentMeta: row.paymentMeta,
+      }),
       customerName: row.customerName,
       customerMobile: row.customerMobile,
       shippingAddress,

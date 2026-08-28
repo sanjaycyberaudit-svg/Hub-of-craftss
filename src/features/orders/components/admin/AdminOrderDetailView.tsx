@@ -32,6 +32,11 @@ import {
   PdfAddressTooLongError,
 } from "@/lib/pdf/shipping-label-pdf";
 import { formatPrice } from "@/lib/utils";
+import { AdminCheckoutOutcomeBadge } from "@/features/orders/components/admin/AdminCheckoutOutcomeBadge";
+import type {
+  CheckoutOutcome,
+  CheckoutTelemetryState,
+} from "@/lib/checkout/checkout-outcome";
 import { buildDispatchNotificationText } from "@/lib/dispatch/dispatch-message";
 import type { OrderDispatchInfo } from "@/lib/dispatch/get-order-dispatch-info";
 
@@ -76,6 +81,8 @@ type Props = {
       postalCode: string | null;
       country: string | null;
     } | null;
+    checkoutOutcome: CheckoutOutcome | null;
+    checkoutTelemetry: CheckoutTelemetryState | null;
   };
   items: OrderItemView[];
   copyAddressText: string;
@@ -649,6 +656,32 @@ export function AdminOrderDetailView({
                 <p className="break-all text-xs text-muted-foreground">
                   Ref: {order.paymentReference}
                 </p>
+              ) : null}
+              {order.checkoutOutcome ? (
+                <div className="pt-2">
+                  <AdminCheckoutOutcomeBadge
+                    outcome={order.checkoutOutcome}
+                    showDetail
+                  />
+                </div>
+              ) : null}
+              {order.checkoutTelemetry?.events?.length ? (
+                <div className="space-y-1 pt-2">
+                  <p className="text-xs font-medium text-muted-foreground">
+                    Checkout events
+                  </p>
+                  <ul className="space-y-1 text-xs text-muted-foreground">
+                    {order.checkoutTelemetry.events
+                      .slice()
+                      .reverse()
+                      .map((event) => (
+                        <li key={`${event.at}-${event.type}`}>
+                          {event.type.replaceAll("_", " ")}
+                          {event.reason ? ` — ${event.reason}` : ""}
+                        </li>
+                      ))}
+                  </ul>
+                </div>
               ) : null}
             </CardContent>
           </Card>

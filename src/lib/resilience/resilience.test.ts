@@ -31,6 +31,18 @@ describe("isTransientError", () => {
     ).toBe(true);
   });
 
+  it("matches pooler pressure faults", () => {
+    expect(
+      isTransientError(
+        new Error("Cannot set properties of undefined (setting 'onclose')"),
+      ),
+    ).toBe(true);
+    expect(isTransientError(new Error("EMAXCONN reached"))).toBe(true);
+    expect(isTransientError(new Error("max client connections reached"))).toBe(
+      true,
+    );
+  });
+
   it("does not match deterministic failures", () => {
     expect(isTransientError(new Error("column does not exist"))).toBe(false);
     expect(isTransientError({ digest: "NEXT_NOT_FOUND" })).toBe(false);

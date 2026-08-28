@@ -6,6 +6,8 @@ import {
   openingPaymentProgress,
   preparingPaymentProgress,
 } from "@/features/checkout/checkout-progress";
+import { classifyCheckoutError } from "@/lib/checkout/checkout-outcome";
+import { reportCheckoutEvent } from "@/lib/checkout/report-checkout-event.client";
 import { fetchWithTimeout } from "@/lib/network/fetchWithTimeout";
 import {
   openCashfreeCheckout,
@@ -29,53 +31,83 @@ export async function startCheckout({
   promoCode,
   onProgress,
 }: StartCheckoutParams) {
+  let checkoutContext: {
+    orderId: string;
+    accessToken: string | null;
+  } | null = null;
+
+  const reportFailure = (err: unknown) => {
+    if (!checkoutContext) return;
+    const classified = classifyCheckoutError(err);
+    reportCheckoutEvent({
+      orderId: checkoutContext.orderId,
+      accessToken: checkoutContext.accessToken,
+      type: classified.type,
+      reason: classified.reason,
+    });
+  };
+
   onProgress?.(creatingOrderProgress());
 
-  const res = await fetchWithTimeout("/api/create-checkout-session", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      orderProducts: order,
-      guest,
-      shipping: {
-        addressId: shipping.addressId,
-        fullName: shipping.fullName,
-        email: shipping.email,
-        mobile: shipping.mobile,
-        state: shipping.state,
-      },
-      promoCode: promoCode ?? null,
-    }),
-    timeoutMs: CHECKOUT_SESSION_TIMEOUT_MS,
-  });
+  try {
+    const res = await fetchWithTimeout("/api/create-checkout-session", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        orderProducts: order,
+        guest,
+        shipping: {
+          addressId: shipping.addressId,
+          fullName: shipping.fullName,
+          email: shipping.email,
+          mobile: shipping.mobile,
+          state: shipping.state,
+        },
+        promoCode: promoCode ?? null,
+      }),
+      timeoutMs: CHECKOUT_SESSION_TIMEOUT_MS,
+    });
 
-  if (!res.ok) {
-    const payload = (await res.json().catch(() => null)) as {
-      message?: string;
-    } | null;
-    const message = payload?.message || "Checkout failed";
-    throw new Error(message);
-  }
-
-  const payload = (await res.json()) as Record<string, unknown>;
-
-  if (payload.provider === "cashfree") {
-    onProgress?.(preparingPaymentProgress());
-    const session = parseCashfreeCheckoutSessionPayload(payload);
-    onProgress?.(openingPaymentProgress("cashfree"));
-    openCashfreeCheckout({ payload: session });
-    return;
-  }
-
-  if (payload.provider === "phonepe") {
-    const redirectUrl = String(payload.redirectUrl ?? "").trim();
-    if (!redirectUrl) {
-      throw new Error("PhonePe checkout could not be started.");
+    if (!res.ok) {
+      const payload = (await res.json().catch(() => null)) as {
+        message?: string;
+      } | null;
+      const message = payload?.message || "Checkout failed";
+      throw new Error(message);
     }
-    onProgress?.(openingPaymentProgress("phonepe"));
-    window.location.assign(redirectUrl);
-    return;
-  }
 
-  throw new Error("Unsupported payment provider.");
+    const payload = (await res.json()) as Record<string, unknown>;
+
+    if (payload.provider === "cashfree") {
+      onProgress?.(preparingPaymentProgress());
+      const session = parseCashfreeCheckoutSessionPayload(payload);
+      checkoutContext = {
+        orderId: session.orderId,
+        accessToken: session.accessToken ?? null,
+      };
+      reportCheckoutEvent({
+        orderId: session.orderId,
+        accessToken: session.accessToken ?? null,
+        type: "cashfree_checkout_opened",
+      });
+      onProgress?.(openingPaymentProgress("cashfree"));
+      openCashfreeCheckout({ payload: session });
+      return;
+    }
+
+    if (payload.provider === "phonepe") {
+      const redirectUrl = String(payload.redirectUrl ?? "").trim();
+      if (!redirectUrl) {
+        throw new Error("PhonePe checkout could not be started.");
+      }
+      onProgress?.(openingPaymentProgress("phonepe"));
+      window.location.assign(redirectUrl);
+      return;
+    }
+
+    throw new Error("Unsupported payment provider.");
+  } catch (error) {
+    reportFailure(error);
+    throw error;
+  }
 }

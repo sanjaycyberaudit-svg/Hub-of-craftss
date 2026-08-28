@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/select";
 import { useToast } from "@/components/ui/use-toast";
 import type { AdminOrderListView } from "@/lib/admin/getAdminOrdersList";
+import { AdminCheckoutOutcomeBadge } from "@/features/orders/components/admin/AdminCheckoutOutcomeBadge";
 import {
   adminOrderToPackingSlip,
   adminOrderToPdfLabel,
@@ -183,6 +184,9 @@ function AdminOrderRow({
             >
               {order.paymentStatus}
             </Badge>
+            {order.checkoutOutcome ? (
+              <AdminCheckoutOutcomeBadge outcome={order.checkoutOutcome} />
+            ) : null}
             <span className="text-xs text-muted-foreground">
               {formatOrderDateTimeIst(order.createdAt)}
             </span>

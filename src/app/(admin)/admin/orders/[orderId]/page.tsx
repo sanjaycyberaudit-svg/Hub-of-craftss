@@ -11,6 +11,10 @@ import { buildShippingAddressCopyText } from "@/lib/orders/shipping-address-text
 import { getOrderDispatchInfo } from "@/lib/dispatch/get-order-dispatch-info";
 import { buildDispatchNotificationText } from "@/lib/dispatch/dispatch-message";
 import { formatOrderDateTimeIst } from "@/lib/datetime/india";
+import {
+  readCheckoutTelemetry,
+  resolveCheckoutOutcome,
+} from "@/lib/checkout/checkout-outcome";
 import { keytoUrl } from "@/lib/utils";
 import db from "@/lib/supabase/db";
 import { getSessionUser, isAdminUser } from "@/lib/auth/admin";
@@ -103,6 +107,7 @@ async function OrderDetailPage({ params }: AdminOrderDetailPageProps) {
       paymentProvider: orders.payment_provider,
       paymentMethod: orders.payment_method,
       paymentReference: orders.payment_reference,
+      paymentMeta: orders.payment_meta,
       customerName: orders.name,
       customerEmail: orders.email,
       customerMobile: orders.customer_mobile,
@@ -185,6 +190,11 @@ async function OrderDetailPage({ params }: AdminOrderDetailPageProps) {
     customerEmail: order.customerEmail,
     customerMobile: order.customerMobile,
     shippingAddress,
+    checkoutOutcome: resolveCheckoutOutcome({
+      paymentStatus: order.paymentStatus,
+      paymentMeta: order.paymentMeta,
+    }),
+    checkoutTelemetry: readCheckoutTelemetry(order.paymentMeta),
   };
 
   const dispatchInfo = await getOrderDispatchInfo(orderId);

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
 import { siteConfig } from "@/config/site";
+import { MicrosoftClarity } from "@/components/analytics/MicrosoftClarity";
 import { brandSans, heroSerif } from "@/lib/fonts";
 import { getURL } from "@/lib/utils";
 import CustomProvider from "../providers/CustomProvider";
@@ -80,6 +81,7 @@ export default function RootLayout({
         >
           {children}
           <Toaster />
+          <MicrosoftClarity />
         </body>
       </CustomProvider>
     </html>

@@ -70,7 +70,7 @@ describe("packing slip format (Hub of craftss)", () => {
     expect(lines.at(-1)).toBe("India");
   });
 
-  it("prints shop footer from Hub site defaults without shop mobile when empty", () => {
+  it("prints shop footer from Hub site defaults with proprietor phone", () => {
     const footer = buildPackingSlipShopFooter();
     expect(footer.brand).toBe(PACKING_SLIP_BRAND);
     expect(footer.brand).toBe(siteConfig.name);
@@ -78,7 +78,7 @@ describe("packing slip format (Hub of craftss)", () => {
     expect(footer.address).toContain("Kasim Residency");
     expect(footer.address).toContain("Madurai");
     expect(footer.address).toMatch(/India$/);
-    expect(footer.mobile).toBe("");
+    expect(footer.mobile).toBe(`Mobile: ${siteConfig.phone}`);
   });
 
   it("prints the admin shop-contact address on the packing slip footer", () => {

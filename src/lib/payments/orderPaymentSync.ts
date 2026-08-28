@@ -9,6 +9,7 @@ import { fetchPhonePePaymentStatus } from "@/lib/payments/phonepe";
 import { fetchCashfreeOrderStatus } from "@/lib/payments/cashfree";
 import { fulfillPaidOrderInventory } from "@/lib/orders/inventory-fulfillment";
 import { mergePaymentMeta, readPaymentMeta } from "@/lib/orders/payment-meta";
+import { appendCheckoutTelemetryEvent } from "@/lib/checkout/checkout-telemetry";
 import { detectPaidAmountMismatch } from "@/lib/payments/amount-check";
 import {
   canReleaseOrphanUnpaidHold,
@@ -381,7 +382,32 @@ export async function syncCashfreeOrderPayment(
         console.error("[payments] Cashfree side effects deferred:", error);
       });
     }
+    await appendCheckoutTelemetryEvent({
+      orderId: updated.id,
+      type: "payment_confirmed",
+      source: "server",
+    }).catch((error) => {
+      console.warn("[payments] checkout telemetry failed:", error);
+    });
+  } else if (amountMismatch) {
+    await appendCheckoutTelemetryEvent({
+      orderId: updated.id,
+      type: "verify_held",
+      reason: `Expected INR ${amountCheck.expected}, gateway reported INR ${amountCheck.actual ?? "missing"}`,
+      source: "server",
+    }).catch((error) => {
+      console.warn("[payments] checkout telemetry failed:", error);
+    });
+    await maybeReleaseExpiredReservation(updated.id);
   } else if (isTerminalFailure) {
+    await appendCheckoutTelemetryEvent({
+      orderId: updated.id,
+      type: "cashfree_webhook_failed",
+      reason: `Cashfree order status: ${state}`,
+      source: "server",
+    }).catch((error) => {
+      console.warn("[payments] checkout telemetry failed:", error);
+    });
     await maybeReleaseUnpaidReservation(updated.id, "payment_failed");
   } else {
     await maybeReleaseExpiredReservation(updated.id);
