@@ -6,6 +6,10 @@ import {
   type OrdersSegment,
 } from "@/features/orders/components/admin/AdminOrdersSegmentTabs";
 import {
+  adminOrdersDateFiltersFromSearchParams,
+  resolveAdminOrdersDateFilters,
+} from "@/lib/admin/admin-orders-date-filter";
+import {
   clampAdminOrdersPageSize,
   getAdminOrdersCounts,
   getAdminOrdersList,
@@ -47,13 +51,20 @@ type AdminOrdersPageProps = {
   }>;
 };
 
+function firstParam(
+  value: string | string[] | undefined,
+): string | undefined {
+  return Array.isArray(value) ? value[0] : value;
+}
+
 function parseOrdersSegment(
   value: string | string[] | undefined,
 ): OrdersSegment {
-  const raw = String(Array.isArray(value) ? value[0] : value ?? "")
+  const raw = String(firstParam(value) ?? "")
     .trim()
     .toLowerCase();
-  return raw === "unpaid" || raw === "pending" ? "unpaid" : "paid";
+  // Default: unpaid (with today date filter).
+  return raw === "paid" ? "paid" : "unpaid";
 }
 
 export default async function OrdersPage({
@@ -76,14 +87,19 @@ async function OrdersPageContent({
 }) {
   const rawPageSize = searchParams[PAGE_SIZE_PARAM];
   const pageSize = clampAdminOrdersPageSize(
-    Number.parseInt(
-      String(Array.isArray(rawPageSize) ? rawPageSize[0] : rawPageSize),
-      10,
-    ) || undefined,
+    Number.parseInt(String(firstParam(rawPageSize)), 10) || undefined,
   );
   const segment = parseOrdersSegment(searchParams[STATUS_PARAM]);
   const paidPage = parseAdminOrdersPage(searchParams[PAID_PAGE_PARAM]);
   const pendingPage = parseAdminOrdersPage(searchParams[PENDING_PAGE_PARAM]);
+  const dateFilter = resolveAdminOrdersDateFilters(
+    adminOrdersDateFiltersFromSearchParams({
+      from: firstParam(searchParams.from),
+      to: firstParam(searchParams.to),
+      all: firstParam(searchParams.all),
+      preset: firstParam(searchParams.preset),
+    }),
+  );
 
   const emptyList = {
     rows: [] as Awaited<ReturnType<typeof getAdminOrdersList>>["rows"],
@@ -103,12 +119,13 @@ async function OrdersPageContent({
     // queries pipeline on that socket and hang until the request dies —
     // which previously looked like an endless skeleton, then this alert.
     const result = await withDbAsync(async () => {
-      const nextCounts = await getAdminOrdersCounts();
+      const nextCounts = await getAdminOrdersCounts(dateFilter);
       if (segment === "paid") {
         const nextPaid = await getAdminOrdersList({
           segment: "paid",
           page: paidPage,
           pageSize,
+          dateFilter,
         });
         return { counts: nextCounts, paid: nextPaid, unpaid: emptyList };
       }
@@ -117,6 +134,7 @@ async function OrdersPageContent({
         segment: "pending",
         page: pendingPage,
         pageSize,
+        dateFilter,
       });
       return { counts: nextCounts, paid: emptyList, unpaid: nextUnpaid };
     });
@@ -159,6 +177,7 @@ async function OrdersPageContent({
         unpaidPageParam={PENDING_PAGE_PARAM}
         pageSizeParam={PAGE_SIZE_PARAM}
         resetPageParams={resetPageParams}
+        dateFilter={dateFilter}
       />
     </div>
   );

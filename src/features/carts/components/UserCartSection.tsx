@@ -161,9 +161,7 @@ function UserCartSection({
 
   useEffect(() => {
     if (!cartData?.cartsCollection) return;
-    replaceCart(
-      graphqlCartToCartItems(cartData, useCartStore.getState().cart),
-    );
+    replaceCart(graphqlCartToCartItems(cartData, useCartStore.getState().cart));
   }, [cartData, replaceCart]);
 
   const cartProductIds = useMemo(

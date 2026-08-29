@@ -3,6 +3,7 @@ import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
 import { siteConfig } from "@/config/site";
 import { MicrosoftClarity } from "@/components/analytics/MicrosoftClarity";
+import { WebViewErrorNoiseFilter } from "@/components/analytics/WebViewErrorNoiseFilter";
 import { brandSans, heroSerif } from "@/lib/fonts";
 import { getURL } from "@/lib/utils";
 import CustomProvider from "../providers/CustomProvider";
@@ -81,6 +82,7 @@ export default function RootLayout({
         >
           {children}
           <Toaster />
+          <WebViewErrorNoiseFilter />
           <MicrosoftClarity />
         </body>
       </CustomProvider>

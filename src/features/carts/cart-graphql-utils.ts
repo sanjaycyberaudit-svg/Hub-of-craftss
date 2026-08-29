@@ -6,14 +6,24 @@ export function readGraphqlAffectedCount(
   return Number.isFinite(count) && count > 0 ? count : 0;
 }
 
-export function readRemoveCartAffectedCount(data: {
-  deleteFromcartsCollection?: { affectedCount?: number | null } | null;
-} | null | undefined): number {
+export function readRemoveCartAffectedCount(
+  data:
+    | {
+        deleteFromcartsCollection?: { affectedCount?: number | null } | null;
+      }
+    | null
+    | undefined,
+): number {
   return readGraphqlAffectedCount(data?.deleteFromcartsCollection ?? null);
 }
 
-export function readUpdateCartAffectedCount(data: {
-  updatecartsCollection?: { affectedCount?: number | null } | null;
-} | null | undefined): number {
+export function readUpdateCartAffectedCount(
+  data:
+    | {
+        updatecartsCollection?: { affectedCount?: number | null } | null;
+      }
+    | null
+    | undefined,
+): number {
   return readGraphqlAffectedCount(data?.updatecartsCollection ?? null);
 }

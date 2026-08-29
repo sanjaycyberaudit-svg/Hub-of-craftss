@@ -5,6 +5,7 @@ import {
   formatPackingSlipDate,
   formatPackingSlipOrderHeading,
   formatPackingSlipQuantity,
+  buildPackingSlipFromLines,
   buildPackingSlipRecipientLines,
   buildPackingSlipShopFooter,
   resolvePackingSlipShopAddressLines,
@@ -52,22 +53,34 @@ describe("packing slip format (Hub of craftss)", () => {
     ]);
   });
 
-  it("omits phone on BILL TO", () => {
-    const lines = buildPackingSlipRecipientLines({
-      customerName: "Anshula Tayal",
-      customerMobile: "9654445244",
-      includePhone: false,
-      shippingAddress: {
-        line1: "C-410",
-        line2: null,
-        city: "New Delhi",
-        state: "Delhi",
-        postalCode: "110017",
-        country: "India",
-      },
-    });
-    expect(lines).not.toContain("9654445244");
-    expect(lines.at(-1)).toBe("India");
+  it("prints Hub shop address under FROM (not the customer)", () => {
+    const lines = buildPackingSlipFromLines(null, { includePhone: true });
+    expect(lines[0]).toBe(siteConfig.name);
+    expect(lines).toContain("No 162, Kasim Residency");
+    expect(lines).toContain("Sarojini Nagar");
+    expect(lines).toContain("Madurai – 625107, Tamil Nadu");
+    expect(lines).toContain("India");
+    expect(lines).toContain(siteConfig.phone);
+    expect(lines).not.toContain("Anshula Tayal");
+  });
+
+  it("uses admin shop-contact lines for FROM when provided", () => {
+    const lines = buildPackingSlipFromLines(
+      [
+        "No 162, Kasim Residency",
+        "Sarojini Nagar",
+        "Madurai – 625107, Tamil Nadu",
+        "India",
+      ],
+      { includePhone: false },
+    );
+    expect(lines).toEqual([
+      siteConfig.name,
+      "No 162, Kasim Residency",
+      "Sarojini Nagar",
+      "Madurai – 625107, Tamil Nadu",
+      "India",
+    ]);
   });
 
   it("prints shop footer from Hub site defaults with proprietor phone", () => {

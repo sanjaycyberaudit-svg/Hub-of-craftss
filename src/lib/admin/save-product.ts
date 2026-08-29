@@ -1,16 +1,14 @@
-import {
-  buildUniqueProductSlug,
-  createNextProductCode,
-  PRODUCT_CODE_LOCK_ID,
-} from "@/lib/admin/product-slug";
+import { insertProductWithoutTransaction } from "@/lib/admin/product-insert";
 import { normalizeProductFormPayload } from "@/lib/admin/normalize-product-form-payload";
 import {
   normalizeProductImageMediaIds,
   syncProductGalleryImages,
 } from "@/lib/admin/product-gallery";
 import db from "@/lib/supabase/db";
+import { mapProductSaveError } from "@/lib/supabase/pooler-errors";
+import { withRetry } from "@/lib/resilience";
 import { InsertProducts, products } from "@/lib/supabase/schema";
-import { eq, sql } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { createInsertSchema } from "drizzle-zod";
 
 export type ProductImageOptions = {
@@ -98,35 +96,27 @@ export async function createProductRecord(
 
   const base = toWritableProductFields(product, featuredImageId);
 
-  const data = await db.transaction(async (tx) => {
-    await tx.execute(
-      sql`select pg_advisory_xact_lock(${PRODUCT_CODE_LOCK_ID})`,
+  try {
+    const created = await insertProductWithoutTransaction(
+      () => base.name,
+      (identity) => ({
+        ...base,
+        id: identity.id,
+        productCode: identity.productCode,
+        slug: identity.slug,
+      }),
     );
 
-    const productCode = await createNextProductCode(tx);
-    const slug = await buildUniqueProductSlug(tx, base.name, productCode);
-    const values = {
-      ...base,
-      productCode,
-      slug,
-    };
+    try {
+      await syncProductGalleryImages(created.id, orderedMediaIds);
+    } catch (error) {
+      console.error("[products] gallery sync failed after create:", error);
+    }
 
-    createInsertSchema(products).parse(values);
-    return tx.insert(products).values(values).returning();
-  });
-
-  const created = data[0];
-  if (!created) {
-    throw new Error("Product was not created.");
-  }
-
-  try {
-    await syncProductGalleryImages(created.id, orderedMediaIds);
+    return serializeProductRow(created as unknown as Record<string, unknown>);
   } catch (error) {
-    console.error("[products] gallery sync failed after create:", error);
+    throw mapProductSaveError(error);
   }
-
-  return serializeProductRow(created as unknown as Record<string, unknown>);
 }
 
 export async function updateProductRecord(
@@ -134,51 +124,66 @@ export async function updateProductRecord(
   product: InsertProducts,
   options?: ProductImageOptions,
 ) {
-  const [existing] = await db
-    .select({
-      slug: products.slug,
-      productCode: products.productCode,
-    })
-    .from(products)
-    .where(eq(products.id, productId))
-    .limit(1);
-
-  if (!existing) {
-    throw new Error("Product not found.");
-  }
-
-  const { featuredImageId, orderedMediaIds } = resolveFeaturedAndGallery(
-    product,
-    options,
-  );
-  if (!featuredImageId) {
-    throw new Error("Select at least one product image.");
-  }
-
-  const base = toWritableProductFields(product, featuredImageId);
-  const values = {
-    ...base,
-    slug: existing.slug,
-    productCode: existing.productCode,
-  };
-
-  createInsertSchema(products).parse(values);
-
-  const [updated] = await db
-    .update(products)
-    .set(values)
-    .where(eq(products.id, productId))
-    .returning();
-
-  if (!updated) {
-    throw new Error("Product was not updated.");
-  }
-
   try {
-    await syncProductGalleryImages(productId, orderedMediaIds);
-  } catch (error) {
-    console.error("[products] gallery sync failed after update:", error);
-  }
+    const existing = await withRetry(
+      async () => {
+        const [row] = await db
+          .select({
+            slug: products.slug,
+            productCode: products.productCode,
+          })
+          .from(products)
+          .where(eq(products.id, productId))
+          .limit(1);
+        return row ?? null;
+      },
+      { label: "product-update-load" },
+    );
 
-  return serializeProductRow(updated as unknown as Record<string, unknown>);
+    if (!existing) {
+      throw new Error("Product not found.");
+    }
+
+    const { featuredImageId, orderedMediaIds } = resolveFeaturedAndGallery(
+      product,
+      options,
+    );
+    if (!featuredImageId) {
+      throw new Error("Select at least one product image.");
+    }
+
+    const base = toWritableProductFields(product, featuredImageId);
+    const values = {
+      ...base,
+      slug: existing.slug,
+      productCode: existing.productCode,
+    };
+
+    createInsertSchema(products).parse(values);
+
+    const updated = await withRetry(
+      async () => {
+        const [row] = await db
+          .update(products)
+          .set(values)
+          .where(eq(products.id, productId))
+          .returning();
+        if (!row) {
+          throw new Error("Product was not updated.");
+        }
+        return row;
+      },
+      { label: "product-update" },
+    );
+
+    try {
+      await syncProductGalleryImages(productId, orderedMediaIds);
+    } catch (error) {
+      console.error("[products] gallery sync failed after update:", error);
+    }
+
+    return serializeProductRow(updated as unknown as Record<string, unknown>);
+  } catch (error) {
+    throw mapProductSaveError(error);
+  }
 }

@@ -3,11 +3,18 @@
 import * as React from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { FileDown, Loader2 } from "lucide-react";
+import { FileDown, Filter, Loader2 } from "lucide-react";
 
 import AdminOrdersList from "@/features/orders/components/admin/AdminOrdersList";
+import { AdminOrdersDateFilterModal } from "@/features/orders/components/admin/AdminOrdersDateFilterModal";
 import type { AdminOrderListView } from "@/lib/admin/getAdminOrdersList";
 import { clampAdminOrdersPageSize } from "@/lib/admin/admin-orders-pagination";
+import {
+  appendAdminOrdersDateParams,
+  describeAdminOrdersDateFilters,
+  isAdminOrdersDateFilterHighlighted,
+  type AdminOrdersDateFilterState,
+} from "@/lib/admin/admin-orders-date-filter";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/components/ui/use-toast";
@@ -40,6 +47,7 @@ type Props = {
   unpaidPageParam: string;
   pageSizeParam: string;
   resetPageParams: string[];
+  dateFilter: AdminOrdersDateFilterState;
 };
 
 const ORDERS_PATH = "/admin/orders";
@@ -52,14 +60,20 @@ export function parseOrdersSegment(
   const raw = String(value ?? "")
     .trim()
     .toLowerCase();
-  return raw === "unpaid" || raw === "pending" ? "unpaid" : "paid";
+  // Default unpaid when status missing (today + unpaid landing).
+  if (raw === "paid") return "paid";
+  return "unpaid";
 }
 
-export function segmentHref(nextSegment: OrdersSegment, pageSize: number) {
+export function segmentHref(
+  nextSegment: OrdersSegment,
+  pageSize: number,
+  dateFilter: AdminOrdersDateFilterState,
+) {
   const params = new URLSearchParams();
   params.set("status", nextSegment);
-  // Keep shared page size; reset per-segment pages by omitting them.
   if (pageSize > 0) params.set("pageSize", String(pageSize));
+  appendAdminOrdersDateParams(params, dateFilter);
   return `${ORDERS_PATH}?${params.toString()}`;
 }
 
@@ -82,6 +96,7 @@ export function AdminOrdersSegmentTabs({
   unpaidPageParam,
   pageSizeParam,
   resetPageParams,
+  dateFilter,
 }: Props) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -91,6 +106,8 @@ export function AdminOrdersSegmentTabs({
     React.useState(false);
   const [loadingTo, setLoadingTo] = React.useState<OrdersSegment | null>(null);
   const [navError, setNavError] = React.useState<string | null>(null);
+  const [filterOpen, setFilterOpen] = React.useState(false);
+  const [filterApplying, setFilterApplying] = React.useState(false);
 
   const urlSegment = parseOrdersSegment(searchParams?.get("status"));
   const pageSize = clampAdminOrdersPageSize(
@@ -100,27 +117,26 @@ export function AdminOrdersSegmentTabs({
       undefined,
   );
 
-  // Props caught up with the URL — navigation succeeded.
   React.useEffect(() => {
     if (segment === urlSegment) {
       setLoadingTo((current) =>
         current == null || current === segment ? null : current,
       );
       setNavError(null);
+      setFilterApplying(false);
     }
   }, [segment, urlSegment]);
 
-  // Stall watchdog: never leave the unpaid/paid switch hanging forever.
   React.useEffect(() => {
     if (loadingTo == null && segment === urlSegment) return;
     const waitingFor = loadingTo ?? urlSegment;
     const timer = window.setTimeout(() => {
-      // Still out of sync after timeout — surface retry instead of blank/stuck UI.
       if (segment !== waitingFor) {
         setNavError(
           `Could not load ${waitingFor} orders. Check your connection and retry.`,
         );
         setLoadingTo(null);
+        setFilterApplying(false);
       }
     }, NAV_STALL_TIMEOUT_MS);
     return () => window.clearTimeout(timer);
@@ -131,18 +147,31 @@ export function AdminOrdersSegmentTabs({
   const isLoading = !dataReady;
   const active = segment === "unpaid" ? unpaid : paid;
   const showPdfToolbar = dataReady && segment === "paid";
+  const filterHighlighted = isAdminOrdersDateFilterHighlighted(dateFilter);
+  const dateLabel = describeAdminOrdersDateFilters(dateFilter);
 
   const navigateTo = React.useCallback(
     (next: OrdersSegment) => {
       if (next === segment && next === urlSegment && loadingTo == null) return;
       setNavError(null);
       setLoadingTo(next);
-      const href = segmentHref(next, pageSize);
+      const href = segmentHref(next, pageSize, dateFilter);
       router.push(href, { scroll: false });
-      // Force RSC refetch — soft Link nav alone can stall on searchParam switches.
       router.refresh();
     },
-    [loadingTo, pageSize, router, segment, urlSegment],
+    [dateFilter, loadingTo, pageSize, router, segment, urlSegment],
+  );
+
+  const applyDateFilter = React.useCallback(
+    (next: AdminOrdersDateFilterState) => {
+      setFilterApplying(true);
+      setFilterOpen(false);
+      setNavError(null);
+      const href = segmentHref(segment, pageSize, next);
+      router.push(href, { scroll: false });
+      router.refresh();
+    },
+    [pageSize, router, segment],
   );
 
   const downloadBulkPdf = React.useCallback(async () => {
@@ -193,86 +222,109 @@ export function AdminOrdersSegmentTabs({
 
   return (
     <div className="space-y-4">
-      <div
-        className="grid gap-4 md:grid-cols-2"
-        role="tablist"
-        aria-label="Order payment status"
-      >
-        <Link
-          href={segmentHref("paid", pageSize)}
-          replace
-          scroll={false}
-          prefetch
-          role="tab"
-          aria-selected={displaySegment === "paid"}
-          aria-busy={isLoading && displaySegment === "paid"}
-          onClick={(event) => {
-            event.preventDefault();
-            navigateTo("paid");
-          }}
-          className={cn(
-            "rounded-lg border p-4 text-left transition-colors",
-            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
-            displaySegment === "paid"
-              ? "border-primary bg-primary/5 shadow-sm"
-              : "border-border bg-card hover:border-primary/40 hover:bg-muted/30",
-          )}
+      <div className="flex items-start justify-between gap-3">
+        <div
+          className="grid min-w-0 flex-1 gap-4 md:grid-cols-2"
+          role="tablist"
+          aria-label="Order payment status"
         >
-          <p
+          <Link
+            href={segmentHref("paid", pageSize, dateFilter)}
+            replace
+            scroll={false}
+            prefetch
+            role="tab"
+            aria-selected={displaySegment === "paid"}
+            aria-busy={isLoading && displaySegment === "paid"}
+            onClick={(event) => {
+              event.preventDefault();
+              navigateTo("paid");
+            }}
             className={cn(
-              "text-xs uppercase tracking-wide",
+              "rounded-lg border p-4 text-left transition-colors",
+              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
               displaySegment === "paid"
-                ? "text-primary"
-                : "text-muted-foreground",
+                ? "border-primary bg-primary/5 shadow-sm"
+                : "border-border bg-card hover:border-primary/40 hover:bg-muted/30",
             )}
           >
-            Paid orders
-          </p>
-          <p className="mt-1 text-2xl font-semibold tabular-nums text-foreground">
-            {counts.paid}
-          </p>
-          <p className="mt-1 text-xs text-muted-foreground">
-            Counted in dashboard revenue and top products
-          </p>
-        </Link>
+            <p
+              className={cn(
+                "text-xs uppercase tracking-wide",
+                displaySegment === "paid"
+                  ? "text-primary"
+                  : "text-muted-foreground",
+              )}
+            >
+              Paid orders
+            </p>
+            <p className="mt-1 text-2xl font-semibold tabular-nums text-foreground">
+              {counts.paid}
+            </p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Counted in dashboard revenue and top products
+            </p>
+          </Link>
 
-        <Link
-          href={segmentHref("unpaid", pageSize)}
-          replace
-          scroll={false}
-          prefetch
-          role="tab"
-          aria-selected={displaySegment === "unpaid"}
-          aria-busy={isLoading && displaySegment === "unpaid"}
-          onClick={(event) => {
-            event.preventDefault();
-            navigateTo("unpaid");
-          }}
-          className={cn(
-            "rounded-lg border p-4 text-left transition-colors",
-            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
-            displaySegment === "unpaid"
-              ? "border-destructive bg-destructive/5 shadow-sm"
-              : "border-border bg-card hover:border-destructive/40 hover:bg-muted/30",
-          )}
-        >
-          <p
+          <Link
+            href={segmentHref("unpaid", pageSize, dateFilter)}
+            replace
+            scroll={false}
+            prefetch
+            role="tab"
+            aria-selected={displaySegment === "unpaid"}
+            aria-busy={isLoading && displaySegment === "unpaid"}
+            onClick={(event) => {
+              event.preventDefault();
+              navigateTo("unpaid");
+            }}
             className={cn(
-              "text-xs uppercase tracking-wide",
+              "rounded-lg border p-4 text-left transition-colors",
+              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
               displaySegment === "unpaid"
-                ? "text-destructive"
-                : "text-muted-foreground",
+                ? "border-destructive bg-destructive/5 shadow-sm"
+                : "border-border bg-card hover:border-destructive/40 hover:bg-muted/30",
             )}
           >
-            Unpaid / pending
-          </p>
-          <p className="mt-1 text-2xl font-semibold tabular-nums text-foreground">
-            {counts.pending}
-          </p>
-          <p className="mt-1 text-xs text-muted-foreground">
-            Follow up — payment not completed
-          </p>
-        </Link>
+            <p
+              className={cn(
+                "text-xs uppercase tracking-wide",
+                displaySegment === "unpaid"
+                  ? "text-destructive"
+                  : "text-muted-foreground",
+              )}
+            >
+              Unpaid / pending
+            </p>
+            <p className="mt-1 text-2xl font-semibold tabular-nums text-foreground">
+              {counts.pending}
+            </p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Follow up — payment not completed
+            </p>
+          </Link>
+        </div>
+
+        <Button
+          type="button"
+          variant="outline"
+          size="icon"
+          className={cn(
+            "relative shrink-0",
+            filterHighlighted && "border-primary text-primary",
+          )}
+          aria-label={`Filter orders (${dateLabel})`}
+          title={`Filter: ${dateLabel}`}
+          onClick={() => setFilterOpen(true)}
+        >
+          <Filter className="h-4 w-4" />
+          {filterHighlighted ? (
+            <span
+              className="absolute right-1 top-1 h-2 w-2 rounded-full bg-destructive"
+              aria-hidden
+            />
+          ) : null}
+        </Button>
       </div>
 
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -297,7 +349,8 @@ export function AdminOrdersSegmentTabs({
               <span className="font-medium text-foreground">
                 {segment === "unpaid" ? "unpaid" : "paid"}
               </span>{" "}
-              orders
+              ·{" "}
+              <span className="font-medium text-foreground">{dateLabel}</span>
               {active.totalCount > 0 ? <> ({active.totalCount})</> : null}
             </>
           )}
@@ -357,7 +410,7 @@ export function AdminOrdersSegmentTabs({
         <OrdersListSkeleton />
       ) : (
         <AdminOrdersList
-          key={segment}
+          key={`${segment}-${dateLabel}`}
           orders={active.rows}
           totalCount={active.totalCount}
           page={active.page}
@@ -368,11 +421,21 @@ export function AdminOrdersSegmentTabs({
           enablePdf={segment === "paid"}
           emptyMessage={
             segment === "unpaid"
-              ? "No unpaid orders right now."
-              : "No paid orders yet."
+              ? `No unpaid orders for ${dateLabel.toLowerCase()}.`
+              : `No paid orders for ${dateLabel.toLowerCase()}.`
           }
         />
       )}
+
+      <AdminOrdersDateFilterModal
+        open={filterOpen}
+        initialFilters={dateFilter}
+        applying={filterApplying}
+        onClose={() => {
+          if (!filterApplying) setFilterOpen(false);
+        }}
+        onApply={applyDateFilter}
+      />
     </div>
   );
 }

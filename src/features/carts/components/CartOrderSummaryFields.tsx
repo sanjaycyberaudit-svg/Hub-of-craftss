@@ -58,10 +58,14 @@ export function CartOrderSummaryFields({
     <>
       {courierEnabled ? (
         <div className="mb-4">
-          <label className="mb-2 block text-xs font-medium text-muted-foreground">
+          <label
+            htmlFor="cart-delivery-pincode"
+            className="mb-2 block text-xs font-medium text-muted-foreground"
+          >
             Delivery PIN code
           </label>
           <Input
+            id="cart-delivery-pincode"
             value={deliveryPincode}
             inputMode="numeric"
             autoComplete="postal-code"

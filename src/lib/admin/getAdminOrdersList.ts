@@ -3,6 +3,11 @@ import {
   resolveCheckoutOutcome,
   type CheckoutOutcome,
 } from "@/lib/checkout/checkout-outcome";
+import {
+  istDateRangeToUtcBounds,
+  resolveAdminOrdersDateFilters,
+  type AdminOrdersDateFilterState,
+} from "@/lib/admin/admin-orders-date-filter";
 import db from "@/lib/supabase/db";
 import {
   address,
@@ -12,7 +17,7 @@ import {
   products,
 } from "@/lib/supabase/schema";
 import { keytoUrl } from "@/lib/utils";
-import { desc, eq, inArray, sql, type SQL } from "drizzle-orm";
+import { and, desc, eq, gte, inArray, lt, sql, type SQL } from "drizzle-orm";
 import {
   clampAdminOrdersPageSize,
   type AdminOrdersSegment,
@@ -61,6 +66,8 @@ export type AdminOrdersListParams = {
   segment: AdminOrdersSegment;
   page?: number;
   pageSize?: number;
+  /** IST calendar date filter; omitted / all = no createdAt bound. */
+  dateFilter?: AdminOrdersDateFilterState | null;
 };
 
 export type AdminOrdersListResult = {
@@ -87,6 +94,31 @@ function buildSegmentWhereClause(segment: AdminOrdersSegment): SQL {
   return sql`${orderStatus} <> 'cancelled' and (${orderStatus} = 'pending' or ${paymentStatus} in ('unpaid', 'pending', 'failed'))`;
 }
 
+function buildDateWhereClause(
+  dateFilter?: AdminOrdersDateFilterState | null,
+): SQL | null {
+  if (!dateFilter) return null;
+  const resolved = resolveAdminOrdersDateFilters(dateFilter);
+  if (resolved.allOrders || !resolved.fromDate || !resolved.toDate) return null;
+  const { startUtc, endExclusiveUtc } = istDateRangeToUtcBounds(
+    resolved.fromDate,
+    resolved.toDate,
+  );
+  return and(
+    gte(orders.createdAt, startUtc),
+    lt(orders.createdAt, endExclusiveUtc),
+  )!;
+}
+
+function combineWhere(
+  segment: AdminOrdersSegment,
+  dateFilter?: AdminOrdersDateFilterState | null,
+): SQL {
+  const segmentWhere = buildSegmentWhereClause(segment);
+  const dateWhere = buildDateWhereClause(dateFilter);
+  return dateWhere ? and(segmentWhere, dateWhere)! : segmentWhere;
+}
+
 async function countOrders(where: SQL): Promise<number> {
   const rows = await db
     .select({ count: sql<number>`count(*)::int` })
@@ -95,13 +127,15 @@ async function countOrders(where: SQL): Promise<number> {
   return Number(rows[0]?.count ?? 0);
 }
 
-/** Counts for the summary cards — cheap aggregate queries, no row payloads. */
-export async function getAdminOrdersCounts(): Promise<{
+/** Counts for the summary cards — respect the active date window. */
+export async function getAdminOrdersCounts(
+  dateFilter?: AdminOrdersDateFilterState | null,
+): Promise<{
   paid: number;
   pending: number;
 }> {
-  const paid = await countOrders(buildSegmentWhereClause("paid"));
-  const pending = await countOrders(buildSegmentWhereClause("pending"));
+  const paid = await countOrders(combineWhere("paid", dateFilter));
+  const pending = await countOrders(combineWhere("pending", dateFilter));
   return { paid, pending };
 }
 
@@ -154,7 +188,7 @@ export async function getAdminOrdersList(
 ): Promise<AdminOrdersListResult> {
   const pageSize = clampAdminOrdersPageSize(params.pageSize);
   const requestedPage = Math.max(1, Math.round(params.page ?? 1));
-  const where = buildSegmentWhereClause(params.segment);
+  const where = combineWhere(params.segment, params.dateFilter);
 
   const totalCount = await countOrders(where);
   const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));

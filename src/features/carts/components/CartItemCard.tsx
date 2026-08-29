@@ -17,7 +17,7 @@ import {
 
 import { ProductPriceDisplay } from "@/features/products/components/ProductPriceDisplay";
 import { formatProductPackLabel } from "@/lib/products/pack";
-import { getStorefrontImageProps, keytoUrl } from "@/lib/utils";
+import { cn, getStorefrontImageProps, keytoUrl } from "@/lib/utils";
 import { UseQueryExecute } from "@urql/next";
 import Link from "next/link";
 import { Icons } from "../../../components/layouts/icons";
@@ -66,6 +66,8 @@ function CartItemCard({
   optionGroups,
   onSizeChange,
   onSelectionsChange,
+  className,
+  ...props
 }: CartItemCardProps) {
   const groups =
     optionGroups && optionGroups.length > 0
@@ -91,7 +93,14 @@ function CartItemCard({
   });
 
   return (
-    <Card className="flex items-start gap-3 border-0 bg-transparent px-3 py-3 shadow-none md:items-center md:gap-6 md:px-5">
+    <Card
+      className={cn(
+        "flex items-start gap-3 border-0 bg-transparent px-3 py-3 shadow-none md:items-center md:gap-6 md:px-5",
+        className,
+      )}
+      data-cart-line-incomplete={missingRequired ? "true" : undefined}
+      {...props}
+    >
       <CardContent className="relative shrink-0 overflow-hidden p-0">
         <Image
           src={imageSrc}

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { cn } from "@/lib/utils";
 import { Spinner } from "@/components/ui/spinner";
 import { Button } from "@/components/ui/button";
@@ -10,13 +10,21 @@ import { CheckoutAddressDialog } from "@/features/addresses";
 import type { SavedShippingAddress } from "@/features/addresses";
 import { clearCheckoutAddressDraft } from "@/features/addresses/lib/checkoutAddressDraft";
 import { clearClaimedOfferCode } from "@/features/offers/lib/welcomeOffer";
+import {
+  formatCheckoutErrorMessage,
+  isCheckoutPaymentCancelled,
+} from "@/features/checkout/format-checkout-error";
+import { creatingOrderProgress } from "@/features/checkout/checkout-progress";
 import { startCheckout } from "@/features/checkout/startCheckout";
 import { useCheckoutProgress } from "@/features/checkout/useCheckoutProgress";
 import BulkOrderGuardDialog from "@/features/carts/components/BulkOrderGuardDialog";
 import { isBulkOrderQuantity } from "@/features/carts/constants/bulkOrder";
 import { useAuth } from "@/providers/AuthProvider";
 import { useBulkOrderGuardConfig } from "@/providers/BulkOrderGuardProvider";
+import { useCheckoutChrome } from "@/providers/CheckoutChromeProvider";
 import { fetchWithTimeout } from "@/lib/network/fetchWithTimeout";
+
+export const CART_DELIVERY_PINCODE_INPUT_ID = "cart-delivery-pincode";
 
 type CheckoutButtonProps = React.ComponentProps<typeof Button> & {
   order: CartItems;
@@ -26,6 +34,23 @@ type CheckoutButtonProps = React.ComponentProps<typeof Button> & {
   requireDeliveryStateSelection?: boolean;
   hasDeliveryStateSelected?: boolean;
 };
+
+function focusCartDeliveryPincode() {
+  const el = document.getElementById(CART_DELIVERY_PINCODE_INPUT_ID);
+  if (!(el instanceof HTMLElement)) return;
+  el.scrollIntoView({ behavior: "smooth", block: "center" });
+  if (el instanceof HTMLInputElement) {
+    window.setTimeout(() => el.focus(), 200);
+  }
+}
+
+function focusFirstIncompleteCartLine() {
+  const el = document.querySelector<HTMLElement>(
+    "[data-cart-line-incomplete='true']",
+  );
+  if (!el) return;
+  el.scrollIntoView({ behavior: "smooth", block: "center" });
+}
 
 function CheckoutButton({
   order,
@@ -39,11 +64,18 @@ function CheckoutButton({
   const { user } = useAuth();
   const bulkOrder = useBulkOrderGuardConfig();
   const { toast } = useToast();
+  const { setHideStoreChrome } = useCheckoutChrome();
   const [open, setOpen] = useState(false);
   const [bulkGuardOpen, setBulkGuardOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const { progress, isLocked, beginProgress, clearProgress, overlay } =
     useCheckoutProgress();
+
+  useEffect(() => {
+    setHideStoreChrome(open || isLocked || isLoading);
+    return () => setHideStoreChrome(false);
+  }, [open, isLocked, isLoading, setHideStoreChrome]);
+
   const hasBulkLineItem = useMemo(
     () =>
       bulkOrder.enabled &&
@@ -56,6 +88,10 @@ function CheckoutButton({
     () => Object.values(order).reduce((sum, item) => sum + item.quantity, 0),
     [order],
   );
+
+  const pinBlocked =
+    requireDeliveryStateSelection && !hasDeliveryStateSelected;
+  const sizeBlocked = missingSizeProductNames.length > 0;
 
   const accountDefaults = useMemo(
     () =>
@@ -70,10 +106,12 @@ function CheckoutButton({
   );
 
   const handleCheckoutComplete = async (shipping: SavedShippingAddress) => {
-    setOpen(false);
     setIsLoading(true);
+    // Keep progress visible across dialog close so cart chrome does not flash.
+    beginProgress(creatingOrderProgress());
+    setOpen(false);
     await new Promise<void>((resolve) => {
-      window.setTimeout(() => resolve(), 500);
+      window.setTimeout(() => resolve(), 250);
     });
     try {
       await startCheckout({
@@ -87,11 +125,19 @@ function CheckoutButton({
       if (promoCode) clearClaimedOfferCode();
     } catch (err) {
       clearProgress();
-      toast({
-        title: "Checkout failed",
-        description: err instanceof Error ? err.message : "Please try again.",
-        variant: "destructive",
-      });
+      if (isCheckoutPaymentCancelled(err)) {
+        toast({
+          title: "Payment not completed",
+          description: "You can try again when ready.",
+        });
+      } else {
+        toast({
+          title: "Checkout failed",
+          description: formatCheckoutErrorMessage(err),
+          variant: "destructive",
+        });
+      }
+      // Handled via toast — do not rethrow (avoids Sentry unhandledrejection noise).
     } finally {
       setIsLoading(false);
     }
@@ -106,20 +152,20 @@ function CheckoutButton({
         className={cn("w-full", props.className)}
         onClick={async () => {
           if (isLocked) return;
-          if (requireDeliveryStateSelection && !hasDeliveryStateSelected) {
+          if (pinBlocked) {
+            focusCartDeliveryPincode();
             toast({
               title: "Enter delivery PIN",
               description:
-                "Please enter your 6-digit PIN code in cart summary before checkout.",
-              variant: "destructive",
+                "Enter your 6-digit PIN in the cart summary to continue.",
             });
             return;
           }
-          if (missingSizeProductNames.length > 0) {
+          if (sizeBlocked) {
+            focusFirstIncompleteCartLine();
             toast({
               title: "Select option in cart",
               description: `${missingSizeProductNames[0]}: please select an option before checkout.`,
-              variant: "destructive",
             });
             return;
           }
@@ -149,11 +195,11 @@ function CheckoutButton({
             );
             const requiredMissing = results.find((result) => result.required);
             if (requiredMissing) {
+              focusFirstIncompleteCartLine();
               toast({
                 title: "Select option in cart",
                 description:
                   "Please select the required option for all products before checkout.",
-                variant: "destructive",
               });
               return;
             }
@@ -164,7 +210,20 @@ function CheckoutButton({
           }
           setOpen(true);
         }}
-        disabled={isLoading || isLocked || props.disabled}
+        disabled={
+          isLoading ||
+          isLocked ||
+          pinBlocked ||
+          sizeBlocked ||
+          Boolean(props.disabled)
+        }
+        title={
+          pinBlocked
+            ? "Enter your delivery PIN first"
+            : sizeBlocked
+              ? "Select required options first"
+              : props.title
+        }
       >
         {isLoading || isLocked ? "Processing…" : "Check out"}
         {(isLoading || isLocked) && (

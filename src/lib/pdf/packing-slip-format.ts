@@ -93,7 +93,7 @@ export function formatPackingSlipOrderHeading(orderId: string): string {
   return `Order #${id}`;
 }
 
-/** SHIP TO / BILL TO body lines (name, street, pincode city ST, country). */
+/** SHIP TO body lines (name, street, pincode city ST, country [, phone]). */
 export function buildPackingSlipRecipientLines(order: {
   customerName: string | null;
   customerMobile?: string | null;
@@ -125,6 +125,40 @@ export function buildPackingSlipRecipientLines(order: {
 
   if (order.includePhone) {
     const phone = order.customerMobile?.trim();
+    if (phone) lines.push(phone);
+  }
+
+  return lines;
+}
+
+/**
+ * FROM body lines for the packing slip — shop / sender address
+ * (admin shop-contact when enabled, else siteConfig.addressLines).
+ */
+export function buildPackingSlipFromLines(
+  addressLines?: readonly string[] | null,
+  options?: { includePhone?: boolean },
+): string[] {
+  const lines: string[] = [];
+  const brand = String(PACKING_SLIP_BRAND ?? "").trim() || siteConfig.name;
+  lines.push(brand);
+
+  const raw = (
+    addressLines && addressLines.length > 0
+      ? addressLines
+      : siteConfig.addressLines
+  )
+    .map((line) => String(line ?? "").trim())
+    .filter(Boolean);
+
+  const withoutCountry = raw.filter((line) => !/^india$/i.test(line));
+  for (const line of withoutCountry) {
+    lines.push(line);
+  }
+  lines.push("India");
+
+  if (options?.includePhone !== false) {
+    const phone = String(siteConfig.phone ?? "").trim();
     if (phone) lines.push(phone);
   }
 

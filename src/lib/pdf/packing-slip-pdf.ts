@@ -1,6 +1,7 @@
 import {
   PACKING_SLIP_BRAND,
   PACKING_SLIP_THANKS,
+  buildPackingSlipFromLines,
   buildPackingSlipRecipientLines,
   buildPackingSlipShopFooter,
   formatPackingSlipDate,
@@ -172,7 +173,12 @@ function drawHeader(doc: Doc, order: PackingSlipOrder, y: number): number {
   return y + 18;
 }
 
-function drawAddresses(doc: Doc, order: PackingSlipOrder, y: number): number {
+function drawAddresses(
+  doc: Doc,
+  order: PackingSlipOrder,
+  y: number,
+  shopAddressLines?: readonly string[] | null,
+): number {
   const colW = (A4_W - MARGIN * 2 - 10) / 2;
   const leftX = MARGIN;
   const rightX = MARGIN + colW + 10;
@@ -180,7 +186,7 @@ function drawAddresses(doc: Doc, order: PackingSlipOrder, y: number): number {
   doc.setFont("helvetica", "bold");
   doc.setFontSize(9);
   doc.text("SHIP TO", leftX, y);
-  doc.text("BILL TO", rightX, y);
+  doc.text("FROM", rightX, y);
 
   doc.setFont("helvetica", "normal");
   doc.setFontSize(10);
@@ -188,21 +194,20 @@ function drawAddresses(doc: Doc, order: PackingSlipOrder, y: number): number {
     ...order,
     includePhone: true,
   });
-  const bill = buildPackingSlipRecipientLines({
-    ...order,
-    includePhone: false,
+  const from = buildPackingSlipFromLines(shopAddressLines, {
+    includePhone: true,
   });
 
   const wrapCol = (lines: string[]) =>
     lines.flatMap((line) => doc.splitTextToSize(line, colW));
   const shipWrapped = wrapCol(ship);
-  const billWrapped = wrapCol(bill);
-  const maxLines = Math.max(shipWrapped.length, billWrapped.length);
+  const fromWrapped = wrapCol(from);
+  const maxLines = Math.max(shipWrapped.length, fromWrapped.length);
   const lineH = 5;
   for (let i = 0; i < maxLines; i++) {
     const rowY = y + 7 + i * lineH;
     if (shipWrapped[i]) doc.text(shipWrapped[i], leftX, rowY);
-    if (billWrapped[i]) doc.text(billWrapped[i], rightX, rowY);
+    if (fromWrapped[i]) doc.text(fromWrapped[i], rightX, rowY);
   }
   return y + 7 + maxLines * lineH + 4;
 }
@@ -276,7 +281,7 @@ async function drawPackingSlip(
 ) {
   const thumbs = await loadItemImages(order);
   let y = drawHeader(doc, order, 22);
-  y = drawAddresses(doc, order, y);
+  y = drawAddresses(doc, order, y, shopAddressLines);
   y += 4;
   y = drawItemHeader(doc, y);
   // Printed sheet: ITEMS / QUANTITY sit on a full-width rule, then product rows.
