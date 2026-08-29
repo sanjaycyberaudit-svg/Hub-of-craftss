@@ -1,6 +1,14 @@
 import { siteConfig } from "@/config/site";
+import { BRAND_LOGO } from "@/lib/brand/logo";
 import { formatOrderDateTimeIst } from "@/lib/datetime/india";
-import { formatInr } from "@/lib/utils";
+import {
+  resolveOrderLineImageAlt,
+  resolveOrderLineImageKey,
+  resolveOrderLineProductCode,
+  resolveOrderLineProductName,
+} from "@/lib/orders/order-line-display";
+import type { SelectOrders } from "@/lib/supabase/schema";
+import { formatInr, keytoUrl } from "@/lib/utils";
 
 export type OrderEmailLineItem = {
   name: string;
@@ -20,7 +28,7 @@ export type OrderEmailShippingAddress = {
   country: string | null;
 };
 
-export function escapeHtml(value: string) {
+export function escapeHtml(value: string): string {
   return value
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
@@ -28,45 +36,160 @@ export function escapeHtml(value: string) {
     .replace(/"/g, "&quot;");
 }
 
-export function buildEmailBrandHeaderHtml() {
-  return `<div style="margin-bottom:20px;font-size:22px;font-weight:700;">${escapeHtml(siteConfig.name)}</div>`;
+export function resolveOrderEmailImageUrl(key?: string | null): string {
+  const raw = keytoUrl(key ?? undefined);
+  if (raw.startsWith("/")) {
+    return `${siteConfig.url.replace(/\/$/, "")}${raw}`;
+  }
+  return raw;
 }
 
-export function buildEmailFooterHtml() {
-  const contact = siteConfig.email
-    ? ` or contact us at ${escapeHtml(siteConfig.email)}`
-    : "";
-  return `<p style="margin-top:24px;color:#555;font-size:13px;">Questions? Reply to this email${contact}.</p><p style="color:#888;font-size:12px;">${escapeHtml(siteConfig.url)}</p>`;
+export function mapOrderLineRowToEmailItem(row: {
+  productNameSnapshot?: string | null;
+  productCodeSnapshot?: string | null;
+  productImageKeySnapshot?: string | null;
+  quantity: number | string | null;
+  price: number | string | null;
+  imageAlt?: string | null;
+}): OrderEmailLineItem {
+  const imageKey = resolveOrderLineImageKey(row);
+  return {
+    name: resolveOrderLineProductName(row),
+    quantity: Number(row.quantity ?? 0),
+    unitPrice: Number(row.price ?? 0),
+    imageUrl: resolveOrderEmailImageUrl(imageKey),
+    imageAlt: resolveOrderLineImageAlt(row),
+    productCode: resolveOrderLineProductCode(row),
+  };
 }
 
-export function buildEmailLayoutHtml(input: {
+export function formatOrderPaymentMethodLabel(
+  order: Pick<SelectOrders, "payment_method" | "payment_provider">,
+): string | null {
+  const method = order.payment_method?.trim();
+  const provider = order.payment_provider?.trim();
+  if (provider && method && provider.toLowerCase() !== method.toLowerCase()) {
+    return `${provider} · ${method}`;
+  }
+  return provider || method || null;
+}
+
+export function formatOrderPhoneLabel(
+  mobile: string | null | undefined,
+): string | null {
+  const trimmed = mobile?.trim();
+  return trimmed || null;
+}
+
+export function buildEmailBrandHeaderHtml(): string {
+  const logoUrl = escapeHtml(
+    `${siteConfig.url.replace(/\/$/, "")}${BRAND_LOGO.src}`,
+  );
+  const name = escapeHtml(siteConfig.name);
+  return `<div style="margin-bottom:20px;">
+    <img src="${logoUrl}" alt="${name}" width="140" height="85" style="display:block;height:48px;width:auto;max-width:160px;margin-bottom:8px;" />
+  </div>`;
+}
+
+export function buildEmailFooterHtml(supportEmail = siteConfig.email): string {
+  const email = supportEmail?.trim() || siteConfig.email;
+  return `<p style="margin:24px 0 0;color:#555;font-size:13px;line-height:1.5;">
+    Questions? Reply to this email or write to
+    <a href="mailto:${escapeHtml(email)}" style="color:#111;">${escapeHtml(email)}</a>.
+  </p>
+  <p style="margin:8px 0 0;color:#888;font-size:12px;">${escapeHtml(siteConfig.url)}</p>`;
+}
+
+export function buildEmailLayoutHtml(params: {
   preheader: string;
   bodyHtml: string;
-}) {
-  return `<!doctype html><html><body style="margin:0;background:#f6f6f6;font-family:Arial,sans-serif;color:#111"><div style="display:none">${escapeHtml(input.preheader)}</div><div style="max-width:600px;margin:24px auto;background:#fff;padding:24px;border-radius:8px">${input.bodyHtml}</div></body></html>`;
+}): string {
+  const preheader = escapeHtml(params.preheader);
+  return `<!DOCTYPE html>
+<html lang="en">
+  <body style="margin:0;padding:0;background:#f6f6f6;font-family:Arial,Helvetica,sans-serif;color:#111;">
+    <div style="display:none;max-height:0;overflow:hidden;opacity:0;">${preheader}</div>
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f6f6f6;padding:24px 12px;">
+      <tr>
+        <td align="center">
+          <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:600px;background:#ffffff;border-radius:8px;padding:24px;">
+            <tr>
+              <td>${params.bodyHtml}</td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>`;
 }
 
-export function buildOrderMetaBlockHtml(input: {
+export function buildOrderMetaBlockHtml(params: {
   orderId: string;
   placedAt: string | Date;
+  paymentMethod?: string | null;
   customerPhone?: string | null;
-}) {
-  return `<p style="line-height:1.6"><strong>Order #${escapeHtml(input.orderId)}</strong><br/>Placed ${escapeHtml(formatOrderDateTimeIst(input.placedAt))}${input.customerPhone ? `<br/>Phone: ${escapeHtml(input.customerPhone)}` : ""}</p>`;
+}): string {
+  const lines = [
+    `<strong>Order #${escapeHtml(params.orderId)}</strong>`,
+    `<span style="color:#555;">Placed ${escapeHtml(formatOrderDateTimeIst(params.placedAt))}</span>`,
+  ];
+  if (params.paymentMethod) {
+    lines.push(
+      `<span style="color:#555;">Payment: ${escapeHtml(params.paymentMethod)}</span>`,
+    );
+  }
+  if (params.customerPhone) {
+    lines.push(
+      `<span style="color:#555;">Phone: ${escapeHtml(params.customerPhone)}</span>`,
+    );
+  }
+  return `<p style="margin:0 0 20px;line-height:1.6;">${lines.join("<br />")}</p>`;
 }
 
-export function buildLineItemsPlainText(items: OrderEmailLineItem[]) {
-  return items.map(
-    (item) =>
-      `- ${item.name}${item.productCode ? ` (${item.productCode})` : ""} × ${item.quantity} — ${formatInr(item.unitPrice * item.quantity)}`,
-  );
-}
-
-export function buildLineItemsTableHtml(items: OrderEmailLineItem[]) {
-  const rows = items
-    .map(
-      (item) =>
-        `<tr><td style="padding:8px 0;border-bottom:1px solid #eee">${escapeHtml(item.name)}${item.productCode ? `<br/><small>Code: ${escapeHtml(item.productCode)}</small>` : ""}</td><td style="text-align:right;border-bottom:1px solid #eee">${item.quantity} × ${escapeHtml(formatInr(item.unitPrice))}</td></tr>`,
-    )
+export function buildLineItemsTableHtml(
+  lineItems: OrderEmailLineItem[],
+): string {
+  const rows = lineItems
+    .map((line) => {
+      const name = escapeHtml(line.name);
+      const code = line.productCode
+        ? `<div style="color:#666;font-size:12px;margin-top:2px;">Code: ${escapeHtml(line.productCode)}</div>`
+        : "";
+      const qty = line.quantity;
+      const unit = escapeHtml(formatInr(line.unitPrice));
+      const total = escapeHtml(formatInr(line.unitPrice * line.quantity));
+      const imageUrl = escapeHtml(line.imageUrl);
+      const imageAlt = escapeHtml(line.imageAlt);
+      return `<tr>
+        <td style="padding:12px 0;border-bottom:1px solid #eee;width:72px;vertical-align:top;">
+          <img src="${imageUrl}" alt="${imageAlt}" width="64" height="64" style="display:block;width:64px;height:64px;object-fit:cover;border-radius:6px;background:#f3f3f3;" />
+        </td>
+        <td style="padding:12px 8px;border-bottom:1px solid #eee;vertical-align:top;">
+          <div style="font-weight:600;">${name}</div>
+          ${code}
+          <div style="color:#666;font-size:12px;margin-top:4px;">Qty ${qty} × ${unit}</div>
+        </td>
+        <td style="padding:12px 0;border-bottom:1px solid #eee;text-align:right;vertical-align:top;white-space:nowrap;">${total}</td>
+      </tr>`;
+    })
     .join("");
-  return `<table width="100%" cellspacing="0">${rows}</table>`;
+
+  return `<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin-bottom:20px;">
+    <tr>
+      <th align="left" colspan="2" style="padding:8px 0;border-bottom:2px solid #111;font-size:12px;text-transform:uppercase;letter-spacing:0.04em;">Product</th>
+      <th align="right" style="padding:8px 0;border-bottom:2px solid #111;font-size:12px;text-transform:uppercase;letter-spacing:0.04em;">Amount</th>
+    </tr>
+    ${rows}
+  </table>`;
+}
+
+export function buildLineItemsPlainText(
+  lineItems: OrderEmailLineItem[],
+): string[] {
+  return lineItems.map((line) => {
+    const code = line.productCode ? ` (${line.productCode})` : "";
+    const total = line.unitPrice * line.quantity;
+    return `- ${line.name}${code} × ${line.quantity} — ${formatInr(total)}`;
+  });
 }
