@@ -104,9 +104,10 @@ function buildDateWhereClause(
     resolved.fromDate,
     resolved.toDate,
   );
+  // Drizzle types `createdAt` as Date even when the driver returns strings.
   return and(
-    gte(orders.createdAt, startUtc),
-    lt(orders.createdAt, endExclusiveUtc),
+    gte(orders.createdAt, new Date(startUtc)),
+    lt(orders.createdAt, new Date(endExclusiveUtc)),
   )!;
 }
 
