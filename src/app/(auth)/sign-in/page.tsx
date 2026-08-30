@@ -48,15 +48,13 @@ export default async function SignInPage({ searchParams }: SignInPageProps) {
       />
 
       <div className="flex flex-col gap-3 border-t border-primary/10 pt-4 text-sm">
-        <p className="text-muted-foreground">
-          Don&apos;t have an account?{" "}
-          <Link
-            href="/sign-up"
-            className="font-medium text-primary underline-offset-4 hover:underline"
-          >
-            Create account
-          </Link>
-        </p>
+        <p className="text-muted-foreground">Don&apos;t have an account?</p>
+        <Link
+          href="/sign-up"
+          className="inline-flex h-10 w-full items-center justify-center rounded-md border border-primary/25 bg-background px-4 text-sm font-semibold text-primary transition-colors hover:bg-primary/5"
+        >
+          Create account
+        </Link>
         <Link
           href="/"
           className="font-medium text-primary underline-offset-4 hover:underline"
