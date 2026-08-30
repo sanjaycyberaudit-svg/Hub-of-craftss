@@ -34,6 +34,7 @@
     "db:seed-collections": "tsx --env-file=.env.local ./scripts/seed-sakthi-collections.ts",
     "db:upload-saree-images": "tsx --env-file=.env.local ./scripts/upload-saree-model-images.ts",
     "db:verify-images": "tsx --env-file=.env.local ./scripts/verify-catalog-images.ts",
+    "db:verify-url": "tsx --env-file=.env.local ./scripts/verify-db-url.ts",
     "db:migrate-testimonials": "node scripts/apply-testimonials.mjs",
     "db:migrate-testimonials-video": "node scripts/apply-testimonials-video.mjs",
     "db:migrate-payment-integrations": "node scripts/apply-payment-integrations.mjs",

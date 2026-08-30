@@ -31,4 +31,10 @@ describe("security headers", () => {
     expect(CONTENT_SECURITY_POLICY).toContain("worker-src 'self' blob:");
     expect(CONTENT_SECURITY_POLICY).toContain("frame-ancestors 'self'");
   });
+
+  it("allows R2 media proxy for admin uploads", () => {
+    expect(CONTENT_SECURITY_POLICY).toContain(
+      "https://hub-of-craftss-media.shaarunew01.workers.dev",
+    );
+  });
 });
