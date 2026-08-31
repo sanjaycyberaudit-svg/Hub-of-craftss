@@ -71,7 +71,7 @@ export function normalizeCashfreeIncoming(incoming: Record<string, unknown>) {
       environment,
       baseUrl: String(incoming.baseUrl ?? "").trim(),
     }),
-    apiVersion: String(incoming.apiVersion ?? "").trim() || "2025-01-01",
+    apiVersion: String(incoming.apiVersion ?? "").trim() || "2026-01-01",
     environment,
   };
 }

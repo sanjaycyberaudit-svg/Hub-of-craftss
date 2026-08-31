@@ -17,6 +17,7 @@ jest.mock("../auth/site-urls", () => ({
 import { getCashfreeConfig } from "../integrations/settings";
 import { fetchWithTimeout } from "../network/fetchWithTimeout";
 import { createCashfreePayment } from "./cashfree";
+import { normalizeIndianMobile } from "./phonepe";
 
 const mockGetCashfreeConfig = getCashfreeConfig as jest.MockedFunction<
   typeof getCashfreeConfig
@@ -155,5 +156,81 @@ describe("createCashfreePayment", () => {
         customerMobile: "9876543210",
       }),
     ).rejects.toThrow("Cashfree order creation failed");
+  });
+
+  it("throws when customer mobile is invalid or missing", async () => {
+    await expect(
+      createCashfreePayment({
+        orderId: "order_123",
+        amountInRupees: 499,
+        customerMobile: "12345",
+      }),
+    ).rejects.toThrow("Valid 10-digit Indian mobile number");
+  });
+
+  it("throws when customer mobile is null", async () => {
+    await expect(
+      createCashfreePayment({
+        orderId: "order_123",
+        amountInRupees: 499,
+        customerMobile: null,
+      }),
+    ).rejects.toThrow("Valid 10-digit Indian mobile number");
+  });
+
+  it("always sends customer_phone as 10-digit string, never undefined", async () => {
+    mockFetchWithTimeout.mockResolvedValueOnce(
+      jsonResponse({
+        order_id: "order_phone",
+        payment_session_id: "session_phone123",
+      }),
+    );
+
+    await createCashfreePayment({
+      orderId: "order_phone",
+      amountInRupees: 100,
+      customerMobile: "919876543210",
+    });
+
+    const body = JSON.parse(
+      String(mockFetchWithTimeout.mock.calls[0]?.[1]?.body),
+    );
+    expect(body.customer_details.customer_phone).toBe("9876543210");
+    expect(body.customer_details.customer_phone).not.toBeUndefined();
+  });
+});
+
+describe("normalizeIndianMobile", () => {
+  it("normalizes plain 10-digit mobile", () => {
+    expect(normalizeIndianMobile("9876543210")).toBe("919876543210");
+  });
+
+  it("normalizes 91-prefixed 12-digit mobile", () => {
+    expect(normalizeIndianMobile("919876543210")).toBe("919876543210");
+  });
+
+  it("normalizes leading-0 11-digit mobile", () => {
+    expect(normalizeIndianMobile("09876543210")).toBe("919876543210");
+  });
+
+  it("normalizes 0091-prefixed mobile", () => {
+    expect(normalizeIndianMobile("00919876543210")).toBe("919876543210");
+  });
+
+  it("normalizes 091-prefixed mobile", () => {
+    expect(normalizeIndianMobile("0919876543210")).toBe("919876543210");
+  });
+
+  it("handles +91 prefix with spaces", () => {
+    expect(normalizeIndianMobile("+91 98765 43210")).toBe("919876543210");
+  });
+
+  it("returns empty for invalid short numbers", () => {
+    expect(normalizeIndianMobile("12345")).toBe("");
+  });
+
+  it("returns empty for null/undefined", () => {
+    expect(normalizeIndianMobile(null)).toBe("");
+    expect(normalizeIndianMobile(undefined)).toBe("");
   });
 });

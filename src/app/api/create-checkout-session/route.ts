@@ -492,7 +492,17 @@ export async function POST(request: Request) {
             .where(eq(orderLines.orderId, created[0].id))
             .catch(() => undefined);
           await db
-            .delete(orders)
+            .update(orders)
+            .set({
+              payment_meta: mergePaymentMeta(basePaymentMeta, {
+                checkoutFailedAt: new Date().toISOString(),
+                checkoutFailedReason: String(
+                  persistError instanceof Error
+                    ? persistError.message
+                    : persistError,
+                ).slice(0, 200),
+              }),
+            })
             .where(eq(orders.id, created[0].id))
             .catch(() => undefined);
           throw persistError;
@@ -588,21 +598,37 @@ export async function POST(request: Request) {
       }).catch((releaseErr) => {
         console.error("[checkout] stock release failed:", releaseErr);
       });
+
+      const failReason = String(
+        err instanceof Error ? err.message : err,
+      ).slice(0, 200);
+      await db
+        .update(orders)
+        .set({
+          payment_meta: mergePaymentMeta({} as Record<string, unknown>, {
+            checkoutFailedAt: new Date().toISOString(),
+            checkoutFailedReason: failReason,
+          }),
+        })
+        .where(eq(orders.id, createdOrderId))
+        .catch(() => undefined);
     }
 
     if (err instanceof StockReservationError) {
       return NextResponse.json({ message: err.message }, { status: 409 });
     }
 
-    console.error("[checkout] create-checkout-session failed:", err);
-    return NextResponse.json(
-      {
-        message: publicErrorMessage(
-          err,
-          "Checkout initiation failed. Please retry.",
-        ),
-      },
-      { status: 500 },
+    const raw = err instanceof Error ? err.message.trim() : "";
+    console.error(
+      "[checkout] create-checkout-session failed:",
+      raw || err,
     );
+
+    const message =
+      raw.startsWith("Cashfree") || raw.includes("mobile number")
+        ? raw
+        : publicErrorMessage(err, "Checkout initiation failed. Please retry.");
+
+    return NextResponse.json({ message }, { status: 500 });
   }
 }

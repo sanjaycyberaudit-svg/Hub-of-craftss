@@ -1,6 +1,7 @@
 import {
   buildCashfreeNotifyUrl,
   buildCashfreeReturnUrl,
+  CASHFREE_DEFAULT_API_VERSION,
   cashfreeCheckoutSessionSchema,
   getCashfreeHostedCheckoutUrl,
   readCashfreeCheckoutError,
@@ -67,10 +68,14 @@ describe("cashfree-standards", () => {
         clientId: "13253479cb51e39bd8b31444fca7435231",
         clientSecret: "cfsk_ma_prod_example",
         baseUrl: "https://api.cashfree.com/pg",
-        apiVersion: "2025-01-01",
+        apiVersion: "2026-01-01",
         environment: "production",
       }),
     ).toBeNull();
+  });
+
+  it("defaults CASHFREE_DEFAULT_API_VERSION to 2026-01-01", () => {
+    expect(CASHFREE_DEFAULT_API_VERSION).toBe("2026-01-01");
   });
 
   it("rejects invalid order amounts", () => {

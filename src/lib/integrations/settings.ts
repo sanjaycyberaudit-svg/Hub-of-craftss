@@ -449,7 +449,7 @@ export async function getCashfreeConfig(): Promise<CashfreeConfig | null> {
   const clientId = String(value.clientId ?? "").trim();
   const clientSecret = String(value.clientSecret ?? "").trim();
   const baseUrl = String(value.baseUrl ?? "").trim();
-  const apiVersion = String(value.apiVersion ?? "2025-01-01").trim();
+  const apiVersion = String(value.apiVersion ?? "2026-01-01").trim();
   const environmentRaw = String(value.environment ?? "sandbox")
     .trim()
     .toLowerCase();

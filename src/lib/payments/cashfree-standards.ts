@@ -5,7 +5,7 @@ import {
   resolveCashfreeBaseUrl,
 } from "@/lib/integrations/payment-settings";
 
-export const CASHFREE_DEFAULT_API_VERSION = "2025-01-01";
+export const CASHFREE_DEFAULT_API_VERSION = "2026-01-01";
 export const CASHFREE_SDK_URL = "https://sdk.cashfree.com/js/v3/cashfree.js";
 export const CASHFREE_SANDBOX_HOSTED_CHECKOUT_URL =
   "https://sandbox.cashfree.com/pg/view/sessions/checkout";

@@ -33,11 +33,20 @@ describe("payment-settings", () => {
       clientSecret: "cf-secret",
       baseUrl: CASHFREE_SANDBOX_BASE_URL,
       environment: "production",
-      apiVersion: "2025-01-01",
+      apiVersion: "2026-01-01",
     });
 
     expect(normalized.baseUrl).toBe(CASHFREE_PRODUCTION_BASE_URL);
     expect(normalized.environment).toBe("production");
+  });
+
+  it("defaults apiVersion to 2026-01-01 when omitted", () => {
+    const normalized = normalizeCashfreeIncoming({
+      clientId: "cf-id",
+      clientSecret: "cf-secret",
+      environment: "production",
+    });
+    expect(normalized.apiVersion).toBe("2026-01-01");
   });
 
   it("allows saving disabled PhonePe without merchant credentials", () => {

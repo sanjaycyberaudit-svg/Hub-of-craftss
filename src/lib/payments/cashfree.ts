@@ -92,7 +92,13 @@ export async function createCashfreePayment(
     throw new Error(amountError);
   }
 
-  const phone = normalizeIndianMobile(params.customerMobile).replace(/^91/, "");
+  const normalized = normalizeIndianMobile(params.customerMobile);
+  if (!normalized) {
+    throw new Error(
+      "Valid 10-digit Indian mobile number is required for Cashfree checkout",
+    );
+  }
+  const phone = normalized.replace(/^91/, "");
   const customerEmail = String(params.customerEmail ?? "").trim() || undefined;
   const customerName = String(params.customerName ?? "").trim() || undefined;
   const customerId =
@@ -119,7 +125,7 @@ export async function createCashfreePayment(
         customer_id: customerId,
         customer_name: customerName,
         customer_email: customerEmail,
-        customer_phone: phone || undefined,
+        customer_phone: phone,
       },
       order_meta: {
         return_url: returnUrl,

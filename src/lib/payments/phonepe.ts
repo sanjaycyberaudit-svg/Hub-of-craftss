@@ -59,7 +59,10 @@ function normalizeBaseUrl(url: string) {
 }
 
 export function normalizeIndianMobile(mobile?: string | null) {
-  const digits = String(mobile ?? "").replace(/\D/g, "");
+  let digits = String(mobile ?? "").replace(/\D/g, "");
+  if (digits.startsWith("0091")) digits = digits.slice(4);
+  else if (digits.startsWith("091")) digits = digits.slice(3);
+  else if (digits.length === 11 && digits.startsWith("0")) digits = digits.slice(1);
   if (digits.length === 10) return `91${digits}`;
   if (digits.length === 12 && digits.startsWith("91")) return digits;
   return "";
