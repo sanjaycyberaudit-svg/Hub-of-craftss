@@ -4,6 +4,7 @@ import {
   buildSupabasePoolerUrl,
   normalizePoolerDatabaseUrl,
   resolveDatabaseUrl,
+  resolveSessionDatabaseUrl,
   describeDatabaseUrl,
 } from "./resolve-database-url";
 
@@ -93,5 +94,11 @@ describe("resolve-database-url (Hub)", () => {
     expect(info.pooler).toBe(true);
     expect(info.port).toBe(String(TRANSACTION_POOLER_PORT));
     expect(info.host).toContain("aws-1-ap-south-1.pooler.supabase.com");
+  });
+
+  it("rewrites transaction pooler to session port for BEGIN work", () => {
+    const url = resolveSessionDatabaseUrl(TRANSACTION_URL);
+    expect(url).toContain(`:${SESSION_POOLER_PORT}/`);
+    expect(url).toContain("aws-1-ap-south-1.pooler.supabase.com");
   });
 });

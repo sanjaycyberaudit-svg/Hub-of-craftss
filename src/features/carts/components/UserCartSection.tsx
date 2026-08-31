@@ -37,6 +37,8 @@ import {
 import { usePincodeLookup } from "@/features/addresses/hooks/usePincodeLookup";
 import CheckoutButton from "./CheckoutButton";
 import BulkOrderGuardDialog from "./BulkOrderGuardDialog";
+import { markAuthCartCleared } from "../cart-cleared-marker";
+import { clearPersistedCartStorage } from "../clear-persisted-cart";
 import {
   clearClaimedOfferCode,
   getWelcomeOfferCode,
@@ -539,6 +541,14 @@ function UserCartSection({
         next.delete(productId);
         return next;
       });
+      const remaining = { ...useCartStore.getState().cart };
+      delete remaining[productId];
+      if (Object.keys(remaining).length === 0) {
+        markAuthCartCleared(user.id);
+        replaceCart({});
+        clearPersistedCartStorage();
+        replaceCart({});
+      }
       toast({ title: "Removed a Product." });
       reexecuteQuery({ requestPolicy: "network-only" });
     }

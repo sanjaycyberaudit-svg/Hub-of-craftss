@@ -37,4 +37,10 @@ describe("security headers", () => {
       "https://hub-of-craftss-media.shaarunew01.workers.dev",
     );
   });
+
+  it("allows Microsoft Clarity analytics", () => {
+    expect(CONTENT_SECURITY_POLICY).toContain("https://www.clarity.ms");
+    expect(CONTENT_SECURITY_POLICY).toContain("https://scripts.clarity.ms");
+    expect(CONTENT_SECURITY_POLICY).toContain("https://*.clarity.ms");
+  });
 });
