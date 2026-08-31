@@ -1,6 +1,7 @@
 import { publicValidationPayload } from "@/lib/api/public-error";
 import { getSessionUser, isAdminUser } from "@/lib/auth/admin";
 import {
+  formatZodErrorMessage,
   normalizeCashfreeIncoming,
   normalizePhonePeIncoming,
   normalizeWhatsAppIncoming,
@@ -47,7 +48,7 @@ const saveSchema = z.object({
 
 const secretFieldsByKey: Record<string, string[]> = {
   [INTEGRATION_KEYS.cashfree]: ["clientSecret"],
-  [INTEGRATION_KEYS.phonepe]: ["saltKey"],
+  [INTEGRATION_KEYS.phonepe]: ["clientSecret", "saltKey"],
   [INTEGRATION_KEYS.whatsapp]: ["accessToken"],
 };
 
@@ -316,7 +317,10 @@ export async function POST(request: NextRequest) {
         if (phonepeParsed.success === false) {
           return NextResponse.json(
             publicValidationPayload(
-              "Invalid PhonePe payload",
+              formatZodErrorMessage(
+                phonepeParsed.error,
+                "Invalid PhonePe payload",
+              ),
               phonepeParsed.error,
             ),
             { status: 400 },
@@ -553,17 +557,43 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // PhonePe OAuth: map legacy salt fields if the new secret was never stored.
+    if (key === INTEGRATION_KEYS.phonepe) {
+      if (
+        !String(mergedValue.clientSecret ?? "").trim() &&
+        String(mergedValue.saltKey ?? "").trim()
+      ) {
+        mergedValue.clientSecret = mergedValue.saltKey;
+      }
+      if (
+        !String(mergedValue.clientId ?? "").trim() &&
+        String(mergedValue.merchantId ?? "").trim()
+      ) {
+        mergedValue.clientId = mergedValue.merchantId;
+      }
+      if (
+        !String(mergedValue.clientVersion ?? "").trim() &&
+        String(mergedValue.saltIndex ?? "").trim()
+      ) {
+        mergedValue.clientVersion = mergedValue.saltIndex;
+      }
+    }
+
     if (key === INTEGRATION_KEYS.phonepe && isEnabled) {
       const validated = parseEnabledPhonePeValue(mergedValue);
       if (validated.success === false) {
         return NextResponse.json(
           publicValidationPayload(
-            "PhonePe settings are incomplete for enabled mode",
+            formatZodErrorMessage(
+              validated.error,
+              "PhonePe settings are incomplete for enabled mode",
+            ),
             validated.error,
           ),
           { status: 400 },
         );
       }
+      Object.assign(mergedValue, validated.data);
     }
 
     if (key === INTEGRATION_KEYS.cashfree && isEnabled) {

@@ -44,12 +44,7 @@ export async function shouldDeductStockForPaidOrder(
   if (provider === "phonepe") {
     const config = await getPhonePeConfig();
     if (!config) return false;
-    const baseUrl = config.baseUrl.toLowerCase();
-    return (
-      !baseUrl.includes("sandbox") &&
-      !baseUrl.includes("preprod") &&
-      !baseUrl.includes("uat")
-    );
+    return config.environment === "production";
   }
 
   return false;

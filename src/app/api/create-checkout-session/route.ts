@@ -194,7 +194,7 @@ export async function POST(request: Request) {
       return NextResponse.json(
         {
           message:
-            "PhonePe is enabled but configuration is incomplete. Update Merchant ID, Salt Key, Salt Index and Base URL in Admin settings.",
+            "PhonePe is enabled but configuration is incomplete. Update Client ID, Client Version, and Client Secret in Admin settings.",
         },
         { status: 400 },
       );
@@ -599,9 +599,10 @@ export async function POST(request: Request) {
         console.error("[checkout] stock release failed:", releaseErr);
       });
 
-      const failReason = String(
-        err instanceof Error ? err.message : err,
-      ).slice(0, 200);
+      const failReason = String(err instanceof Error ? err.message : err).slice(
+        0,
+        200,
+      );
       await db
         .update(orders)
         .set({
@@ -619,10 +620,7 @@ export async function POST(request: Request) {
     }
 
     const raw = err instanceof Error ? err.message.trim() : "";
-    console.error(
-      "[checkout] create-checkout-session failed:",
-      raw || err,
-    );
+    console.error("[checkout] create-checkout-session failed:", raw || err);
 
     const message =
       raw.startsWith("Cashfree") || raw.includes("mobile number")

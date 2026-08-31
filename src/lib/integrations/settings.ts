@@ -414,11 +414,14 @@ export async function resolveOfferCodesConfig(): Promise<OfferCodesConfig> {
 }
 
 export type PhonePeConfig = {
-  merchantId: string;
-  saltKey: string;
-  saltIndex: string;
-  baseUrl: string;
-  merchantUserIdPrefix?: string;
+  clientId: string;
+  clientVersion: string;
+  clientSecret: string;
+  environment: "sandbox" | "production";
+  /** @deprecated legacy salt webhook only */
+  saltKey?: string;
+  /** @deprecated legacy salt webhook only */
+  saltIndex?: string;
   enabled: boolean;
 };
 
@@ -729,19 +732,33 @@ export async function getPhonePeConfig(): Promise<PhonePeConfig | null> {
   if (!setting || !setting.isEnabled) return null;
 
   const value = setting.value as Record<string, unknown>;
-  const merchantId = String(value.merchantId ?? "").trim();
-  const saltKey = String(value.saltKey ?? "").trim();
-  const saltIndex = String(value.saltIndex ?? "").trim();
-  const baseUrl = String(value.baseUrl ?? "").trim();
+  const clientId = String(value.clientId ?? value.merchantId ?? "").trim();
+  const clientSecret = String(
+    value.clientSecret ?? value.saltKey ?? "",
+  ).trim();
+  const clientVersion = String(
+    value.clientVersion ?? value.saltIndex ?? "",
+  ).trim();
+  const environmentRaw = String(value.environment ?? "")
+    .trim()
+    .toLowerCase();
+  const environment =
+    environmentRaw === "sandbox" ||
+    environmentRaw === "uat" ||
+    environmentRaw === "test" ||
+    environmentRaw === "preprod"
+      ? ("sandbox" as const)
+      : ("production" as const);
 
-  if (!merchantId || !saltKey || !saltIndex || !baseUrl) return null;
+  if (!clientId || !clientSecret || !clientVersion) return null;
 
   return {
-    merchantId,
-    saltKey,
-    saltIndex,
-    baseUrl,
-    merchantUserIdPrefix: String(value.merchantUserIdPrefix ?? "").trim(),
+    clientId,
+    clientVersion,
+    clientSecret,
+    environment,
+    saltKey: String(value.saltKey ?? "").trim() || undefined,
+    saltIndex: String(value.saltIndex ?? "").trim() || undefined,
     enabled: true,
   };
 }

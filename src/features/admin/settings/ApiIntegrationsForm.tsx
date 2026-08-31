@@ -15,6 +15,7 @@ import {
   CASHFREE_PRODUCTION_BASE_URL,
   CASHFREE_SANDBOX_BASE_URL,
   resolveCashfreeBaseUrl,
+  resolvePhonePeEnvironment,
 } from "@/lib/integrations/payment-settings";
 import { getCanonicalSiteOrigin } from "@/lib/auth/site-urls";
 
@@ -57,11 +58,10 @@ type FormState = {
   };
   phonepe: {
     enabled: boolean;
-    merchantId: string;
-    saltKey: string;
-    saltIndex: string;
-    baseUrl: string;
-    merchantUserIdPrefix: string;
+    clientId: string;
+    clientVersion: string;
+    clientSecret: string;
+    environment: "sandbox" | "production";
   };
   whatsapp: {
     enabled: boolean;
@@ -85,11 +85,10 @@ const DEFAULT_FORM: FormState = {
   },
   phonepe: {
     enabled: false,
-    merchantId: "",
-    saltKey: "",
-    saltIndex: "",
-    baseUrl: "https://api.phonepe.com/apis/hermes",
-    merchantUserIdPrefix: "USR",
+    clientId: "",
+    clientVersion: "1",
+    clientSecret: "",
+    environment: "production",
   },
   whatsapp: {
     enabled: false,
@@ -155,14 +154,18 @@ export function ApiIntegrationsForm() {
           },
           phonepe: {
             enabled: bothEnabled ? false : phonepeEnabled,
-            merchantId: String(phonepeValue.merchantId ?? ""),
-            saltKey: String(phonepeValue.saltKey ?? ""),
-            saltIndex: String(phonepeValue.saltIndex ?? ""),
-            baseUrl: String(
-              phonepeValue.baseUrl ?? "https://api.phonepe.com/apis/hermes",
+            clientId: String(
+              phonepeValue.clientId ?? phonepeValue.merchantId ?? "",
             ),
-            merchantUserIdPrefix: String(
-              phonepeValue.merchantUserIdPrefix ?? "USR",
+            clientVersion: String(
+              phonepeValue.clientVersion ?? phonepeValue.saltIndex ?? "1",
+            ),
+            clientSecret: String(
+              phonepeValue.clientSecret ?? phonepeValue.saltKey ?? "",
+            ),
+            environment: resolvePhonePeEnvironment(
+              String(phonepeValue.environment ?? ""),
+              String(phonepeValue.baseUrl ?? ""),
             ),
           },
           whatsapp: {
@@ -277,11 +280,10 @@ export function ApiIntegrationsForm() {
         key: "phonepe",
         isEnabled: form.phonepe.enabled,
         value: {
-          merchantId: form.phonepe.merchantId.trim(),
-          saltKey: form.phonepe.saltKey.trim(),
-          saltIndex: form.phonepe.saltIndex.trim(),
-          baseUrl: form.phonepe.baseUrl.trim(),
-          merchantUserIdPrefix: form.phonepe.merchantUserIdPrefix.trim(),
+          clientId: form.phonepe.clientId.trim(),
+          clientVersion: form.phonepe.clientVersion.trim() || "1",
+          clientSecret: form.phonepe.clientSecret.trim(),
+          environment: form.phonepe.environment,
         },
       });
 
@@ -451,53 +453,67 @@ export function ApiIntegrationsForm() {
               : "Storefront checkout uses PhonePe when this is enabled."}
           </p>
 
+          <p className="text-xs text-muted-foreground">
+            Use Client ID, Client Version, and Client Secret from the PhonePe
+            Business Dashboard (Developer Settings). See{" "}
+            <a
+              className="underline"
+              href="https://developer.phonepe.com/payment-gateway"
+              target="_blank"
+              rel="noreferrer"
+            >
+              PhonePe Payment Gateway docs
+            </a>
+            . Webhook URL: {getCanonicalSiteOrigin()}/api/phonepe/webhook
+          </p>
+
           <div className="grid gap-2">
-            <Label htmlFor="phonepe-merchant">Merchant ID</Label>
+            <Label htmlFor="phonepe-client-id">Client ID</Label>
             <Input
-              id="phonepe-merchant"
-              value={form.phonepe.merchantId}
-              onChange={(e) => updatePhonePe("merchantId", e.target.value)}
-              placeholder="PGTESTPAYUAT..."
+              id="phonepe-client-id"
+              value={form.phonepe.clientId}
+              onChange={(e) => updatePhonePe("clientId", e.target.value)}
+              placeholder="SU..."
+              autoComplete="off"
             />
           </div>
           <div className="grid gap-2">
-            <Label htmlFor="phonepe-salt-key">Salt Key</Label>
+            <Label htmlFor="phonepe-client-version">Client Version</Label>
             <Input
-              id="phonepe-salt-key"
-              type="password"
-              value={form.phonepe.saltKey}
-              onChange={(e) => updatePhonePe("saltKey", e.target.value)}
-              placeholder="Leave blank to keep existing"
-            />
-          </div>
-          <div className="grid gap-2">
-            <Label htmlFor="phonepe-salt-index">Salt Index</Label>
-            <Input
-              id="phonepe-salt-index"
-              value={form.phonepe.saltIndex}
-              onChange={(e) => updatePhonePe("saltIndex", e.target.value)}
+              id="phonepe-client-version"
+              value={form.phonepe.clientVersion}
+              onChange={(e) => updatePhonePe("clientVersion", e.target.value)}
               placeholder="1"
+              autoComplete="off"
             />
           </div>
           <div className="grid gap-2">
-            <Label htmlFor="phonepe-base-url">Base URL</Label>
+            <Label htmlFor="phonepe-client-secret">Client Secret</Label>
             <Input
-              id="phonepe-base-url"
-              value={form.phonepe.baseUrl}
-              onChange={(e) => updatePhonePe("baseUrl", e.target.value)}
-              placeholder="https://api.phonepe.com/apis/hermes"
+              id="phonepe-client-secret"
+              type="password"
+              value={form.phonepe.clientSecret}
+              onChange={(e) => updatePhonePe("clientSecret", e.target.value)}
+              placeholder="Leave blank to keep existing"
+              autoComplete="new-password"
             />
           </div>
           <div className="grid gap-2">
-            <Label htmlFor="phonepe-user-prefix">Merchant User Prefix</Label>
-            <Input
-              id="phonepe-user-prefix"
-              value={form.phonepe.merchantUserIdPrefix}
+            <Label htmlFor="phonepe-environment">Environment</Label>
+            <select
+              id="phonepe-environment"
+              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+              value={form.phonepe.environment}
               onChange={(e) =>
-                updatePhonePe("merchantUserIdPrefix", e.target.value)
+                updatePhonePe(
+                  "environment",
+                  e.target.value === "sandbox" ? "sandbox" : "production",
+                )
               }
-              placeholder="USR"
-            />
+            >
+              <option value="production">Production</option>
+              <option value="sandbox">Sandbox (UAT)</option>
+            </select>
           </div>
         </CardContent>
       </Card>

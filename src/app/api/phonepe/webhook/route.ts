@@ -7,6 +7,28 @@ import {
 } from "@/lib/payments/webhook-idempotency";
 import { NextRequest, NextResponse } from "next/server";
 
+function extractMerchantOrderId(body: Record<string, unknown>): string {
+  const payload =
+    body.payload && typeof body.payload === "object"
+      ? (body.payload as Record<string, unknown>)
+      : null;
+  const data =
+    body.data && typeof body.data === "object"
+      ? (body.data as Record<string, unknown>)
+      : null;
+
+  return String(
+    body.merchantOrderId ??
+      body.merchantTransactionId ??
+      payload?.merchantOrderId ??
+      payload?.merchantTransactionId ??
+      data?.merchantOrderId ??
+      data?.merchantTransactionId ??
+      body.transactionId ??
+      "",
+  ).trim();
+}
+
 export async function POST(request: NextRequest) {
   const rawBody = await request.text();
   if (!rawBody.trim()) {
@@ -34,45 +56,48 @@ export async function POST(request: NextRequest) {
   }
 
   const responseEnvelope = String((body?.response as string) || "").trim();
-  if (!responseEnvelope) {
-    return NextResponse.json({ ok: true, skipped: true });
+
+  // Legacy PhonePe PG used base64 `response` + X-VERIFY salt signature.
+  if (responseEnvelope) {
+    if (!config.saltKey || !config.saltIndex) {
+      return NextResponse.json(
+        { ok: false, message: "Legacy PhonePe webhook salt is not configured" },
+        { status: 503 },
+      );
+    }
+
+    const isVerified = verifyPhonePeWebhookSignature({
+      base64Response: responseEnvelope,
+      signature,
+      saltKey: config.saltKey,
+      saltIndex: config.saltIndex,
+    });
+
+    if (!isVerified) {
+      return NextResponse.json(
+        { ok: false, message: "Invalid webhook signature" },
+        { status: 401 },
+      );
+    }
+
+    try {
+      const decoded = JSON.parse(
+        Buffer.from(responseEnvelope, "base64").toString("utf8"),
+      ) as Record<string, unknown>;
+      Object.assign(body, decoded);
+    } catch {
+      return NextResponse.json(
+        { ok: false, message: "Invalid callback payload" },
+        { status: 400 },
+      );
+    }
   }
 
-  const isVerified = verifyPhonePeWebhookSignature({
-    base64Response: responseEnvelope,
-    signature,
-    saltKey: config.saltKey,
-    saltIndex: config.saltIndex,
-  });
+  // OAuth Standard Checkout webhooks: trust only after Order Status API sync.
+  // Optional Authorization header (SHA256 username:password) is configured in
+  // PhonePe dashboard separately and is not required for status re-check.
 
-  if (!isVerified) {
-    return NextResponse.json(
-      { ok: false, message: "Invalid webhook signature" },
-      { status: 401 },
-    );
-  }
-
-  let decoded: Record<string, unknown> = {};
-  try {
-    decoded = JSON.parse(
-      Buffer.from(responseEnvelope, "base64").toString("utf8"),
-    ) as Record<string, unknown>;
-  } catch {
-    return NextResponse.json(
-      { ok: false, message: "Invalid callback payload" },
-      { status: 400 },
-    );
-  }
-
-  const merchantTransactionId = String(
-    (body?.merchantTransactionId as string) ||
-      (body?.merchantOrderId as string) ||
-      (decoded?.merchantTransactionId as string) ||
-      ((decoded?.data as Record<string, unknown> | undefined)
-        ?.merchantTransactionId as string) ||
-      (body?.transactionId as string) ||
-      "",
-  ).trim();
+  const merchantTransactionId = extractMerchantOrderId(body);
 
   if (!merchantTransactionId) {
     return NextResponse.json({ ok: true, skipped: true });

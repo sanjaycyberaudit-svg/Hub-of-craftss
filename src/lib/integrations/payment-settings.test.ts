@@ -49,22 +49,39 @@ describe("payment-settings", () => {
     expect(normalized.apiVersion).toBe("2026-01-01");
   });
 
-  it("allows saving disabled PhonePe without merchant credentials", () => {
+  it("allows saving disabled PhonePe without OAuth credentials", () => {
     const normalized = normalizePhonePeIncoming({
-      merchantId: "",
-      saltKey: "",
-      saltIndex: "",
+      clientId: "",
+      clientSecret: "",
+      clientVersion: "",
     });
 
-    expect(normalized.merchantId).toBe("");
+    expect(normalized.clientId).toBe("");
     expect(parseEnabledPhonePeValue(normalized).success).toBe(false);
   });
 
-  it("requires complete PhonePe credentials when enabling", () => {
-    const parsed = parseIncomingPhonePeForEnable({
-      merchantId: "PGTEST",
+  it("maps legacy Merchant ID / Salt Key labels to OAuth fields", () => {
+    const normalized = normalizePhonePeIncoming({
+      merchantId: "SU2608311227207616155508",
+      saltKey: "52492232-e44d-497a-b63b-47568c22d7d7",
       saltIndex: "1",
-      saltKey: "secret",
+      baseUrl: "https://api.phonepe.com/apis/hermes",
+    });
+
+    expect(normalized).toEqual({
+      clientId: "SU2608311227207616155508",
+      clientVersion: "1",
+      clientSecret: "52492232-e44d-497a-b63b-47568c22d7d7",
+      environment: "production",
+    });
+  });
+
+  it("requires complete PhonePe OAuth credentials when enabling", () => {
+    const parsed = parseIncomingPhonePeForEnable({
+      clientId: "SU2608311227207616155508",
+      clientVersion: "1",
+      clientSecret: "52492232-e44d-497a-b63b-47568c22d7d7",
+      environment: "production",
     });
 
     expect(parsed.success).toBe(true);

@@ -3,6 +3,19 @@ import { z } from "zod";
 export const CASHFREE_SANDBOX_BASE_URL = "https://sandbox.cashfree.com/pg";
 export const CASHFREE_PRODUCTION_BASE_URL = "https://api.cashfree.com/pg";
 
+export const PHONEPE_PRODUCTION_AUTH_URL =
+  "https://api.phonepe.com/apis/identity-manager/v1/oauth/token";
+export const PHONEPE_SANDBOX_AUTH_URL =
+  "https://api-preprod.phonepe.com/apis/pg-sandbox/v1/oauth/token";
+export const PHONEPE_PRODUCTION_PAY_URL =
+  "https://api.phonepe.com/apis/pg/checkout/v2/pay";
+export const PHONEPE_SANDBOX_PAY_URL =
+  "https://api-preprod.phonepe.com/apis/pg-sandbox/checkout/v2/pay";
+export const PHONEPE_PRODUCTION_STATUS_BASE =
+  "https://api.phonepe.com/apis/pg/checkout/v2/order";
+export const PHONEPE_SANDBOX_STATUS_BASE =
+  "https://api-preprod.phonepe.com/apis/pg-sandbox/checkout/v2/order";
+
 export function resolveCashfreeBaseUrl(params: {
   environment: "sandbox" | "production";
   baseUrl?: string | null;
@@ -28,6 +41,46 @@ export function resolveCashfreeBaseUrl(params: {
   return normalized;
 }
 
+export function resolvePhonePeEnvironment(
+  raw?: string | null,
+  baseUrlHint?: string | null,
+): "sandbox" | "production" {
+  const env = String(raw ?? "")
+    .trim()
+    .toLowerCase();
+  if (env === "production" || env === "prod" || env === "live") {
+    return "production";
+  }
+  if (env === "sandbox" || env === "uat" || env === "test" || env === "preprod") {
+    return "sandbox";
+  }
+  const hint = String(baseUrlHint ?? "").toLowerCase();
+  if (hint.includes("preprod") || hint.includes("pg-sandbox")) {
+    return "sandbox";
+  }
+  // Legacy hermes URL was production-only for older PG.
+  if (hint.includes("api.phonepe.com")) return "production";
+  return "production";
+}
+
+export function phonePeAuthUrl(environment: "sandbox" | "production") {
+  return environment === "production"
+    ? PHONEPE_PRODUCTION_AUTH_URL
+    : PHONEPE_SANDBOX_AUTH_URL;
+}
+
+export function phonePePayUrl(environment: "sandbox" | "production") {
+  return environment === "production"
+    ? PHONEPE_PRODUCTION_PAY_URL
+    : PHONEPE_SANDBOX_PAY_URL;
+}
+
+export function phonePeStatusBaseUrl(environment: "sandbox" | "production") {
+  return environment === "production"
+    ? PHONEPE_PRODUCTION_STATUS_BASE
+    : PHONEPE_SANDBOX_STATUS_BASE;
+}
+
 export const cashfreePayloadSchema = z.object({
   clientId: z.string().trim().min(1),
   clientSecret: z.string().trim().min(1),
@@ -39,12 +92,12 @@ export const cashfreePayloadSchema = z.object({
   environment: z.enum(["sandbox", "production"]),
 });
 
+/** PhonePe Standard Checkout (OAuth) — Client ID / Version / Secret. */
 export const phonepePayloadSchema = z.object({
-  merchantId: z.string().trim().min(1),
-  saltKey: z.string().trim().min(1),
-  saltIndex: z.string().trim().min(1),
-  baseUrl: z.string().trim().url(),
-  merchantUserIdPrefix: z.string().trim().max(16).optional(),
+  clientId: z.string().trim().min(1, "Client ID is required"),
+  clientVersion: z.string().trim().min(1, "Client Version is required"),
+  clientSecret: z.string().trim().min(1, "Client Secret is required"),
+  environment: z.enum(["sandbox", "production"]),
 });
 
 export const whatsappPayloadSchema = z.object({
@@ -76,16 +129,30 @@ export function normalizeCashfreeIncoming(incoming: Record<string, unknown>) {
   };
 }
 
+/**
+ * Accepts current PhonePe OAuth fields and legacy merchantId/saltKey/saltIndex
+ * labels (merchants often paste Client ID into the old Merchant ID box).
+ */
 export function normalizePhonePeIncoming(incoming: Record<string, unknown>) {
+  const clientId = String(
+    incoming.clientId ?? incoming.merchantId ?? "",
+  ).trim();
+  const clientSecret = String(
+    incoming.clientSecret ?? incoming.saltKey ?? "",
+  ).trim();
+  const clientVersion = String(
+    incoming.clientVersion ?? incoming.saltIndex ?? "",
+  ).trim();
+  const environment = resolvePhonePeEnvironment(
+    String(incoming.environment ?? ""),
+    String(incoming.baseUrl ?? incoming.authUrl ?? incoming.payUrl ?? ""),
+  );
+
   return {
-    merchantId: String(incoming.merchantId ?? "").trim(),
-    saltKey: String(incoming.saltKey ?? "").trim(),
-    saltIndex: String(incoming.saltIndex ?? "").trim(),
-    baseUrl:
-      String(incoming.baseUrl ?? "").trim() ||
-      "https://api.phonepe.com/apis/hermes",
-    merchantUserIdPrefix:
-      String(incoming.merchantUserIdPrefix ?? "").trim() || "USR",
+    clientId,
+    clientVersion,
+    clientSecret,
+    environment,
   };
 }
 
@@ -110,7 +177,7 @@ export function parseEnabledCashfreeValue(
 }
 
 export function parseEnabledPhonePeValue(mergedValue: Record<string, unknown>) {
-  return phonepePayloadSchema.safeParse(mergedValue);
+  return phonepePayloadSchema.safeParse(normalizePhonePeIncoming(mergedValue));
 }
 
 export function parseEnabledWhatsAppValue(
@@ -132,7 +199,7 @@ export function parseIncomingPhonePeForEnable(
   incoming: Record<string, unknown>,
 ) {
   return phonepePayloadSchema
-    .partial({ saltKey: true })
+    .partial({ clientSecret: true })
     .safeParse(normalizePhonePeIncoming(incoming));
 }
 
@@ -142,4 +209,14 @@ export function parseIncomingWhatsAppForEnable(
   return whatsappPayloadSchema
     .partial({ accessToken: true })
     .safeParse(normalizeWhatsAppIncoming(incoming));
+}
+
+export function formatZodErrorMessage(
+  error: z.ZodError,
+  fallback: string,
+): string {
+  const first = error.issues[0];
+  if (!first) return fallback;
+  const path = first.path.length ? `${first.path.join(".")}: ` : "";
+  return `${fallback} (${path}${first.message})`;
 }
