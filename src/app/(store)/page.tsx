@@ -36,6 +36,21 @@ export const metadata: Metadata = {
     description:
       "Shop terracotta raw materials and art & craft supplies at Hub of craftss by Shaaru in Madurai.",
     url: "/",
+    images: [
+      {
+        url: "/images/hoc-og-share.jpg",
+        width: 1200,
+        height: 630,
+        alt: "Hub of craftss — Make · Craft · Create",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Hub of craftss | Make · Craft · Create",
+    description:
+      "Shop terracotta raw materials and art & craft supplies at Hub of craftss by Shaaru in Madurai.",
+    images: ["/images/hoc-og-share.jpg"],
   },
 };
 

@@ -97,7 +97,7 @@ export function buildShopByPriceBuckets(
       imageKey: representative.mediaKey ?? null,
       imageAlt:
         representative.mediaAlt?.trim() ||
-        `Sarees priced ${formatPriceRangeLabel(min, displayMax)}`,
+        `Craft supplies priced ${formatPriceRangeLabel(min, displayMax)}`,
       href: `/shop?price_range=${min}-${displayMax}&sort=PRICE_LOW_TO_HIGH`,
     });
   }

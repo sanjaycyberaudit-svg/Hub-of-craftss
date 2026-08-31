@@ -3,7 +3,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   AdminOrdersSegmentTabs,
-  type OrdersSegment,
+  parseOrdersSegment,
 } from "@/features/orders/components/admin/AdminOrdersSegmentTabs";
 import {
   adminOrdersDateFiltersFromSearchParams,
@@ -51,20 +51,8 @@ type AdminOrdersPageProps = {
   }>;
 };
 
-function firstParam(
-  value: string | string[] | undefined,
-): string | undefined {
+function firstParam(value: string | string[] | undefined): string | undefined {
   return Array.isArray(value) ? value[0] : value;
-}
-
-function parseOrdersSegment(
-  value: string | string[] | undefined,
-): OrdersSegment {
-  const raw = String(firstParam(value) ?? "")
-    .trim()
-    .toLowerCase();
-  // Default: unpaid (with today date filter).
-  return raw === "paid" ? "paid" : "unpaid";
 }
 
 export default async function OrdersPage({
@@ -89,7 +77,7 @@ async function OrdersPageContent({
   const pageSize = clampAdminOrdersPageSize(
     Number.parseInt(String(firstParam(rawPageSize)), 10) || undefined,
   );
-  const segment = parseOrdersSegment(searchParams[STATUS_PARAM]);
+  const segment = parseOrdersSegment(firstParam(searchParams[STATUS_PARAM]));
   const paidPage = parseAdminOrdersPage(searchParams[PAID_PAGE_PARAM]);
   const pendingPage = parseAdminOrdersPage(searchParams[PENDING_PAGE_PARAM]);
   const dateFilter = resolveAdminOrdersDateFilters(

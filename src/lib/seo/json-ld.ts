@@ -1,5 +1,6 @@
 import { siteConfig } from "@/config/site";
 import { SEO_PRIMARY_NAV } from "@/lib/seo/constants";
+import { SEO_BRAND_ASSETS } from "@/lib/seo/brand-assets";
 import { getURL } from "@/lib/utils";
 
 function siteOrigin() {
@@ -13,13 +14,33 @@ function absoluteUrl(path = "") {
   return `${origin}${normalizedPath}`;
 }
 
+function brandName() {
+  return siteConfig.name.replace("®", "").trim();
+}
+
+function socialSameAs() {
+  return Object.values(siteConfig.social).filter(
+    (url) => typeof url === "string" && url.trim().length > 0,
+  );
+}
+
 export function buildOrganizationJsonLd() {
   return {
     "@context": "https://schema.org",
     "@type": "Organization",
-    name: siteConfig.name.replace("®", "").trim(),
+    name: brandName(),
+    alternateName: [
+      siteConfig.tradeName,
+      siteConfig.shortName,
+      "Hubs of craftss",
+    ],
     url: absoluteUrl(),
-    logo: absoluteUrl("/images/hub-of-craftss-logo.png"),
+    logo: absoluteUrl(SEO_BRAND_ASSETS.logo),
+    image: [
+      absoluteUrl(SEO_BRAND_ASSETS.icon512),
+      absoluteUrl(SEO_BRAND_ASSETS.ogShare),
+    ],
+    description: siteConfig.description,
     email: siteConfig.email || undefined,
     telephone: siteConfig.phone || undefined,
     address: {
@@ -30,7 +51,7 @@ export function buildOrganizationJsonLd() {
       postalCode: "625107",
       addressCountry: "IN",
     },
-    sameAs: Object.values(siteConfig.social),
+    sameAs: socialSameAs(),
   };
 }
 
@@ -38,10 +59,15 @@ export function buildWebsiteJsonLd() {
   return {
     "@context": "https://schema.org",
     "@type": "WebSite",
-    name: siteConfig.name.replace("®", "").trim(),
+    name: brandName(),
     url: absoluteUrl(),
     description: siteConfig.description,
     inLanguage: "en-IN",
+    publisher: {
+      "@type": "Organization",
+      name: brandName(),
+      logo: absoluteUrl(SEO_BRAND_ASSETS.logo),
+    },
     potentialAction: {
       "@type": "SearchAction",
       target: {
@@ -57,9 +83,14 @@ export function buildStoreJsonLd() {
   return {
     "@context": "https://schema.org",
     "@type": "Store",
-    name: siteConfig.name.replace("®", "").trim(),
+    name: brandName(),
     url: absoluteUrl(),
-    image: absoluteUrl("/images/hub-of-craftss-logo.png"),
+    image: [
+      absoluteUrl(SEO_BRAND_ASSETS.icon512),
+      absoluteUrl(SEO_BRAND_ASSETS.ogShare),
+    ],
+    logo: absoluteUrl(SEO_BRAND_ASSETS.logo),
+    description: siteConfig.description,
     telephone: siteConfig.phone || undefined,
     email: siteConfig.email || undefined,
     address: {
@@ -71,6 +102,8 @@ export function buildStoreJsonLd() {
       addressCountry: "IN",
     },
     priceRange: "₹₹",
+    currenciesAccepted: "INR",
+    paymentAccepted: "UPI, Credit Card, Debit Card, Net Banking",
   };
 }
 
@@ -121,7 +154,7 @@ export function buildProductJsonLd(input: {
     sku: input.slug,
     brand: {
       "@type": "Brand",
-      name: siteConfig.name.replace("®", "").trim(),
+      name: brandName(),
     },
     offers: {
       "@type": "Offer",

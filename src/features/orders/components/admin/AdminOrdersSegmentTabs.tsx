@@ -60,9 +60,9 @@ export function parseOrdersSegment(
   const raw = String(value ?? "")
     .trim()
     .toLowerCase();
-  // Default unpaid when status missing (today + unpaid landing).
-  if (raw === "paid") return "paid";
-  return "unpaid";
+  // Default paid when status is missing or unknown.
+  if (raw === "unpaid" || raw === "pending") return "unpaid";
+  return "paid";
 }
 
 export function segmentHref(
@@ -349,8 +349,7 @@ export function AdminOrdersSegmentTabs({
               <span className="font-medium text-foreground">
                 {segment === "unpaid" ? "unpaid" : "paid"}
               </span>{" "}
-              ·{" "}
-              <span className="font-medium text-foreground">{dateLabel}</span>
+              · <span className="font-medium text-foreground">{dateLabel}</span>
               {active.totalCount > 0 ? <> ({active.totalCount})</> : null}
             </>
           )}

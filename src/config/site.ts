@@ -43,7 +43,7 @@ export const siteConfig = {
   /** Town shown on shop board / navbar */
   location: "MADURAI",
   description:
-    "Terracotta raw materials and art & craft supplies — make, craft, create with Hub of craftss by Shaaru.",
+    "Terracotta raw materials and art & craft supplies — make, craft, create with Hub of craftss by Shaaru in Madurai. Kolam stamps, clay cutters, bead rollers, and DIY kits.",
   searchPlaceholder: "Search craft supplies, terracotta, collections…",
   url: "https://hubsofcraftss.com",
   addressLines: ADDRESS_LINES,

@@ -307,7 +307,7 @@ export function DashboardView({ stats, statsError }: Props) {
             <MetricCard
               label="Collections"
               value={stats.totalCollections}
-              detail="Saree categories live"
+              detail="Craft categories live"
               alert={
                 <p className="mt-1.5 text-xs text-muted-foreground">
                   {stats.totalCustomers} registered customers
