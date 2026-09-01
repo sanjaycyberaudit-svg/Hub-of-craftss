@@ -69,7 +69,7 @@ Settings in `infra/cloudflare-security-baseline.hub.json`: always HTTPS, TLS 1.2
 | Area | Basic | Industry-standard (Hub now) |
 |------|-------|-------------------------------|
 | CDN static assets | Proxy only | CF edge **HIT** on `/_next/static` |
-| Product list API | Every request → Vercel | `s-maxage=300` + CF edge cache (after deploy) |
+| Product list API | Every request → Vercel | Correct `s-maxage` headers + **Upstash app cache** (CF edge blocked by Next.js `Vary` — platform limit) |
 | HTTPS | Optional redirect | **Always HTTPS** + TLS 1.2+ |
 | Uptime | Manual checks | **GitHub every 10 min** |
 | Deep alerting | None | **Daily** deep health workflow |
