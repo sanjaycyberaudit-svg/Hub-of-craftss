@@ -40,7 +40,7 @@
     {
       "id": "cache-public-images",
       "description": "Hub of craftss: cache public brand images and favicons",
-      "expression": "(http.request.uri.path matches \"^/(favicon\\.ico|apple-touch-icon.*|android-chrome-.*|site\\.webmanifest|og-image\\.(png|jpg|webp)|logo\\.(png|svg|webp))$\")",
+      "expression": "(http.request.uri.path eq \"/favicon.ico\" or http.request.uri.path eq \"/site.webmanifest\" or starts_with(http.request.uri.path, \"/apple-touch-icon\") or starts_with(http.request.uri.path, \"/android-chrome-\") or starts_with(http.request.uri.path, \"/og-image.\") or starts_with(http.request.uri.path, \"/logo.\"))",
       "action": "set_cache_settings",
       "action_parameters": {
         "cache": true,
@@ -61,7 +61,8 @@
       "action_parameters": {
         "cache": true,
         "edge_ttl": {
-          "mode": "respect_origin"
+          "mode": "override_origin",
+          "default": 300
         },
         "browser_ttl": {
           "mode": "bypass"
