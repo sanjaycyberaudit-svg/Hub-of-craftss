@@ -91,9 +91,14 @@ async function main() {
   console.log(`[cloudflare-cache] zoneId=${zone.id} plan=${zone.plan?.name ?? "unknown"}`);
 
   const phase = "http_request_cache_settings";
-  const entrypoint = await cf(
-    `/zones/${zone.id}/rulesets/phases/${phase}/entrypoint`,
-  );
+  let entrypoint = null;
+  try {
+    entrypoint = await cf(
+      `/zones/${zone.id}/rulesets/phases/${phase}/entrypoint`,
+    );
+  } catch {
+    entrypoint = null;
+  }
 
   const nextRules = buildManagedRules(entrypoint?.rules ?? []);
   const hubRuleCount = rulesConfig.rules.length;

@@ -3,20 +3,14 @@ import {
   fetchProductSearchCached,
 } from "@/lib/storefront/product-queries";
 import { filterDraftProductsFromCollection } from "@/lib/storefront/filter-draft-products";
+import { publicCdnJson } from "@/lib/cache/public-cdn-cache";
 import {
-  buildShopSearchVariables,
   parseProductListRequest,
   type StorefrontProductSearchVariables,
 } from "@/lib/storefront/search-params";
-import { STOREFRONT_REVALIDATE_SECONDS } from "@/lib/cache/constants";
-import type { SearchQueryVariables } from "@/gql/graphql";
 import { NextRequest, NextResponse } from "next/server";
 
-export const revalidate = 300; // keep in sync with STOREFRONT_REVALIDATE_SECONDS
-
-const CACHE_HEADERS = {
-  "Cache-Control": `public, s-maxage=${STOREFRONT_REVALIDATE_SECONDS}, stale-while-revalidate=300`,
-};
+export const dynamic = "force-dynamic";
 
 export async function GET(request: NextRequest) {
   try {
@@ -31,25 +25,22 @@ export async function GET(request: NextRequest) {
         ),
       );
 
-      return NextResponse.json(
-        { productsCollection, matchingCollections: [] },
-        { headers: CACHE_HEADERS },
-      );
+      return publicCdnJson({
+        productsCollection,
+        matchingCollections: [],
+      });
     }
 
     const searchResult = await fetchProductSearchCached(
       variables as StorefrontProductSearchVariables,
     );
 
-    return NextResponse.json(
-      {
-        ...searchResult,
-        productsCollection: await filterDraftProductsFromCollection(
-          searchResult.productsCollection,
-        ),
-      },
-      { headers: CACHE_HEADERS },
-    );
+    return publicCdnJson({
+      ...searchResult,
+      productsCollection: await filterDraftProductsFromCollection(
+        searchResult.productsCollection,
+      ),
+    });
   } catch (error) {
     console.error("[storefront/products] GET failed:", error);
     return NextResponse.json(

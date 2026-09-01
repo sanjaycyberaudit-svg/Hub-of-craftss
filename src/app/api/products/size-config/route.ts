@@ -1,13 +1,13 @@
+import { publicCdnJson } from "@/lib/cache/public-cdn-cache";
 import {
   DEFAULT_PRODUCT_OPTION_NAME,
   getProductSizeConfig,
   getProductSizeConfigsByProductIds,
   type ProductSizeConfig,
 } from "@/lib/products/sizeConfig";
-import { STOREFRONT_REVALIDATE_SECONDS } from "@/lib/cache/constants";
 import { NextRequest, NextResponse } from "next/server";
 
-export const revalidate = 300; // keep in sync with STOREFRONT_REVALIDATE_SECONDS
+export const dynamic = "force-dynamic";
 
 function toApiPayload(config: ProductSizeConfig) {
   const groups = (config.groups ?? [])
@@ -81,11 +81,7 @@ export async function GET(request: NextRequest) {
           },
         );
       });
-      return NextResponse.json(payload, {
-        headers: {
-          "Cache-Control": `public, s-maxage=${STOREFRONT_REVALIDATE_SECONDS}, stale-while-revalidate=${STOREFRONT_REVALIDATE_SECONDS * 2}`,
-        },
-      });
+      return publicCdnJson(payload);
     }
 
     if (!productId) {
@@ -96,11 +92,7 @@ export async function GET(request: NextRequest) {
     }
 
     const config = await getProductSizeConfig(productId);
-    return NextResponse.json(toApiPayload(config), {
-      headers: {
-        "Cache-Control": `public, s-maxage=${STOREFRONT_REVALIDATE_SECONDS}, stale-while-revalidate=${STOREFRONT_REVALIDATE_SECONDS * 2}`,
-      },
-    });
+    return publicCdnJson(toApiPayload(config));
   } catch (error) {
     console.error("[size-config] GET failed:", error);
     return NextResponse.json(emptyPayload, { status: 200 });

@@ -1,0 +1,17 @@
+{
+  "description": "Free-plan security baseline for hubsofcraftss.com (industry standard for small e-commerce).",
+  "zoneSettings": {
+    "always_use_https": "on",
+    "automatic_https_rewrites": "on",
+    "brotli": "on",
+    "browser_check": "on",
+    "min_tls_version": "1.2",
+    "security_level": "medium",
+    "ssl": "strict"
+  },
+  "notes": [
+    "Managed WAF rulesets require Pro; Free gets DDoS + browser check + security level.",
+    "Bot Fight Mode is toggled via the dashboard on some plans; not exposed for this token.",
+    "Rate limit checkout/auth at the app layer (Upstash) — already in codebase."
+  ]
+}

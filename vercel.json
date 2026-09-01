@@ -23,6 +23,32 @@
       ]
     },
     {
+      "source": "/api/storefront/products",
+      "headers": [
+        {
+          "key": "CDN-Cache-Control",
+          "value": "public, max-age=300"
+        },
+        {
+          "key": "Vary",
+          "value": "Accept-Encoding"
+        }
+      ]
+    },
+    {
+      "source": "/api/storefront/products/suggest",
+      "headers": [
+        {
+          "key": "CDN-Cache-Control",
+          "value": "public, max-age=300"
+        },
+        {
+          "key": "Vary",
+          "value": "Accept-Encoding"
+        }
+      ]
+    },
+    {
       "source": "/(.*)",
       "headers": [
         {

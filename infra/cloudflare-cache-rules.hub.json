@@ -66,7 +66,8 @@
         },
         "browser_ttl": {
           "mode": "bypass"
-        }
+        },
+        "origin_cache_control": false
       }
     }
   ]

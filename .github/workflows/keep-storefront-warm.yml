@@ -1,7 +1,9 @@
 name: Keep storefront warm
 
-# Schedules removed after Vercel migration — run manually via workflow_dispatch if needed.
 on:
+  schedule:
+    # Shallow health + key routes every 10 minutes (industry-standard free uptime probe).
+    - cron: "*/10 * * * *"
   workflow_dispatch:
 
 permissions:
@@ -79,7 +81,8 @@ jobs:
           }
 
           # Exercise both the lightweight API runtime and important rendered routes.
-          check_route "/api/health" '"status":"ok"'
+          check_route "/api/health" '"mode":"shallow"'
+          check_route "/api/storefront/products" '"productsCollection"'
           check_route "/"
           check_route "/shop"
 

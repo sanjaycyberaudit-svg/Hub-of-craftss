@@ -1,12 +1,8 @@
-import { STOREFRONT_REVALIDATE_SECONDS } from "@/lib/cache/constants";
+import { publicCdnJson } from "@/lib/cache/public-cdn-cache";
 import { fetchProductNameSuggestionsCached } from "@/lib/storefront/product-name-suggest";
 import { NextRequest, NextResponse } from "next/server";
 
-export const revalidate = 300; // keep in sync with STOREFRONT_REVALIDATE_SECONDS
-
-const CACHE_HEADERS = {
-  "Cache-Control": `public, s-maxage=${STOREFRONT_REVALIDATE_SECONDS}, stale-while-revalidate=300`,
-};
+export const dynamic = "force-dynamic";
 
 export async function GET(request: NextRequest) {
   try {
@@ -16,7 +12,7 @@ export async function GET(request: NextRequest) {
       params.get("limit"),
     );
 
-    return NextResponse.json(result, { headers: CACHE_HEADERS });
+    return publicCdnJson(result);
   } catch (error) {
     console.error("[storefront/products/suggest] GET failed:", error);
     return NextResponse.json(

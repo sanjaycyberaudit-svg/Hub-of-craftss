@@ -16,6 +16,7 @@
     "upload": "npm run validate:identity && node scripts/validate-wrangler-production.mjs wrangler.workers.new-account.jsonc && opennextjs-cloudflare build --config wrangler.workers.new-account.jsonc && opennextjs-cloudflare upload --config wrangler.workers.new-account.jsonc",
     "validate:identity": "node scripts/validate-project-identity.mjs",
     "apply:cloudflare-cache": "npm run validate:identity && node scripts/apply-cloudflare-cache-rules.mjs",
+    "apply:cloudflare-security": "npm run validate:identity && node scripts/apply-cloudflare-security-baseline.mjs",
     "validate:identity:login": "node scripts/validate-project-identity.mjs --strict-wrangler-login",
     "validate:wrangler": "npm run validate:identity && node scripts/validate-wrangler-production.mjs wrangler.workers.new-account.jsonc",
     "auth:setup": "npm run validate:identity && node scripts/setup-auth-config.mjs",

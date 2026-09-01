@@ -46,9 +46,36 @@ Rules are defined in `infra/cloudflare-cache-rules.hub.json` and managed by `scr
 | Bypass health deep | `/api/health?deep=1` | Bypass |
 | Static Next assets | URI Path starts with `/_next/static/` | Edge TTL 1 year |
 | Public images | favicon, OG image, manifest | Edge TTL 1 day |
-| Public product API | `GET /api/storefront/products` | Respect origin `s-maxage=300` |
+| Public product API | `GET /api/storefront/products` | Edge TTL 300s (origin sends `s-maxage` via `publicCdnJson`) |
 
-## Vercel environment (production)
+### Security baseline (Free plan)
+
+```bash
+export CF_API_TOKEN=...
+npm run apply:cloudflare-security
+```
+
+Settings in `infra/cloudflare-security-baseline.hub.json`: always HTTPS, TLS 1.2+, SSL strict, medium security level, Brotli.
+
+### Monitoring (GitHub Actions — free)
+
+| Workflow | Schedule | Purpose |
+|----------|----------|---------|
+| `keep-storefront-warm.yml` | Every 10 min | Shallow health, `/shop`, product API |
+| `nightly-maintenance.yml` | Daily UTC 18:30 | Deep health (DB+Redis), lifecycle cron |
+
+## Robust vs basic (Hub production)
+
+| Area | Basic | Industry-standard (Hub now) |
+|------|-------|-------------------------------|
+| CDN static assets | Proxy only | CF edge **HIT** on `/_next/static` |
+| Product list API | Every request → Vercel | `s-maxage=300` + CF edge cache (after deploy) |
+| HTTPS | Optional redirect | **Always HTTPS** + TLS 1.2+ |
+| Uptime | Manual checks | **GitHub every 10 min** |
+| Deep alerting | None | **Daily** deep health workflow |
+| Checkout/cart cache | — | **Bypass** at CF (never cached) |
+| Managed WAF rules | Off (Free) | DDoS + browser check + security level (Pro for full WAF) |
+| Error tracking | Sentry if DSN set | Same (set `NEXT_PUBLIC_SENTRY_DSN` in Vercel) |
 
 | Variable | Notes |
 |----------|--------|
@@ -69,7 +96,7 @@ Rules are defined in `infra/cloudflare-cache-rules.hub.json` and managed by `scr
 - Storefront ISR TTL **5 minutes** (`STOREFRONT_REVALIDATE_SECONDS = 300`)
 - Stock release at checkout when stock control is on (no Vercel cron on Hobby)
 - Static `/_next/static` long-cache headers for Cloudflare edge
-- Shallow `/api/health` by default to avoid burning DB pool on monitors
+- Public storefront JSON APIs use `publicCdnJson()` (`CDN-Cache-Control` + no `Vary`) for Cloudflare edge cache
 
 ## Identity source of truth
 
