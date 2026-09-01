@@ -1,0 +1,72 @@
+{
+  "$schema": "./cloudflare-cache-rules.hub.schema.json",
+  "description": "Production cache rules for hubsofcraftss.com (Cloudflare in front of Vercel).",
+  "rules": [
+    {
+      "id": "bypass-dynamic",
+      "description": "Hub of craftss: bypass cache for admin, cart, checkout, and payment APIs",
+      "expression": "(http.request.method eq \"GET\" and (starts_with(http.request.uri.path, \"/admin\") or starts_with(http.request.uri.path, \"/cart\") or starts_with(http.request.uri.path, \"/orders\") or starts_with(http.request.uri.path, \"/api/create-checkout\") or starts_with(http.request.uri.path, \"/api/cashfree\") or starts_with(http.request.uri.path, \"/api/phonepe\") or starts_with(http.request.uri.path, \"/api/webhooks\") or starts_with(http.request.uri.path, \"/api/cron\"))) or (http.request.method ne \"GET\")",
+      "action": "set_cache_settings",
+      "action_parameters": {
+        "cache": false
+      }
+    },
+    {
+      "id": "bypass-health-deep",
+      "description": "Hub of craftss: bypass cache for deep health checks",
+      "expression": "(http.request.uri.path eq \"/api/health\" and http.request.uri.query contains \"deep=1\")",
+      "action": "set_cache_settings",
+      "action_parameters": {
+        "cache": false
+      }
+    },
+    {
+      "id": "cache-next-static",
+      "description": "Hub of craftss: cache Next.js static assets at edge (1 year)",
+      "expression": "(starts_with(http.request.uri.path, \"/_next/static/\"))",
+      "action": "set_cache_settings",
+      "action_parameters": {
+        "cache": true,
+        "edge_ttl": {
+          "mode": "override_origin",
+          "default": 31536000
+        },
+        "browser_ttl": {
+          "mode": "override_origin",
+          "default": 31536000
+        }
+      }
+    },
+    {
+      "id": "cache-public-images",
+      "description": "Hub of craftss: cache public brand images and favicons",
+      "expression": "(http.request.uri.path matches \"^/(favicon\\.ico|apple-touch-icon.*|android-chrome-.*|site\\.webmanifest|og-image\\.(png|jpg|webp)|logo\\.(png|svg|webp))$\")",
+      "action": "set_cache_settings",
+      "action_parameters": {
+        "cache": true,
+        "edge_ttl": {
+          "mode": "override_origin",
+          "default": 86400
+        },
+        "browser_ttl": {
+          "mode": "respect_origin"
+        }
+      }
+    },
+    {
+      "id": "cache-storefront-products-api",
+      "description": "Hub of craftss: cache public product list API (respect origin s-maxage=300)",
+      "expression": "(http.request.method eq \"GET\" and http.request.uri.path eq \"/api/storefront/products\")",
+      "action": "set_cache_settings",
+      "action_parameters": {
+        "cache": true,
+        "edge_ttl": {
+          "mode": "respect_origin"
+        },
+        "browser_ttl": {
+          "mode": "bypass"
+        }
+      }
+    }
+  ]
+}

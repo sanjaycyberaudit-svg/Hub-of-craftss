@@ -2,7 +2,7 @@ import { STOREFRONT_REVALIDATE_SECONDS } from "@/lib/cache/constants";
 import { fetchProductNameSuggestionsCached } from "@/lib/storefront/product-name-suggest";
 import { NextRequest, NextResponse } from "next/server";
 
-export const revalidate = STOREFRONT_REVALIDATE_SECONDS;
+export const revalidate = 300; // keep in sync with STOREFRONT_REVALIDATE_SECONDS
 
 const CACHE_HEADERS = {
   "Cache-Control": `public, s-maxage=${STOREFRONT_REVALIDATE_SECONDS}, stale-while-revalidate=300`,

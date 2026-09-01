@@ -1,9 +1,8 @@
 import RecommendationProductsSection from "@/features/products/components/RecommendationProductsSection";
 import { Shell } from "@/components/layouts/Shell";
-import { STOREFRONT_REVALIDATE_SECONDS } from "@/lib/cache/constants";
 import Link from "next/link";
 
-export const revalidate = STOREFRONT_REVALIDATE_SECONDS;
+export const revalidate = 300; // keep in sync with STOREFRONT_REVALIDATE_SECONDS
 
 export default function WishListPage() {
   return (

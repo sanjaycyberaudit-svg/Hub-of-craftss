@@ -5,13 +5,12 @@ import { FeaturedProductsScroll } from "@/features/search";
 import { Suspense } from "react";
 import { Metadata } from "next";
 import { SectionErrorNotice } from "@/components/errors/SectionErrorNotice";
-import { STOREFRONT_REVALIDATE_SECONDS } from "@/lib/cache/constants";
 import { withFallback } from "@/lib/resilience";
 import { getDraftProductIdsSafe } from "@/lib/storefront/draft-product-ids";
 import { fetchFeaturedProductsCached } from "@/lib/storefront/product-queries";
 import { getProductPackLabelsByIds } from "@/lib/products/pack.server";
 
-export const revalidate = STOREFRONT_REVALIDATE_SECONDS;
+export const revalidate = 300; // keep in sync with STOREFRONT_REVALIDATE_SECONDS
 
 export const metadata: Metadata = {
   title: "Featured Products",

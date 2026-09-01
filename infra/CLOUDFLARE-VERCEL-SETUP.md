@@ -23,20 +23,38 @@ Industry standard for small/mid e-commerce: **Cloudflare in front, Vercel as ori
 
 ### Cloudflare cache rules (Rules → Cache Rules)
 
+**Current production (before `npm run apply:cloudflare-cache`):** Cloudflare proxy only — almost everything is `cf-cache-status: DYNAMIC` (no custom cache rules).
+
+**Worth it?** Yes for Hub:
+- `/_next/static/*` — high benefit, safe (JS/CSS/fonts)
+- `/api/storefront/products` — moderate benefit (5 min TTL from origin)
+- Bypass admin/cart/checkout/payments — required for safety
+
+Apply idempotently from repo (Shaaru Cloudflare API token):
+
+```bash
+# Token: Zone.Cache Rules Edit on hubsofcraftss.com
+export CF_API_TOKEN=...
+npm run apply:cloudflare-cache
+```
+
+Rules are defined in `infra/cloudflare-cache-rules.hub.json` and managed by `scripts/apply-cloudflare-cache-rules.mjs`.
+
 | Rule | Match | Cache |
 |------|-------|-------|
-| Static Next assets | URI Path starts with `/_next/static/` | Cache Everything, Edge TTL 1 year |
-| Public product API | URI Path equals `/api/storefront/products` | Respect origin `Cache-Control` (s-maxage=300) |
-| Bypass dynamic | URI Path starts with `/admin`, `/api/create-checkout`, `/api/cashfree`, `/api/phonepe`, `/cart`, `/orders` | Bypass cache |
-| Bypass health deep | URI Path equals `/api/health` and query `deep=1` | Bypass cache |
+| Bypass dynamic | `/admin`, `/cart`, `/orders`, checkout/payment/cron APIs, non-GET | Bypass |
+| Bypass health deep | `/api/health?deep=1` | Bypass |
+| Static Next assets | URI Path starts with `/_next/static/` | Edge TTL 1 year |
+| Public images | favicon, OG image, manifest | Edge TTL 1 day |
+| Public product API | `GET /api/storefront/products` | Respect origin `s-maxage=300` |
 
 ## Vercel environment (production)
 
 | Variable | Notes |
 |----------|--------|
 | `DATABASE_URL` | Supabase pooler; app rewrites `:5432` → `:6543` at runtime |
-| `CRON_SECRET` | Required for `/api/cron/release-expired-stock-reservations` (also in Vercel cron) |
-| `UPSTASH_REDIS_REST_URL` + `TOKEN` | Storefront cache + distributed stock-sweep throttle |
+| `UPSTASH_REDIS_REST_URL` + `TOKEN` | Storefront cache + distributed stock-sweep throttle (already set on Hub) |
+| `CRON_SECRET` | Optional — only if you enable Vercel cron or external stock-release scheduler |
 
 ## Health checks
 
@@ -49,8 +67,7 @@ Industry standard for small/mid e-commerce: **Cloudflare in front, Vercel as ori
 
 - Middleware skips `/api/*` (webhooks, health, storefront JSON) → fewer edge requests
 - Storefront ISR TTL **5 minutes** (`STOREFRONT_REVALIDATE_SECONDS = 300`)
-- Stock release via **Vercel cron** hourly (`15 * * * *`), not on every cart pricing call
-- Checkout still runs a forced sweep when stock control is on
+- Stock release at checkout when stock control is on (no Vercel cron on Hobby)
 - Static `/_next/static` long-cache headers for Cloudflare edge
 - Shallow `/api/health` by default to avoid burning DB pool on monitors
 

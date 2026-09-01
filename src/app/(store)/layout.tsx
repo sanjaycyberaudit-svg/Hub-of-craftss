@@ -24,12 +24,11 @@ import { OfferCodesProvider } from "@/providers/OfferCodesProvider";
 import { ShopContactProvider } from "@/providers/ShopContactProvider";
 import { SocialLinksProvider } from "@/providers/SocialLinksProvider";
 import { StockControlProvider } from "@/providers/StockControlProvider";
-import { STOREFRONT_REVALIDATE_SECONDS } from "@/lib/cache/constants";
 import { ReactNode } from "react";
 
 type Props = { children: ReactNode };
 
-export const revalidate = STOREFRONT_REVALIDATE_SECONDS;
+export const revalidate = 300; // keep in sync with STOREFRONT_REVALIDATE_SECONDS
 
 async function withTimeout<T>(
   promise: Promise<T>,

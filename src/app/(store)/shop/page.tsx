@@ -7,7 +7,6 @@ import {
   SearchProductsInifiteScroll,
 } from "@/features/search";
 import { SectionErrorNotice } from "@/components/errors/SectionErrorNotice";
-import { STOREFRONT_REVALIDATE_SECONDS } from "@/lib/cache/constants";
 import { getProductPackLabelsByIds } from "@/lib/products/pack.server";
 import { withFallback } from "@/lib/resilience";
 import { getAllCollectionsCached } from "@/lib/storefront/collections-list";
@@ -23,7 +22,7 @@ import {
 import type { Metadata } from "next";
 import { Suspense } from "react";
 
-export const revalidate = STOREFRONT_REVALIDATE_SECONDS;
+export const revalidate = 300; // keep in sync with STOREFRONT_REVALIDATE_SECONDS
 
 export const metadata: Metadata = {
   title: "Shop All Products",

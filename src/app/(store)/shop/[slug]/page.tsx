@@ -10,7 +10,6 @@ import {
   ProductImageShowcase,
 } from "@/features/products";
 import { AddToWishListButton } from "@/features/wishlists";
-import { STOREFRONT_REVALIDATE_SECONDS } from "@/lib/cache/constants";
 import {
   getProductOptionDisplayName,
   getProductSizeConfig,
@@ -42,7 +41,7 @@ import { JsonLd } from "@/components/seo/JsonLd";
 import { Metadata } from "next";
 import { notFound } from "next/navigation";
 
-export const revalidate = STOREFRONT_REVALIDATE_SECONDS;
+export const revalidate = 300; // keep in sync with STOREFRONT_REVALIDATE_SECONDS
 
 type Props = {
   params: Promise<{

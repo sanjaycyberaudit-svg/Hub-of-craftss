@@ -6,7 +6,6 @@ import {
   FilterSelections,
   SearchProductsInifiteScroll,
 } from "@/features/search";
-import { STOREFRONT_REVALIDATE_SECONDS } from "@/lib/cache/constants";
 import { getCollectionPageCached } from "@/lib/storefront/collection-detail";
 import { SectionErrorNotice } from "@/components/errors/SectionErrorNotice";
 import { withFallback } from "@/lib/resilience";
@@ -21,7 +20,7 @@ import { toTitleCase, unslugify } from "@/lib/utils";
 import { notFound, redirect } from "next/navigation";
 import { Suspense } from "react";
 
-export const revalidate = STOREFRONT_REVALIDATE_SECONDS;
+export const revalidate = 300; // keep in sync with STOREFRONT_REVALIDATE_SECONDS
 
 interface CategoryPageProps {
   params: Promise<{
