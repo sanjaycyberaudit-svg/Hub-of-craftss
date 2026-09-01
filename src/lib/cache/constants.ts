@@ -1,5 +1,5 @@
 /** Default ISR / Data Cache TTL for storefront reads (seconds). */
-export const STOREFRONT_REVALIDATE_SECONDS = 120;
+export const STOREFRONT_REVALIDATE_SECONDS = 300;
 
 /** Longer TTL for mostly-static marketing pages. */
 export const STOREFRONT_STATIC_REVALIDATE_SECONDS = 3600;

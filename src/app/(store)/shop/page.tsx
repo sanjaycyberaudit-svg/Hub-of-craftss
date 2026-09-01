@@ -23,7 +23,7 @@ import {
 import type { Metadata } from "next";
 import { Suspense } from "react";
 
-export const revalidate = 120;
+export const revalidate = STOREFRONT_REVALIDATE_SECONDS;
 
 export const metadata: Metadata = {
   title: "Shop All Products",

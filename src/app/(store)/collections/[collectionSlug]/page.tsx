@@ -21,7 +21,7 @@ import { toTitleCase, unslugify } from "@/lib/utils";
 import { notFound, redirect } from "next/navigation";
 import { Suspense } from "react";
 
-export const revalidate = 120;
+export const revalidate = STOREFRONT_REVALIDATE_SECONDS;
 
 interface CategoryPageProps {
   params: Promise<{

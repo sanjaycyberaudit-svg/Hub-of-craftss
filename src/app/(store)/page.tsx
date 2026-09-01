@@ -18,9 +18,10 @@ import { getShopByPriceBucketsCached } from "@/lib/storefront/shop-by-price";
 import { getProductPackLabelsByIds } from "@/lib/products/pack.server";
 import { siteConfig } from "@/config/site";
 import { cn } from "@/lib/utils";
+import { STOREFRONT_REVALIDATE_SECONDS } from "@/lib/cache/constants";
 import type { Metadata } from "next";
 
-export const revalidate = 120;
+export const revalidate = STOREFRONT_REVALIDATE_SECONDS;
 
 export const metadata: Metadata = {
   title: {

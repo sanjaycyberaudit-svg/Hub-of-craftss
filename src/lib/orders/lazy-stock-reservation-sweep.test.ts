@@ -1,4 +1,5 @@
 import {
+  LAZY_STOCK_SWEEP_DISTRIBUTED_INTERVAL_MS,
   LAZY_STOCK_SWEEP_MIN_INTERVAL_MS,
   resetLazyStockSweepThrottleForTests,
   shouldRunLazyStockSweep,
@@ -24,6 +25,10 @@ describe("lazy stock reservation sweep policy", () => {
     expect(shouldRunLazyStockSweep(start, start + 60_000, false, 60_000)).toBe(
       true,
     );
+  });
+
+  it("uses a 15-minute distributed interval constant", () => {
+    expect(LAZY_STOCK_SWEEP_DISTRIBUTED_INTERVAL_MS).toBe(15 * 60_000);
   });
 
   it("resets throttle baseline for tests", () => {

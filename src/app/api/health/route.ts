@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { sql } from "drizzle-orm";
 import db from "@/lib/supabase/db";
 import { isRedisCacheEnabled, redisGet } from "@/lib/cache/redis";
@@ -19,13 +19,37 @@ function withTimeout<T>(promise: Promise<T>, label: string): Promise<T> {
   ]);
 }
 
+function shallowResponse() {
+  return NextResponse.json(
+    {
+      status: "ok",
+      mode: "shallow",
+      timestamp: new Date().toISOString(),
+      service: "hub-of-craftss",
+    },
+    {
+      status: 200,
+      headers: {
+        "Cache-Control": "no-store",
+      },
+    },
+  );
+}
+
 /**
- * Deep health check, polled every 5 minutes by the keep-warm GitHub Action.
- * `"status":"ok"` requires the database to answer; the workflow fails (and
- * GitHub emails the owner) when this returns 503. Redis is a fail-open cache,
- * so its state is reported but never fails the check.
+ * Health check for uptime monitors and keep-warm pings.
+ *
+ * Default (`GET /api/health`) is shallow — no database — so monitors and
+ * edge keep-warm do not burn Fluid CPU or Supabase pool slots.
+ *
+ * Deep check (`GET /api/health?deep=1`) verifies database + Redis and returns
+ * 503 when the database is unreachable (use for alerting, not 5-minute polls).
  */
-export async function GET() {
+export async function GET(request: NextRequest) {
+  if (request.nextUrl.searchParams.get("deep") !== "1") {
+    return shallowResponse();
+  }
+
   const checkedAt = new Date().toISOString();
 
   const [database, redis] = await Promise.all([
@@ -39,8 +63,6 @@ export async function GET() {
     !isRedisCacheEnabled()
       ? Promise.resolve("disabled" as const)
       : withTimeout(redisGet("health:probe"), "redis").then(
-          // redisGet never throws (fail-open), a null result still proves the
-          // round trip; only a timeout of the whole call marks an error.
           () => "ok" as const,
           () => "error" as const,
         ),
@@ -51,10 +73,16 @@ export async function GET() {
   return NextResponse.json(
     {
       status: healthy ? "ok" : "degraded",
+      mode: "deep",
       timestamp: checkedAt,
-      service: "hiyori-app",
+      service: "hub-of-craftss",
       checks: { database, redis },
     },
-    { status: healthy ? 200 : 503 },
+    {
+      status: healthy ? 200 : 503,
+      headers: {
+        "Cache-Control": "no-store",
+      },
+    },
   );
 }

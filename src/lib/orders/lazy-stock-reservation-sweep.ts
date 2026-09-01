@@ -2,18 +2,57 @@ import {
   getIntegrationSetting,
   INTEGRATION_KEYS,
 } from "@/lib/integrations/settings";
+import { redisGet, redisSet } from "@/lib/cache/redis";
 import { releaseExpiredStockReservations } from "@/lib/orders/stock-reservation";
 import {
   getLastLazyStockSweepAtMs,
+  LAZY_STOCK_SWEEP_DISTRIBUTED_INTERVAL_MS,
   markLazyStockSweepRan,
   shouldRunLazyStockSweep,
 } from "@/lib/orders/lazy-stock-reservation-sweep-policy";
 
 export {
   LAZY_STOCK_SWEEP_MIN_INTERVAL_MS,
+  LAZY_STOCK_SWEEP_DISTRIBUTED_INTERVAL_MS,
   resetLazyStockSweepThrottleForTests,
   shouldRunLazyStockSweep,
 } from "@/lib/orders/lazy-stock-reservation-sweep-policy";
+
+const REDIS_SWEEP_KEY = "ops:stock-sweep:last-ms";
+
+async function shouldRunDistributedSweep(nowMs: number, force: boolean) {
+  if (force) return true;
+
+  if (
+    !shouldRunLazyStockSweep(
+      getLastLazyStockSweepAtMs(),
+      nowMs,
+      false,
+      LAZY_STOCK_SWEEP_DISTRIBUTED_INTERVAL_MS,
+    )
+  ) {
+    return false;
+  }
+
+  const lastRemote = await redisGet<number>(REDIS_SWEEP_KEY);
+  if (
+    typeof lastRemote === "number" &&
+    nowMs - lastRemote < LAZY_STOCK_SWEEP_DISTRIBUTED_INTERVAL_MS
+  ) {
+    return false;
+  }
+
+  return true;
+}
+
+async function markDistributedSweepRan(nowMs: number) {
+  markLazyStockSweepRan(nowMs);
+  void redisSet(
+    REDIS_SWEEP_KEY,
+    nowMs,
+    Math.ceil(LAZY_STOCK_SWEEP_DISTRIBUTED_INTERVAL_MS / 1000) + 60,
+  );
+}
 
 export type LazyStockReservationSweepResult = {
   ran: boolean;
@@ -41,17 +80,11 @@ export async function sweepExpiredStockReservationsIfEnabled(options?: {
   }
 
   const nowMs = options?.nowMs ?? Date.now();
-  if (
-    !shouldRunLazyStockSweep(
-      getLastLazyStockSweepAtMs(),
-      nowMs,
-      Boolean(options?.force),
-    )
-  ) {
+  if (!(await shouldRunDistributedSweep(nowMs, Boolean(options?.force)))) {
     return { ran: false, skippedReason: "throttled" };
   }
 
-  markLazyStockSweepRan(nowMs);
+  await markDistributedSweepRan(nowMs);
 
   try {
     const result = await releaseExpiredStockReservations({

@@ -1,5 +1,8 @@
 export const LAZY_STOCK_SWEEP_MIN_INTERVAL_MS = 60_000;
 
+/** Cross-instance throttle so sweeps do not run on every serverless cold start. */
+export const LAZY_STOCK_SWEEP_DISTRIBUTED_INTERVAL_MS = 15 * 60_000;
+
 let lastLazySweepAtMs = 0;
 
 export function shouldRunLazyStockSweep(
