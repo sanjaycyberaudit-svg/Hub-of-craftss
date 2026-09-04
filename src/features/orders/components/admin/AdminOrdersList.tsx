@@ -16,15 +16,6 @@ import {
 import { useToast } from "@/components/ui/use-toast";
 import type { AdminOrderListView } from "@/lib/admin/getAdminOrdersList";
 import { AdminCheckoutOutcomeBadge } from "@/features/orders/components/admin/AdminCheckoutOutcomeBadge";
-import {
-  adminOrderToPackingSlip,
-  adminOrderToPdfLabel,
-} from "@/lib/pdf/admin-order-pdf-label";
-import { downloadOrderPdf as downloadPackingSlipPdf } from "@/lib/pdf/packing-slip-pdf";
-import {
-  downloadOrderPdf,
-  PdfAddressTooLongError,
-} from "@/lib/pdf/shipping-label-pdf";
 import { cn, formatPrice } from "@/lib/utils";
 import { formatOrderDateTimeIst } from "@/lib/datetime/india";
 
@@ -115,21 +106,20 @@ function AdminOrderRow({
 
     setDownloadingPdf(true);
     try {
+      const [{ adminOrderToPdfLabel }, { downloadOrderPdf }] =
+        await Promise.all([
+          import("@/lib/pdf/admin-order-pdf-label"),
+          import("@/lib/pdf/shipping-label-pdf"),
+        ]);
       await downloadOrderPdf(adminOrderToPdfLabel(order));
       toast({
         title: "PDF downloaded",
         description: "Shipping label PDF saved to your downloads.",
       });
     } catch (error) {
-      const message =
-        error instanceof PdfAddressTooLongError
-          ? error.message
-          : error instanceof Error
-            ? error.message
-            : "Unknown error";
       toast({
         title: "Failed to generate PDF",
-        description: message,
+        description: error instanceof Error ? error.message : "Unknown error",
         variant: "destructive",
       });
     } finally {
@@ -146,7 +136,11 @@ function AdminOrderRow({
 
     setDownloadingPackingSlip(true);
     try {
-      await downloadPackingSlipPdf(adminOrderToPackingSlip(order));
+      const [{ adminOrderToPackingSlip }, packing] = await Promise.all([
+        import("@/lib/pdf/admin-order-pdf-label"),
+        import("@/lib/pdf/packing-slip-pdf"),
+      ]);
+      await packing.downloadOrderPdf(adminOrderToPackingSlip(order));
       toast({
         title: "Packing slip downloaded",
         description: "Packing slip PDF saved to your downloads.",

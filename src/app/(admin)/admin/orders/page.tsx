@@ -1,11 +1,7 @@
+import nextDynamic from "next/dynamic";
 import AdminShell from "@/components/admin/AdminShell";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Skeleton } from "@/components/ui/skeleton";
-import { AdminOrdersUiErrorBoundary } from "@/features/orders/components/admin/AdminOrdersUiErrorBoundary";
-import {
-  AdminOrdersSegmentTabs,
-  parseOrdersSegment,
-} from "@/features/orders/components/admin/AdminOrdersSegmentTabs";
 import {
   adminOrdersDateFiltersFromSearchParams,
   createThisMonthDateFilters,
@@ -19,8 +15,8 @@ import {
   parseAdminOrdersPage,
   type AdminOrdersListResult,
 } from "@/lib/admin/getAdminOrdersList";
+import { parseOrdersSegment } from "@/lib/admin/admin-orders-segment";
 import { publicErrorMessage } from "@/lib/api/public-error";
-import { Suspense } from "react";
 
 function OrdersListOnlySkeleton() {
   return (
@@ -31,6 +27,19 @@ function OrdersListOnlySkeleton() {
     </div>
   );
 }
+
+/**
+ * Client-only: never SSR the tabs/list tree.
+ * SSR of that client graph was throwing into orders/error.tsx even after a
+ * successful DB fetch (PDF imports / useSearchParams / image validation).
+ */
+const AdminOrdersSegmentTabs = nextDynamic(
+  () =>
+    import("@/features/orders/components/admin/AdminOrdersSegmentTabs").then(
+      (mod) => mod.AdminOrdersSegmentTabs,
+    ),
+  { ssr: false, loading: () => <OrdersListOnlySkeleton /> },
+);
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -60,12 +69,6 @@ function emptyList(pageSize: number): AdminOrdersListResult {
   };
 }
 
-/**
- * SSR Tex pattern:
- * - No Suspense around the data fetch (avoids error-boundary / stuck skeleton)
- * - No Promise.race timeout (abandoned queries poison postgres.js max:1)
- * - Rely on DB statement_timeout + try/catch → Alert, never throw
- */
 export default async function OrdersPage({
   searchParams,
 }: AdminOrdersPageProps) {
@@ -88,7 +91,6 @@ export default async function OrdersPage({
     const paidPage = parseAdminOrdersPage(resolved[PAID_PAGE_PARAM]);
     const pendingPage = parseAdminOrdersPage(resolved[PENDING_PAGE_PARAM]);
 
-    // Default this month (IST) when URL has no date params — today often empty.
     const fromParams = adminOrdersDateFiltersFromSearchParams({
       from: firstParam(resolved.from),
       to: firstParam(resolved.to),
@@ -104,7 +106,6 @@ export default async function OrdersPage({
       hasExplicitDate ? fromParams : createThisMonthDateFilters(),
     );
 
-    // Sequential queries only — never Promise.all / Promise.race on max:1 pooler.
     counts = await getAdminOrdersCounts(dateFilter);
     if (segment === "paid") {
       paid = await getAdminOrdersList({
@@ -126,7 +127,10 @@ export default async function OrdersPage({
       paid = emptyList(pageSize);
     }
   } catch (error) {
-    console.error(`[admin/orders] page load failed (segment=${segment}):`, error);
+    console.error(
+      `[admin/orders] page load failed (segment=${segment}):`,
+      error,
+    );
     fetchError =
       error instanceof Error && error.message.trim()
         ? error.message
@@ -153,22 +157,18 @@ export default async function OrdersPage({
           </Alert>
         ) : null}
 
-        <Suspense fallback={<OrdersListOnlySkeleton />}>
-          <AdminOrdersUiErrorBoundary>
-            <AdminOrdersSegmentTabs
-              key={segment}
-              segment={segment}
-              counts={counts}
-              paid={paid}
-              unpaid={unpaid}
-              paidPageParam={PAID_PAGE_PARAM}
-              unpaidPageParam={PENDING_PAGE_PARAM}
-              pageSizeParam={PAGE_SIZE_PARAM}
-              resetPageParams={resetPageParams}
-              dateFilter={dateFilter}
-            />
-          </AdminOrdersUiErrorBoundary>
-        </Suspense>
+        <AdminOrdersSegmentTabs
+          key={segment}
+          segment={segment}
+          counts={counts}
+          paid={paid}
+          unpaid={unpaid}
+          paidPageParam={PAID_PAGE_PARAM}
+          unpaidPageParam={PENDING_PAGE_PARAM}
+          pageSizeParam={PAGE_SIZE_PARAM}
+          resetPageParams={resetPageParams}
+          dateFilter={dateFilter}
+        />
       </div>
     </AdminShell>
   );

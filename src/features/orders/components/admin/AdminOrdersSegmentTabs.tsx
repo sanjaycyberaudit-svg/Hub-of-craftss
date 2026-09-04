@@ -7,29 +7,26 @@ import { FileDown, Filter, Loader2 } from "lucide-react";
 
 import AdminOrdersList from "@/features/orders/components/admin/AdminOrdersList";
 import { AdminOrdersDateFilterModal } from "@/features/orders/components/admin/AdminOrdersDateFilterModal";
+import { AdminOrdersUiErrorBoundary } from "@/features/orders/components/admin/AdminOrdersUiErrorBoundary";
 import type { AdminOrderListView } from "@/lib/admin/getAdminOrdersList";
 import { clampAdminOrdersPageSize } from "@/lib/admin/admin-orders-pagination";
 import {
-  appendAdminOrdersDateParams,
   describeAdminOrdersDateFilters,
   isAdminOrdersDateFilterHighlighted,
   type AdminOrdersDateFilterState,
 } from "@/lib/admin/admin-orders-date-filter";
+import {
+  parseOrdersSegment,
+  segmentHref,
+  type OrdersSegment,
+} from "@/lib/admin/admin-orders-segment";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/components/ui/use-toast";
-import {
-  adminOrdersToPackingSlips,
-  adminOrdersToPdfLabels,
-} from "@/lib/pdf/admin-order-pdf-label";
-import { downloadOrdersPdf as downloadPackingSlipsPdf } from "@/lib/pdf/packing-slip-pdf";
-import {
-  downloadOrdersPdf,
-  PdfAddressTooLongError,
-} from "@/lib/pdf/shipping-label-pdf";
 import { cn } from "@/lib/utils";
 
-export type OrdersSegment = "paid" | "unpaid";
+export type { OrdersSegment };
+export { parseOrdersSegment, segmentHref };
 
 type OrdersListResult = {
   rows: AdminOrderListView[];
@@ -50,32 +47,8 @@ type Props = {
   dateFilter: AdminOrdersDateFilterState;
 };
 
-const ORDERS_PATH = "/admin/orders";
 /** If RSC navigation stalls, unlock the UI so the admin can retry. */
 const NAV_STALL_TIMEOUT_MS = 12_000;
-
-export function parseOrdersSegment(
-  value: string | null | undefined,
-): OrdersSegment {
-  const raw = String(value ?? "")
-    .trim()
-    .toLowerCase();
-  // Default paid when status is missing or unknown.
-  if (raw === "unpaid" || raw === "pending") return "unpaid";
-  return "paid";
-}
-
-export function segmentHref(
-  nextSegment: OrdersSegment,
-  pageSize: number,
-  dateFilter: AdminOrdersDateFilterState,
-) {
-  const params = new URLSearchParams();
-  params.set("status", nextSegment);
-  if (pageSize > 0) params.set("pageSize", String(pageSize));
-  appendAdminOrdersDateParams(params, dateFilter);
-  return `${ORDERS_PATH}?${params.toString()}`;
-}
 
 function OrdersListSkeleton() {
   return (
@@ -178,21 +151,20 @@ export function AdminOrdersSegmentTabs({
     if (downloadingBulkPdf || paid.rows.length === 0) return;
     setDownloadingBulkPdf(true);
     try {
+      const [{ adminOrdersToPdfLabels }, { downloadOrdersPdf }] =
+        await Promise.all([
+          import("@/lib/pdf/admin-order-pdf-label"),
+          import("@/lib/pdf/shipping-label-pdf"),
+        ]);
       await downloadOrdersPdf(adminOrdersToPdfLabels(paid.rows));
       toast({
         title: "PDF downloaded",
         description: `Shipping labels for ${paid.rows.length} paid order${paid.rows.length === 1 ? "" : "s"} on this page.`,
       });
     } catch (error) {
-      const message =
-        error instanceof PdfAddressTooLongError
-          ? error.message
-          : error instanceof Error
-            ? error.message
-            : "Unknown error";
       toast({
         title: "Failed to generate PDF",
-        description: message,
+        description: error instanceof Error ? error.message : "Unknown error",
         variant: "destructive",
       });
     } finally {
@@ -204,7 +176,11 @@ export function AdminOrdersSegmentTabs({
     if (downloadingBulkPacking || paid.rows.length === 0) return;
     setDownloadingBulkPacking(true);
     try {
-      await downloadPackingSlipsPdf(adminOrdersToPackingSlips(paid.rows));
+      const [{ adminOrdersToPackingSlips }, packing] = await Promise.all([
+        import("@/lib/pdf/admin-order-pdf-label"),
+        import("@/lib/pdf/packing-slip-pdf"),
+      ]);
+      await packing.downloadOrdersPdf(adminOrdersToPackingSlips(paid.rows));
       toast({
         title: "Packing slips downloaded",
         description: `Packing slips for ${paid.rows.length} paid order${paid.rows.length === 1 ? "" : "s"} on this page.`,
@@ -221,220 +197,223 @@ export function AdminOrdersSegmentTabs({
   }, [downloadingBulkPacking, paid.rows, toast]);
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-start justify-between gap-3">
-        <div
-          className="grid min-w-0 flex-1 gap-4 md:grid-cols-2"
-          role="tablist"
-          aria-label="Order payment status"
-        >
-          <Link
-            href={segmentHref("paid", pageSize, dateFilter)}
-            replace
-            scroll={false}
-            prefetch
-            role="tab"
-            aria-selected={displaySegment === "paid"}
-            aria-busy={isLoading && displaySegment === "paid"}
-            onClick={(event) => {
-              event.preventDefault();
-              navigateTo("paid");
-            }}
-            className={cn(
-              "rounded-lg border p-4 text-left transition-colors",
-              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
-              displaySegment === "paid"
-                ? "border-primary bg-primary/5 shadow-sm"
-                : "border-border bg-card hover:border-primary/40 hover:bg-muted/30",
-            )}
+    <AdminOrdersUiErrorBoundary>
+      <div className="space-y-4">
+        <div className="flex items-start justify-between gap-3">
+          <div
+            className="grid min-w-0 flex-1 gap-4 md:grid-cols-2"
+            role="tablist"
+            aria-label="Order payment status"
           >
-            <p
+            <Link
+              href={segmentHref("paid", pageSize, dateFilter)}
+              replace
+              scroll={false}
+              prefetch
+              role="tab"
+              aria-selected={displaySegment === "paid"}
+              aria-busy={isLoading && displaySegment === "paid"}
+              onClick={(event) => {
+                event.preventDefault();
+                navigateTo("paid");
+              }}
               className={cn(
-                "text-xs uppercase tracking-wide",
+                "rounded-lg border p-4 text-left transition-colors",
+                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
                 displaySegment === "paid"
-                  ? "text-primary"
-                  : "text-muted-foreground",
+                  ? "border-primary bg-primary/5 shadow-sm"
+                  : "border-border bg-card hover:border-primary/40 hover:bg-muted/30",
               )}
             >
-              Paid orders
-            </p>
-            <p className="mt-1 text-2xl font-semibold tabular-nums text-foreground">
-              {counts.paid}
-            </p>
-            <p className="mt-1 text-xs text-muted-foreground">
-              Counted in dashboard revenue and top products
-            </p>
-          </Link>
+              <p
+                className={cn(
+                  "text-xs uppercase tracking-wide",
+                  displaySegment === "paid"
+                    ? "text-primary"
+                    : "text-muted-foreground",
+                )}
+              >
+                Paid orders
+              </p>
+              <p className="mt-1 text-2xl font-semibold tabular-nums text-foreground">
+                {counts.paid}
+              </p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Counted in dashboard revenue and top products
+              </p>
+            </Link>
 
-          <Link
-            href={segmentHref("unpaid", pageSize, dateFilter)}
-            replace
-            scroll={false}
-            prefetch
-            role="tab"
-            aria-selected={displaySegment === "unpaid"}
-            aria-busy={isLoading && displaySegment === "unpaid"}
-            onClick={(event) => {
-              event.preventDefault();
-              navigateTo("unpaid");
-            }}
-            className={cn(
-              "rounded-lg border p-4 text-left transition-colors",
-              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
-              displaySegment === "unpaid"
-                ? "border-destructive bg-destructive/5 shadow-sm"
-                : "border-border bg-card hover:border-destructive/40 hover:bg-muted/30",
-            )}
-          >
-            <p
+            <Link
+              href={segmentHref("unpaid", pageSize, dateFilter)}
+              replace
+              scroll={false}
+              prefetch
+              role="tab"
+              aria-selected={displaySegment === "unpaid"}
+              aria-busy={isLoading && displaySegment === "unpaid"}
+              onClick={(event) => {
+                event.preventDefault();
+                navigateTo("unpaid");
+              }}
               className={cn(
-                "text-xs uppercase tracking-wide",
+                "rounded-lg border p-4 text-left transition-colors",
+                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
                 displaySegment === "unpaid"
-                  ? "text-destructive"
-                  : "text-muted-foreground",
+                  ? "border-destructive bg-destructive/5 shadow-sm"
+                  : "border-border bg-card hover:border-destructive/40 hover:bg-muted/30",
               )}
             >
-              Unpaid / pending
-            </p>
-            <p className="mt-1 text-2xl font-semibold tabular-nums text-foreground">
-              {counts.pending}
-            </p>
-            <p className="mt-1 text-xs text-muted-foreground">
-              Follow up — payment not completed
-            </p>
-          </Link>
-        </div>
+              <p
+                className={cn(
+                  "text-xs uppercase tracking-wide",
+                  displaySegment === "unpaid"
+                    ? "text-destructive"
+                    : "text-muted-foreground",
+                )}
+              >
+                Unpaid / pending
+              </p>
+              <p className="mt-1 text-2xl font-semibold tabular-nums text-foreground">
+                {counts.pending}
+              </p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Follow up — payment not completed
+              </p>
+            </Link>
+          </div>
 
-        <Button
-          type="button"
-          variant="outline"
-          size="icon"
-          className={cn(
-            "relative shrink-0",
-            filterHighlighted && "border-primary text-primary",
-          )}
-          aria-label={`Filter orders (${dateLabel})`}
-          title={`Filter: ${dateLabel}`}
-          onClick={() => setFilterOpen(true)}
-        >
-          <Filter className="h-4 w-4" />
-          {filterHighlighted ? (
-            <span
-              className="absolute right-1 top-1 h-2 w-2 rounded-full bg-destructive"
-              aria-hidden
-            />
-          ) : null}
-        </Button>
-      </div>
-
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="flex items-center gap-2 text-sm text-muted-foreground">
-          {isLoading ? (
-            <>
-              <Loader2
-                className="h-3.5 w-3.5 shrink-0 animate-spin"
+          <Button
+            type="button"
+            variant="outline"
+            size="icon"
+            className={cn(
+              "relative shrink-0",
+              filterHighlighted && "border-primary text-primary",
+            )}
+            aria-label={`Filter orders (${dateLabel})`}
+            title={`Filter: ${dateLabel}`}
+            onClick={() => setFilterOpen(true)}
+          >
+            <Filter className="h-4 w-4" />
+            {filterHighlighted ? (
+              <span
+                className="absolute right-1 top-1 h-2 w-2 rounded-full bg-destructive"
                 aria-hidden
               />
-              <span>
-                Loading{" "}
-                <span className="font-medium text-foreground">
-                  {displaySegment === "unpaid" ? "unpaid" : "paid"}
-                </span>{" "}
-                orders…
-              </span>
-            </>
-          ) : (
-            <>
-              Showing{" "}
-              <span className="font-medium text-foreground">
-                {segment === "unpaid" ? "unpaid" : "paid"}
-              </span>{" "}
-              · <span className="font-medium text-foreground">{dateLabel}</span>
-              {active.totalCount > 0 ? <> ({active.totalCount})</> : null}
-            </>
-          )}
-        </p>
+            ) : null}
+          </Button>
+        </div>
 
-        {showPdfToolbar ? (
-          <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <p className="flex items-center gap-2 text-sm text-muted-foreground">
+            {isLoading ? (
+              <>
+                <Loader2
+                  className="h-3.5 w-3.5 shrink-0 animate-spin"
+                  aria-hidden
+                />
+                <span>
+                  Loading{" "}
+                  <span className="font-medium text-foreground">
+                    {displaySegment === "unpaid" ? "unpaid" : "paid"}
+                  </span>{" "}
+                  orders…
+                </span>
+              </>
+            ) : (
+              <>
+                Showing{" "}
+                <span className="font-medium text-foreground">
+                  {segment === "unpaid" ? "unpaid" : "paid"}
+                </span>{" "}
+                ·{" "}
+                <span className="font-medium text-foreground">{dateLabel}</span>
+                {active.totalCount > 0 ? <> ({active.totalCount})</> : null}
+              </>
+            )}
+          </p>
+
+          {showPdfToolbar ? (
+            <div className="flex flex-wrap gap-2">
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => void downloadBulkPdf()}
+                disabled={downloadingBulkPdf || paid.rows.length === 0}
+                title="Download shipping label PDF for paid orders on this page"
+              >
+                {downloadingBulkPdf ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <FileDown className="mr-2 h-4 w-4" />
+                )}
+                {downloadingBulkPdf ? "Generating…" : "Labels"}
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => void downloadBulkPackingSlips()}
+                disabled={downloadingBulkPacking || paid.rows.length === 0}
+                title="Download packing slips for paid orders on this page"
+              >
+                {downloadingBulkPacking ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <FileDown className="mr-2 h-4 w-4" />
+                )}
+                {downloadingBulkPacking ? "Generating…" : "Packing slips"}
+              </Button>
+            </div>
+          ) : null}
+        </div>
+
+        {navError ? (
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-destructive/40 bg-destructive/5 px-4 py-3 text-sm">
+            <p className="text-destructive">{navError}</p>
             <Button
               type="button"
               size="sm"
               variant="outline"
-              onClick={() => void downloadBulkPdf()}
-              disabled={downloadingBulkPdf || paid.rows.length === 0}
-              title="Download shipping label PDF for paid orders on this page"
+              onClick={() => navigateTo(urlSegment)}
             >
-              {downloadingBulkPdf ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                <FileDown className="mr-2 h-4 w-4" />
-              )}
-              {downloadingBulkPdf ? "Generating…" : "Labels"}
-            </Button>
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              onClick={() => void downloadBulkPackingSlips()}
-              disabled={downloadingBulkPacking || paid.rows.length === 0}
-              title="Download packing slips for paid orders on this page"
-            >
-              {downloadingBulkPacking ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                <FileDown className="mr-2 h-4 w-4" />
-              )}
-              {downloadingBulkPacking ? "Generating…" : "Packing slips"}
+              Retry
             </Button>
           </div>
         ) : null}
-      </div>
 
-      {navError ? (
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-destructive/40 bg-destructive/5 px-4 py-3 text-sm">
-          <p className="text-destructive">{navError}</p>
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            onClick={() => navigateTo(urlSegment)}
-          >
-            Retry
-          </Button>
-        </div>
-      ) : null}
+        {isLoading ? (
+          <OrdersListSkeleton />
+        ) : (
+          <AdminOrdersList
+            key={`${segment}-${dateLabel}`}
+            orders={active.rows}
+            totalCount={active.totalCount}
+            page={active.page}
+            pageSize={active.pageSize}
+            pageParam={segment === "unpaid" ? unpaidPageParam : paidPageParam}
+            pageSizeParam={pageSizeParam}
+            resetPageParams={resetPageParams}
+            enablePdf={segment === "paid"}
+            emptyMessage={
+              segment === "unpaid"
+                ? `No unpaid orders for ${dateLabel.toLowerCase()}.`
+                : `No paid orders for ${dateLabel.toLowerCase()}.`
+            }
+          />
+        )}
 
-      {isLoading ? (
-        <OrdersListSkeleton />
-      ) : (
-        <AdminOrdersList
-          key={`${segment}-${dateLabel}`}
-          orders={active.rows}
-          totalCount={active.totalCount}
-          page={active.page}
-          pageSize={active.pageSize}
-          pageParam={segment === "unpaid" ? unpaidPageParam : paidPageParam}
-          pageSizeParam={pageSizeParam}
-          resetPageParams={resetPageParams}
-          enablePdf={segment === "paid"}
-          emptyMessage={
-            segment === "unpaid"
-              ? `No unpaid orders for ${dateLabel.toLowerCase()}.`
-              : `No paid orders for ${dateLabel.toLowerCase()}.`
-          }
+        <AdminOrdersDateFilterModal
+          open={filterOpen}
+          initialFilters={dateFilter}
+          applying={filterApplying}
+          onClose={() => {
+            if (!filterApplying) setFilterOpen(false);
+          }}
+          onApply={applyDateFilter}
         />
-      )}
-
-      <AdminOrdersDateFilterModal
-        open={filterOpen}
-        initialFilters={dateFilter}
-        applying={filterApplying}
-        onClose={() => {
-          if (!filterApplying) setFilterOpen(false);
-        }}
-        onApply={applyDateFilter}
-      />
-    </div>
+      </div>
+    </AdminOrdersUiErrorBoundary>
   );
 }
