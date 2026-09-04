@@ -1,10 +1,9 @@
 import { siteConfig } from "@/config/site";
-import { displayInternalOrderRef } from "@/lib/orders/internal-order-ref";
 
 /** Minimal order shape for shipping-label PDFs (matches Software-Saree-order). */
 export type PdfLabelOrder = {
   id: string;
-  /** Human invoice-style ref (YYMM####), shown on the label when present. */
+  /** Kept for callers; not printed on the parcel label (use packing slip / admin UI). */
   internalRef?: string | null;
   sender_details: string;
   recipient_details: string;
@@ -810,14 +809,6 @@ function drawOrderLabel(
   fromLines.forEach((line, i) => {
     doc.text(line, leftX, addressStartYFrom + i * lineHeightMm);
   });
-
-  // Internal ref (invoice-style) — top-right of the section when assigned.
-  const internalRef = displayInternalOrderRef(order.internalRef);
-  if (internalRef) {
-    doc.setFont(FONT_HEADING, "bold");
-    doc.setFontSize(Math.max(8, labelSize - 1));
-    doc.text(`Ref #${internalRef}`, rightX, sectionTop + 6);
-  }
 
   // Centre: logo or text at adjusted centerX / thanksCenterY
   if (contentType === "text" && customText && doc.splitTextToSize) {
