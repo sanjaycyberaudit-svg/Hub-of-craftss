@@ -1,4 +1,5 @@
 import {
+  displayInternalOrderRef,
   formatInternalOrderRef,
   internalOrderRefPrefixFromDate,
   isValidInternalOrderRef,
@@ -43,10 +44,21 @@ describe("internal order ref (YYMM####)", () => {
       yymm: "2609",
       seq: 1,
     });
+    expect(parseInternalOrderRef("HOC26090001")).toEqual({
+      yymm: "2609",
+      seq: 1,
+    });
     expect(isValidInternalOrderRef("26090001")).toBe(true);
+    expect(isValidInternalOrderRef("HOC26090001")).toBe(true);
     expect(isValidInternalOrderRef("2609")).toBe(false);
     expect(isValidInternalOrderRef("abc")).toBe(false);
     expect(parseInternalOrderRef("26090000")).toBeNull();
+  });
+
+  it("displays HOC brand prefix for admins", () => {
+    expect(displayInternalOrderRef("26090001")).toBe("HOC26090001");
+    expect(displayInternalOrderRef("HOC26090001")).toBe("HOC26090001");
+    expect(displayInternalOrderRef(null)).toBeNull();
   });
 
   it("increments sequence and rejects overflow", () => {

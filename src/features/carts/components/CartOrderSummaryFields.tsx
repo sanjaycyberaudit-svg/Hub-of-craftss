@@ -4,6 +4,7 @@ import { cn, formatPrice } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import type { CourierChargeBreakdown } from "@/lib/courier/calculate";
+import { formatCartGstLabel } from "@/features/carts/lib/cart-order-summary-display";
 
 export type CartOrderSummaryFieldsProps = {
   productCount: number;
@@ -26,6 +27,7 @@ export type CartOrderSummaryFieldsProps = {
   discountedSubtotal: number;
   courierBreakdown: CourierChargeBreakdown | null;
   gstEnabled: boolean;
+  gstPercentage: number;
   gstAmount: number;
   totalAmount: number;
 };
@@ -51,9 +53,12 @@ export function CartOrderSummaryFields({
   discountedSubtotal,
   courierBreakdown,
   gstEnabled,
+  gstPercentage,
   gstAmount,
   totalAmount,
 }: CartOrderSummaryFieldsProps) {
+  const gstLabel = formatCartGstLabel({ gstEnabled, gstPercentage });
+
   return (
     <>
       {courierEnabled ? (
@@ -181,7 +186,7 @@ export function CartOrderSummaryFields({
             </div>
           ) : null}
           <div className="flex items-center justify-between">
-            <span>GST</span>
+            <span>{gstLabel}</span>
             <span>{gstEnabled ? formatPrice(gstAmount) : "Not applied"}</span>
           </div>
           <div className="flex items-center justify-between border-t pt-2 font-semibold">

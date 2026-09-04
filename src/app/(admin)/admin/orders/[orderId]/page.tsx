@@ -11,6 +11,7 @@ import { buildShippingAddressCopyText } from "@/lib/orders/shipping-address-text
 import { getOrderDispatchInfo } from "@/lib/dispatch/get-order-dispatch-info";
 import { buildDispatchNotificationText } from "@/lib/dispatch/dispatch-message";
 import { formatOrderDateTimeIst } from "@/lib/datetime/india";
+import { displayInternalOrderRef } from "@/lib/orders/internal-order-ref";
 import {
   readCheckoutTelemetry,
   resolveCheckoutOutcome,
@@ -66,7 +67,9 @@ function buildCourierCopyText(payload: {
     `ORDER DISPATCH NOTE`,
     `Order ID: ${payload.orderId}`,
     ...(payload.internalRef
-      ? [`Internal Ref: ${payload.internalRef}`]
+      ? [
+          `Internal Ref: ${displayInternalOrderRef(payload.internalRef) ?? payload.internalRef}`,
+        ]
       : []),
     `Date: ${formatOrderDateTimeIst(payload.createdAt)}`,
     `Customer: ${payload.customerName || "Customer"}`,

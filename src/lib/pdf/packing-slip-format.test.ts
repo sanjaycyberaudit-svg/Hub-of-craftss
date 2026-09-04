@@ -25,7 +25,7 @@ describe("packing slip format (Hub of craftss)", () => {
   });
 
   it("prints Ref # for internal invoice-style numbers", () => {
-    expect(formatPackingSlipInternalRef("26090001")).toBe("Ref #26090001");
+    expect(formatPackingSlipInternalRef("26090001")).toBe("Ref #HOC26090001");
     expect(formatPackingSlipInternalRef(null)).toBeNull();
   });
 

@@ -16,6 +16,7 @@ import {
 import { useToast } from "@/components/ui/use-toast";
 import type { AdminOrderListView } from "@/lib/admin/getAdminOrdersList";
 import { AdminCheckoutOutcomeBadge } from "@/features/orders/components/admin/AdminCheckoutOutcomeBadge";
+import { displayInternalOrderRef } from "@/lib/orders/internal-order-ref";
 import { cn, formatPrice } from "@/lib/utils";
 import { formatOrderDateTimeIst } from "@/lib/datetime/india";
 
@@ -166,7 +167,7 @@ function AdminOrderRow({
           <div className="flex flex-wrap items-center gap-2">
             {order.internalRef ? (
               <p className="font-semibold tabular-nums">
-                Ref #{order.internalRef}
+                Ref #{displayInternalOrderRef(order.internalRef)}
               </p>
             ) : null}
             <p

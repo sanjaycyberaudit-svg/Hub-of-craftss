@@ -22,6 +22,7 @@ import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { formatOrderDateTimeIst } from "@/lib/datetime/india";
+import { displayInternalOrderRef } from "@/lib/orders/internal-order-ref";
 import {
   adminOrderToPackingSlip,
   adminOrderToPdfLabel,
@@ -637,7 +638,7 @@ export function AdminOrderDetailView({
                 <p>
                   <span className="text-muted-foreground">Internal Ref:</span>{" "}
                   <span className="font-semibold tabular-nums">
-                    {order.internalRef}
+                    {displayInternalOrderRef(order.internalRef)}
                   </span>
                 </p>
               ) : null}

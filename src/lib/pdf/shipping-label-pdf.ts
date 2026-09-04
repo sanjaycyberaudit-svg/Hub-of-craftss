@@ -1,4 +1,5 @@
 import { siteConfig } from "@/config/site";
+import { displayInternalOrderRef } from "@/lib/orders/internal-order-ref";
 
 /** Minimal order shape for shipping-label PDFs (matches Software-Saree-order). */
 export type PdfLabelOrder = {
@@ -811,7 +812,7 @@ function drawOrderLabel(
   });
 
   // Internal ref (invoice-style) — top-right of the section when assigned.
-  const internalRef = String(order.internalRef ?? "").trim();
+  const internalRef = displayInternalOrderRef(order.internalRef);
   if (internalRef) {
     doc.setFont(FONT_HEADING, "bold");
     doc.setFontSize(Math.max(8, labelSize - 1));

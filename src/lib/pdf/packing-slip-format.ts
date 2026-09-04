@@ -1,6 +1,7 @@
 import { siteConfig } from "@/config/site";
 import { parseAddressLines } from "@/lib/admin/shop-contact";
 import { INDIA_TIME_ZONE } from "@/lib/datetime/india";
+import { displayInternalOrderRef } from "@/lib/orders/internal-order-ref";
 import type { ShippingAddressFields } from "@/lib/orders/shipping-address-text";
 
 export const PACKING_SLIP_BRAND = siteConfig.name;
@@ -95,11 +96,11 @@ export function formatPackingSlipOrderHeading(orderId: string): string {
   return `Order #${id}`;
 }
 
-/** Internal invoice-style line for packing slips, e.g. "Ref #26090001". */
+/** Internal invoice-style line for packing slips, e.g. "Ref #HOC26090001". */
 export function formatPackingSlipInternalRef(
   internalRef: string | null | undefined,
 ): string | null {
-  const ref = String(internalRef ?? "").trim();
+  const ref = displayInternalOrderRef(internalRef);
   if (!ref) return null;
   if (/^ref\s*#/i.test(ref)) return ref;
   return `Ref #${ref}`;

@@ -385,6 +385,7 @@ function GuestCartSection({
     discountedSubtotal,
     courierBreakdown,
     gstEnabled: courierConfig.gstEnabled,
+    gstPercentage: courierConfig.gstPercentage,
     gstAmount,
     totalAmount,
   };
