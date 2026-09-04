@@ -933,12 +933,11 @@ export async function downloadOrderPdf(order: PdfLabelOrder) {
       Parameters<typeof drawSectionBorder>[0];
     const resolved = resolveOrderLabelLayout(d, order, renderOptions);
     console.log(
-      `[PDF] Drawing ${SECTIONS_PER_PAGE} sections (TO shift: ${resolved.toShiftMm}mm, font: ${resolved.addressSizePt}pt)...`,
+      `[PDF] Drawing 1 label (TO shift: ${resolved.toShiftMm}mm, font: ${resolved.addressSizePt}pt)...`,
     );
-    for (let i = 0; i < SECTIONS_PER_PAGE; i++) {
-      drawSectionBorder(d, i * SECTION_H);
-      drawOrderLabel(d, order, i * SECTION_H, renderOptions, resolved);
-    }
+    // Single-order download: one label only (top slot). Bulk PDF still packs 4/page.
+    drawSectionBorder(d, 0);
+    drawOrderLabel(d, order, 0, renderOptions, resolved);
     const filename = buildTimestampedFilename("Hub_Order");
     console.log(`[PDF] Generating blob for filename: ${filename}`);
     const blob = doc.output("blob");
