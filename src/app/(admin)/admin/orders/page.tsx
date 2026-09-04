@@ -1,7 +1,6 @@
-import nextDynamic from "next/dynamic";
 import AdminShell from "@/components/admin/AdminShell";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Skeleton } from "@/components/ui/skeleton";
+import { AdminOrdersClientPanel } from "@/features/orders/components/admin/AdminOrdersClientPanel";
 import {
   adminOrdersDateFiltersFromSearchParams,
   createThisMonthDateFilters,
@@ -17,29 +16,6 @@ import {
 } from "@/lib/admin/getAdminOrdersList";
 import { parseOrdersSegment } from "@/lib/admin/admin-orders-segment";
 import { publicErrorMessage } from "@/lib/api/public-error";
-
-function OrdersListOnlySkeleton() {
-  return (
-    <div className="space-y-3" aria-busy="true">
-      {Array.from({ length: 4 }).map((_, index) => (
-        <Skeleton key={index} className="h-24 w-full rounded-lg" />
-      ))}
-    </div>
-  );
-}
-
-/**
- * Client-only: never SSR the tabs/list tree.
- * SSR of that client graph was throwing into orders/error.tsx even after a
- * successful DB fetch (PDF imports / useSearchParams / image validation).
- */
-const AdminOrdersSegmentTabs = nextDynamic(
-  () =>
-    import("@/features/orders/components/admin/AdminOrdersSegmentTabs").then(
-      (mod) => mod.AdminOrdersSegmentTabs,
-    ),
-  { ssr: false, loading: () => <OrdersListOnlySkeleton /> },
-);
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -157,7 +133,7 @@ export default async function OrdersPage({
           </Alert>
         ) : null}
 
-        <AdminOrdersSegmentTabs
+        <AdminOrdersClientPanel
           key={segment}
           segment={segment}
           counts={counts}
