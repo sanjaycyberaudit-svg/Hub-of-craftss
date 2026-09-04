@@ -68,6 +68,11 @@ export type AdminOrdersListParams = {
   pageSize?: number;
   /** IST calendar date filter; omitted / all = no createdAt bound. */
   dateFilter?: AdminOrdersDateFilterState | null;
+  /**
+   * When the page already loaded segment counts, pass the matching total so we
+   * skip a duplicate COUNT(*) (saves a pooler round-trip on Vercel max:1).
+   */
+  totalCountHint?: number;
 };
 
 export type AdminOrdersListResult = {
@@ -135,9 +140,32 @@ export async function getAdminOrdersCounts(
   paid: number;
   pending: number;
 }> {
-  const paid = await countOrders(combineWhere("paid", dateFilter));
-  const pending = await countOrders(combineWhere("pending", dateFilter));
-  return { paid, pending };
+  // One scan instead of two COUNT queries — critical on Vercel postgres.js max:1.
+  const paymentStatus = sql`lower(trim(${orders.payment_status}))`;
+  const orderStatus = sql`lower(trim(coalesce(${orders.order_status}, '')))`;
+  const dateWhere = buildDateWhereClause(dateFilter);
+
+  const rows = await db
+    .select({
+      paid: sql<number>`count(*) filter (where ${paymentStatus} in ('paid', 'success', 'captured'))::int`,
+      pending: sql<number>`count(*) filter (where ${orderStatus} <> 'cancelled' and (${orderStatus} = 'pending' or ${paymentStatus} in ('unpaid', 'pending', 'failed')))::int`,
+    })
+    .from(orders)
+    .where(dateWhere ?? sql`true`);
+
+  return {
+    paid: Number(rows[0]?.paid ?? 0),
+    pending: Number(rows[0]?.pending ?? 0),
+  };
+}
+
+function toIsoCreatedAt(value: unknown): string {
+  if (value instanceof Date && !Number.isNaN(value.getTime())) {
+    return value.toISOString();
+  }
+  const parsed = new Date(String(value ?? ""));
+  if (!Number.isNaN(parsed.getTime())) return parsed.toISOString();
+  return new Date(0).toISOString();
 }
 
 async function loadOrderLinesByOrderId(
@@ -191,7 +219,12 @@ export async function getAdminOrdersList(
   const requestedPage = Math.max(1, Math.round(params.page ?? 1));
   const where = combineWhere(params.segment, params.dateFilter);
 
-  const totalCount = await countOrders(where);
+  const totalCount =
+    typeof params.totalCountHint === "number" &&
+    Number.isFinite(params.totalCountHint) &&
+    params.totalCountHint >= 0
+      ? Math.floor(params.totalCountHint)
+      : await countOrders(where);
   const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
   const page = Math.min(requestedPage, totalPages);
   const offset = (page - 1) * pageSize;
@@ -242,7 +275,7 @@ export async function getAdminOrdersList(
 
     return {
       id: row.id,
-      createdAt: new Date(row.createdAt).toISOString(),
+      createdAt: toIsoCreatedAt(row.createdAt),
       amount: Number(row.amount),
       orderStatus: row.orderStatus,
       paymentStatus: row.paymentStatus,

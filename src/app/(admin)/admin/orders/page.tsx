@@ -7,7 +7,9 @@ import {
 } from "@/features/orders/components/admin/AdminOrdersSegmentTabs";
 import {
   adminOrdersDateFiltersFromSearchParams,
+  createTodayDateFilters,
   resolveAdminOrdersDateFilters,
+  type AdminOrdersDateFilterState,
 } from "@/lib/admin/admin-orders-date-filter";
 import {
   clampAdminOrdersPageSize,
@@ -45,6 +47,9 @@ const PENDING_PAGE_PARAM = "pendingPage";
 const PAGE_SIZE_PARAM = "pageSize";
 const STATUS_PARAM = "status";
 
+/** Soft cap so pooler hangs fail as an Alert, not the admin error boundary. */
+const ORDERS_PAGE_LOAD_TIMEOUT_MS = 20_000;
+
 type AdminOrdersPageProps = {
   searchParams: Promise<{
     [key: string]: string | string[] | undefined;
@@ -53,6 +58,27 @@ type AdminOrdersPageProps = {
 
 function firstParam(value: string | string[] | undefined): string | undefined {
   return Array.isArray(value) ? value[0] : value;
+}
+
+async function withTimeout<T>(
+  promise: Promise<T>,
+  ms: number,
+  label: string,
+): Promise<T> {
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      promise,
+      new Promise<never>((_, reject) => {
+        timeoutId = setTimeout(
+          () => reject(new Error(`${label} timed out after ${ms}ms`)),
+          ms,
+        );
+      }),
+    ]);
+  } finally {
+    if (timeoutId) clearTimeout(timeoutId);
+  }
 }
 
 export default async function OrdersPage({
@@ -73,59 +99,71 @@ async function OrdersPageContent({
 }: {
   searchParams: { [key: string]: string | string[] | undefined };
 }) {
-  const rawPageSize = searchParams[PAGE_SIZE_PARAM];
-  const pageSize = clampAdminOrdersPageSize(
-    Number.parseInt(String(firstParam(rawPageSize)), 10) || undefined,
-  );
-  const segment = parseOrdersSegment(firstParam(searchParams[STATUS_PARAM]));
-  const paidPage = parseAdminOrdersPage(searchParams[PAID_PAGE_PARAM]);
-  const pendingPage = parseAdminOrdersPage(searchParams[PENDING_PAGE_PARAM]);
-  const dateFilter = resolveAdminOrdersDateFilters(
-    adminOrdersDateFiltersFromSearchParams({
-      from: firstParam(searchParams.from),
-      to: firstParam(searchParams.to),
-      all: firstParam(searchParams.all),
-      preset: firstParam(searchParams.preset),
-    }),
-  );
-
   const emptyList = {
     rows: [] as Awaited<ReturnType<typeof getAdminOrdersList>>["rows"],
     totalCount: 0,
     page: 1,
-    pageSize,
+    pageSize: clampAdminOrdersPageSize(undefined),
   };
 
   let fetchError: string | null = null;
   let counts = { paid: 0, pending: 0 };
   let paid = emptyList;
   let unpaid = emptyList;
+  let segment = parseOrdersSegment(firstParam(searchParams[STATUS_PARAM]));
+  let dateFilter: AdminOrdersDateFilterState = createTodayDateFilters();
+  let pageSize = emptyList.pageSize;
 
   try {
+    pageSize = clampAdminOrdersPageSize(
+      Number.parseInt(
+        String(firstParam(searchParams[PAGE_SIZE_PARAM])),
+        10,
+      ) || undefined,
+    );
+    segment = parseOrdersSegment(firstParam(searchParams[STATUS_PARAM]));
+    const paidPage = parseAdminOrdersPage(searchParams[PAID_PAGE_PARAM]);
+    const pendingPage = parseAdminOrdersPage(searchParams[PENDING_PAGE_PARAM]);
+    dateFilter = resolveAdminOrdersDateFilters(
+      adminOrdersDateFiltersFromSearchParams({
+        from: firstParam(searchParams.from),
+        to: firstParam(searchParams.to),
+        all: firstParam(searchParams.all),
+        preset: firstParam(searchParams.preset),
+      }),
+    );
+
     // Sequential on purpose: Vercel uses a single postgres.js connection
     // (max: 1) against Supabase transaction pooler (port 6543). Concurrent
     // queries pipeline on that socket and hang until the request dies —
-    // which previously looked like an endless skeleton, then this alert.
-    const result = await withDbAsync(async () => {
-      const nextCounts = await getAdminOrdersCounts(dateFilter);
-      if (segment === "paid") {
-        const nextPaid = await getAdminOrdersList({
-          segment: "paid",
-          page: paidPage,
+    // which previously looked like an endless skeleton, then the admin
+    // error boundary ("Something went wrong loading the admin panel").
+    const result = await withTimeout(
+      withDbAsync(async () => {
+        const nextCounts = await getAdminOrdersCounts(dateFilter);
+        if (segment === "paid") {
+          const nextPaid = await getAdminOrdersList({
+            segment: "paid",
+            page: paidPage,
+            pageSize,
+            dateFilter,
+            totalCountHint: nextCounts.paid,
+          });
+          return { counts: nextCounts, paid: nextPaid, unpaid: emptyList };
+        }
+
+        const nextUnpaid = await getAdminOrdersList({
+          segment: "pending",
+          page: pendingPage,
           pageSize,
           dateFilter,
+          totalCountHint: nextCounts.pending,
         });
-        return { counts: nextCounts, paid: nextPaid, unpaid: emptyList };
-      }
-
-      const nextUnpaid = await getAdminOrdersList({
-        segment: "pending",
-        page: pendingPage,
-        pageSize,
-        dateFilter,
-      });
-      return { counts: nextCounts, paid: emptyList, unpaid: nextUnpaid };
-    });
+        return { counts: nextCounts, paid: emptyList, unpaid: nextUnpaid };
+      }),
+      ORDERS_PAGE_LOAD_TIMEOUT_MS,
+      "Admin orders load",
+    );
     counts = result.counts;
     paid = result.paid;
     unpaid = result.unpaid;
