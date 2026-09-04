@@ -59,9 +59,11 @@ describe("admin-orders-date-filter", () => {
     ).toMatch(/on or before/i);
   });
 
-  it("defaults missing URL params to today", () => {
+  it("defaults missing URL params to this month", () => {
     const filters = adminOrdersDateFiltersFromSearchParams({});
-    expect(resolveAdminOrdersDateFilters(filters).datePreset).toBe("today");
+    expect(resolveAdminOrdersDateFilters(filters).datePreset).toBe(
+      "this_month",
+    );
     expect(describeAdminOrdersDateFilters(createTodayDateFilters())).toBe(
       "Today",
     );

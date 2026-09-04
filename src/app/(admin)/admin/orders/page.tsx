@@ -1,13 +1,14 @@
 import AdminShell from "@/components/admin/AdminShell";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Skeleton } from "@/components/ui/skeleton";
+import { AdminOrdersUiErrorBoundary } from "@/features/orders/components/admin/AdminOrdersUiErrorBoundary";
 import {
   AdminOrdersSegmentTabs,
   parseOrdersSegment,
 } from "@/features/orders/components/admin/AdminOrdersSegmentTabs";
 import {
   adminOrdersDateFiltersFromSearchParams,
-  createTodayDateFilters,
+  createThisMonthDateFilters,
   resolveAdminOrdersDateFilters,
   type AdminOrdersDateFilterState,
 } from "@/lib/admin/admin-orders-date-filter";
@@ -16,9 +17,9 @@ import {
   getAdminOrdersCounts,
   getAdminOrdersList,
   parseAdminOrdersPage,
+  type AdminOrdersListResult,
 } from "@/lib/admin/getAdminOrdersList";
 import { publicErrorMessage } from "@/lib/api/public-error";
-import { withDbAsync } from "@/lib/supabase/db";
 import { Suspense } from "react";
 
 function OrdersListOnlySkeleton() {
@@ -40,9 +41,6 @@ const PENDING_PAGE_PARAM = "pendingPage";
 const PAGE_SIZE_PARAM = "pageSize";
 const STATUS_PARAM = "status";
 
-/** Soft cap so pooler hangs fail as an Alert, not the admin error boundary. */
-const ORDERS_PAGE_LOAD_TIMEOUT_MS = 20_000;
-
 type AdminOrdersPageProps = {
   searchParams: Promise<{
     [key: string]: string | string[] | undefined;
@@ -53,118 +51,82 @@ function firstParam(value: string | string[] | undefined): string | undefined {
   return Array.isArray(value) ? value[0] : value;
 }
 
-async function withTimeout<T>(
-  promise: Promise<T>,
-  ms: number,
-  label: string,
-): Promise<T> {
-  let timeoutId: ReturnType<typeof setTimeout> | undefined;
-  try {
-    return await Promise.race([
-      promise,
-      new Promise<never>((_, reject) => {
-        timeoutId = setTimeout(
-          () => reject(new Error(`${label} timed out after ${ms}ms`)),
-          ms,
-        );
-      }),
-    ]);
-  } finally {
-    if (timeoutId) clearTimeout(timeoutId);
-  }
+function emptyList(pageSize: number): AdminOrdersListResult {
+  return {
+    rows: [],
+    totalCount: 0,
+    page: 1,
+    pageSize,
+  };
 }
 
 /**
- * Match SSR Tex: do NOT wrap the async data load in Suspense.
- * Suspense around the whole page body re-suspends on URL changes and can
- * surface load failures via the page error boundary instead of the Alert.
- * Only the client tabs (useSearchParams) need a Suspense boundary.
+ * SSR Tex pattern:
+ * - No Suspense around the data fetch (avoids error-boundary / stuck skeleton)
+ * - No Promise.race timeout (abandoned queries poison postgres.js max:1)
+ * - Rely on DB statement_timeout + try/catch → Alert, never throw
  */
 export default async function OrdersPage({
   searchParams,
 }: AdminOrdersPageProps) {
-  const resolved = await searchParams;
-  return (
-    <AdminShell heading="Orders">
-      <OrdersPageContent searchParams={resolved} />
-    </AdminShell>
-  );
-}
-
-async function OrdersPageContent({
-  searchParams,
-}: {
-  searchParams: { [key: string]: string | string[] | undefined };
-}) {
-  const emptyList = {
-    rows: [] as Awaited<ReturnType<typeof getAdminOrdersList>>["rows"],
-    totalCount: 0,
-    page: 1,
-    pageSize: clampAdminOrdersPageSize(undefined),
-  };
-
+  const pageSizeDefault = clampAdminOrdersPageSize(undefined);
   let fetchError: string | null = null;
   let counts = { paid: 0, pending: 0 };
-  let paid = emptyList;
-  let unpaid = emptyList;
-  let segment = parseOrdersSegment(firstParam(searchParams[STATUS_PARAM]));
-  let dateFilter: AdminOrdersDateFilterState = createTodayDateFilters();
-  let pageSize = emptyList.pageSize;
+  let paid = emptyList(pageSizeDefault);
+  let unpaid = emptyList(pageSizeDefault);
+  let segment = parseOrdersSegment(undefined);
+  let dateFilter: AdminOrdersDateFilterState = createThisMonthDateFilters();
+  let pageSize = pageSizeDefault;
 
   try {
+    const resolved = await searchParams;
     pageSize = clampAdminOrdersPageSize(
-      Number.parseInt(String(firstParam(searchParams[PAGE_SIZE_PARAM])), 10) ||
+      Number.parseInt(String(firstParam(resolved[PAGE_SIZE_PARAM])), 10) ||
         undefined,
     );
-    segment = parseOrdersSegment(firstParam(searchParams[STATUS_PARAM]));
-    const paidPage = parseAdminOrdersPage(searchParams[PAID_PAGE_PARAM]);
-    const pendingPage = parseAdminOrdersPage(searchParams[PENDING_PAGE_PARAM]);
+    segment = parseOrdersSegment(firstParam(resolved[STATUS_PARAM]));
+    const paidPage = parseAdminOrdersPage(resolved[PAID_PAGE_PARAM]);
+    const pendingPage = parseAdminOrdersPage(resolved[PENDING_PAGE_PARAM]);
+
+    // Default this month (IST) when URL has no date params — today often empty.
+    const fromParams = adminOrdersDateFiltersFromSearchParams({
+      from: firstParam(resolved.from),
+      to: firstParam(resolved.to),
+      all: firstParam(resolved.all),
+      preset: firstParam(resolved.preset),
+    });
+    const hasExplicitDate =
+      Boolean(firstParam(resolved.all)) ||
+      Boolean(firstParam(resolved.preset)) ||
+      Boolean(firstParam(resolved.from)) ||
+      Boolean(firstParam(resolved.to));
     dateFilter = resolveAdminOrdersDateFilters(
-      adminOrdersDateFiltersFromSearchParams({
-        from: firstParam(searchParams.from),
-        to: firstParam(searchParams.to),
-        all: firstParam(searchParams.all),
-        preset: firstParam(searchParams.preset),
-      }),
+      hasExplicitDate ? fromParams : createThisMonthDateFilters(),
     );
 
-    // Sequential on purpose: Vercel uses a single postgres.js connection
-    // (max: 1) against Supabase transaction pooler (port 6543). Concurrent
-    // queries pipeline on that socket and hang until the request dies.
-    const result = await withTimeout(
-      withDbAsync(async () => {
-        const nextCounts = await getAdminOrdersCounts(dateFilter);
-        if (segment === "paid") {
-          const nextPaid = await getAdminOrdersList({
-            segment: "paid",
-            page: paidPage,
-            pageSize,
-            dateFilter,
-            totalCountHint: nextCounts.paid,
-          });
-          return { counts: nextCounts, paid: nextPaid, unpaid: emptyList };
-        }
-
-        const nextUnpaid = await getAdminOrdersList({
-          segment: "pending",
-          page: pendingPage,
-          pageSize,
-          dateFilter,
-          totalCountHint: nextCounts.pending,
-        });
-        return { counts: nextCounts, paid: emptyList, unpaid: nextUnpaid };
-      }),
-      ORDERS_PAGE_LOAD_TIMEOUT_MS,
-      "Admin orders load",
-    );
-    counts = result.counts;
-    paid = result.paid;
-    unpaid = result.unpaid;
+    // Sequential queries only — never Promise.all / Promise.race on max:1 pooler.
+    counts = await getAdminOrdersCounts(dateFilter);
+    if (segment === "paid") {
+      paid = await getAdminOrdersList({
+        segment: "paid",
+        page: paidPage,
+        pageSize,
+        dateFilter,
+        totalCountHint: counts.paid,
+      });
+      unpaid = emptyList(pageSize);
+    } else {
+      unpaid = await getAdminOrdersList({
+        segment: "pending",
+        page: pendingPage,
+        pageSize,
+        dateFilter,
+        totalCountHint: counts.pending,
+      });
+      paid = emptyList(pageSize);
+    }
   } catch (error) {
-    console.error(
-      `[admin/orders] page load failed (segment=${segment}):`,
-      error,
-    );
+    console.error(`[admin/orders] page load failed (segment=${segment}):`, error);
     fetchError =
       error instanceof Error && error.message.trim()
         ? error.message
@@ -174,33 +136,40 @@ async function OrdersPageContent({
               ? "Failed to load unpaid orders."
               : "Failed to load paid orders.",
           );
+    paid = emptyList(pageSize);
+    unpaid = emptyList(pageSize);
+    counts = { paid: 0, pending: 0 };
   }
 
   const resetPageParams = [PAID_PAGE_PARAM, PENDING_PAGE_PARAM];
 
   return (
-    <div className="space-y-6">
-      {fetchError ? (
-        <Alert variant="destructive">
-          <AlertTitle>Could not fully load orders</AlertTitle>
-          <AlertDescription>{fetchError}</AlertDescription>
-        </Alert>
-      ) : null}
+    <AdminShell heading="Orders">
+      <div className="space-y-6">
+        {fetchError ? (
+          <Alert variant="destructive">
+            <AlertTitle>Could not fully load orders</AlertTitle>
+            <AlertDescription>{fetchError}</AlertDescription>
+          </Alert>
+        ) : null}
 
-      <Suspense fallback={<OrdersListOnlySkeleton />}>
-        <AdminOrdersSegmentTabs
-          key={segment}
-          segment={segment}
-          counts={counts}
-          paid={paid}
-          unpaid={unpaid}
-          paidPageParam={PAID_PAGE_PARAM}
-          unpaidPageParam={PENDING_PAGE_PARAM}
-          pageSizeParam={PAGE_SIZE_PARAM}
-          resetPageParams={resetPageParams}
-          dateFilter={dateFilter}
-        />
-      </Suspense>
-    </div>
+        <Suspense fallback={<OrdersListOnlySkeleton />}>
+          <AdminOrdersUiErrorBoundary>
+            <AdminOrdersSegmentTabs
+              key={segment}
+              segment={segment}
+              counts={counts}
+              paid={paid}
+              unpaid={unpaid}
+              paidPageParam={PAID_PAGE_PARAM}
+              unpaidPageParam={PENDING_PAGE_PARAM}
+              pageSizeParam={PAGE_SIZE_PARAM}
+              resetPageParams={resetPageParams}
+              dateFilter={dateFilter}
+            />
+          </AdminOrdersUiErrorBoundary>
+        </Suspense>
+      </div>
+    </AdminShell>
   );
 }

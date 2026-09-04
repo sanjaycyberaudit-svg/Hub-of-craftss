@@ -1,7 +1,6 @@
 "use client";
 
 import * as React from "react";
-import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Copy, FileDown, Loader2 } from "lucide-react";
@@ -210,12 +209,17 @@ function AdminOrderRow({
               order.lines.map((line) => (
                 <div key={line.id} className="flex items-center gap-3">
                   <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-md border bg-muted">
-                    <Image
-                      src={line.imageUrl}
+                    {/* Plain img — next/image throws on disallowed remote hosts and can take down Orders. */}
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={line.imageUrl || "/images/hub-of-craftss-logo.png"}
                       alt={line.imageAlt}
-                      fill
-                      className="object-cover"
-                      sizes="48px"
+                      className="h-full w-full object-cover"
+                      loading="lazy"
+                      onError={(event) => {
+                        event.currentTarget.src =
+                          "/images/hub-of-craftss-logo.png";
+                      }}
                     />
                   </div>
                   <div className="min-w-0 flex-1 text-sm">

@@ -227,6 +227,8 @@ async function loadOrderLinesByOrderId(
  * Server-side paginated admin orders for a single segment (paid / pending).
  * Only the current page of orders — and their line items — are loaded, so the
  * page stays fast as the orders table grows.
+ *
+ * Never throws for line/meta mapping failures — returns partial rows instead.
  */
 export async function getAdminOrdersList(
   params: AdminOrdersListParams,
@@ -245,73 +247,160 @@ export async function getAdminOrdersList(
   const page = Math.min(requestedPage, totalPages);
   const offset = (page - 1) * pageSize;
 
-  const orderRows = await db
-    .select({
-      id: orders.id,
-      internalRef: orders.internal_ref,
-      createdAt: orders.createdAt,
-      amount: orders.amount,
-      orderStatus: orders.order_status,
-      paymentStatus: orders.payment_status,
-      paymentMeta: orders.payment_meta,
-      customerName: orders.name,
-      customerMobile: orders.customer_mobile,
-      addressLine1: address.line1,
-      addressLine2: address.line2,
-      addressCity: address.city,
-      addressState: address.state,
-      addressPostalCode: address.postal_code,
-      addressCountry: address.country,
-    })
-    .from(orders)
-    .leftJoin(address, eq(orders.addressId, address.id))
-    .where(where)
-    .orderBy(desc(orders.createdAt))
-    .limit(pageSize)
-    .offset(offset);
+  // Select list columns. Retry without internal_ref if the column is missing
+  // on an older DB (should not happen after migration 16).
+  let orderRows: Array<{
+    id: string;
+    internalRef: string | null;
+    createdAt: unknown;
+    amount: unknown;
+    orderStatus: string | null;
+    paymentStatus: string;
+    paymentMeta: unknown;
+    customerName: string | null;
+    customerMobile: string | null;
+    addressLine1: string | null;
+    addressLine2: string | null;
+    addressCity: string | null;
+    addressState: string | null;
+    addressPostalCode: string | null;
+    addressCountry: string | null;
+  }>;
+
+  try {
+    orderRows = await db
+      .select({
+        id: orders.id,
+        internalRef: orders.internal_ref,
+        createdAt: orders.createdAt,
+        amount: orders.amount,
+        orderStatus: orders.order_status,
+        paymentStatus: orders.payment_status,
+        paymentMeta: orders.payment_meta,
+        customerName: orders.name,
+        customerMobile: orders.customer_mobile,
+        addressLine1: address.line1,
+        addressLine2: address.line2,
+        addressCity: address.city,
+        addressState: address.state,
+        addressPostalCode: address.postal_code,
+        addressCountry: address.country,
+      })
+      .from(orders)
+      .leftJoin(address, eq(orders.addressId, address.id))
+      .where(where)
+      .orderBy(desc(orders.createdAt))
+      .limit(pageSize)
+      .offset(offset);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    if (!/internal_ref/i.test(message)) throw error;
+    console.warn(
+      "[admin/orders] internal_ref select failed; retrying without column",
+    );
+    const fallback = await db
+      .select({
+        id: orders.id,
+        createdAt: orders.createdAt,
+        amount: orders.amount,
+        orderStatus: orders.order_status,
+        paymentStatus: orders.payment_status,
+        paymentMeta: orders.payment_meta,
+        customerName: orders.name,
+        customerMobile: orders.customer_mobile,
+        addressLine1: address.line1,
+        addressLine2: address.line2,
+        addressCity: address.city,
+        addressState: address.state,
+        addressPostalCode: address.postal_code,
+        addressCountry: address.country,
+      })
+      .from(orders)
+      .leftJoin(address, eq(orders.addressId, address.id))
+      .where(where)
+      .orderBy(desc(orders.createdAt))
+      .limit(pageSize)
+      .offset(offset);
+    orderRows = fallback.map((row) => ({ ...row, internalRef: null }));
+  }
 
   if (orderRows.length === 0) {
     return { rows: [], totalCount, page, pageSize };
   }
 
-  const linesByOrderId = await loadOrderLinesByOrderId(
-    orderRows.map((row) => row.id),
-  );
+  let linesByOrderId = new Map<string, AdminOrderLineView[]>();
+  try {
+    linesByOrderId = await loadOrderLinesByOrderId(
+      orderRows.map((row) => row.id),
+    );
+  } catch (error) {
+    console.error("[admin/orders] line items load failed:", error);
+  }
 
-  const rows = orderRows.map((row) => {
-    const shippingAddress = row.addressLine1
-      ? {
-          line1: row.addressLine1,
-          line2: row.addressLine2,
-          city: row.addressCity,
-          state: row.addressState,
-          postalCode: row.addressPostalCode,
-          country: row.addressCountry,
-        }
-      : null;
+  const rows: AdminOrderListView[] = [];
+  for (const row of orderRows) {
+    try {
+      const shippingAddress = row.addressLine1
+        ? {
+            line1: row.addressLine1,
+            line2: row.addressLine2,
+            city: row.addressCity,
+            state: row.addressState,
+            postalCode: row.addressPostalCode,
+            country: row.addressCountry,
+          }
+        : null;
 
-    return {
-      id: row.id,
-      internalRef: row.internalRef ?? null,
-      createdAt: toIsoCreatedAt(row.createdAt),
-      amount: Number(row.amount),
-      orderStatus: row.orderStatus,
-      paymentStatus: row.paymentStatus,
-      checkoutOutcome: resolveCheckoutOutcome({
-        paymentStatus: row.paymentStatus,
-        paymentMeta: row.paymentMeta,
-      }),
-      customerName: row.customerName,
-      customerMobile: row.customerMobile,
-      shippingAddress,
-      copyAddressText: buildShippingAddressCopyText({
+      let checkoutOutcome: CheckoutOutcome | null = null;
+      try {
+        checkoutOutcome = resolveCheckoutOutcome({
+          paymentStatus: row.paymentStatus,
+          paymentMeta: row.paymentMeta,
+        });
+      } catch {
+        checkoutOutcome = null;
+      }
+
+      rows.push({
+        id: row.id,
+        internalRef: row.internalRef ?? null,
+        createdAt: toIsoCreatedAt(row.createdAt),
+        amount: Number(row.amount) || 0,
+        orderStatus: row.orderStatus,
+        paymentStatus: row.paymentStatus || "unpaid",
+        checkoutOutcome,
         customerName: row.customerName,
         customerMobile: row.customerMobile,
         shippingAddress,
-      }),
-      lines: linesByOrderId.get(row.id) ?? [],
-    } satisfies AdminOrderListView;
-  });
+        copyAddressText: buildShippingAddressCopyText({
+          customerName: row.customerName,
+          customerMobile: row.customerMobile,
+          shippingAddress,
+        }),
+        lines: linesByOrderId.get(row.id) ?? [],
+      });
+    } catch (error) {
+      console.error("[admin/orders] row map failed:", row.id, error);
+      rows.push({
+        id: row.id,
+        internalRef: null,
+        createdAt: toIsoCreatedAt(row.createdAt),
+        amount: Number(row.amount) || 0,
+        orderStatus: row.orderStatus,
+        paymentStatus: row.paymentStatus || "unpaid",
+        checkoutOutcome: null,
+        customerName: row.customerName,
+        customerMobile: row.customerMobile,
+        shippingAddress: null,
+        copyAddressText: buildShippingAddressCopyText({
+          customerName: row.customerName,
+          customerMobile: row.customerMobile,
+          shippingAddress: null,
+        }),
+        lines: [],
+      });
+    }
+  }
 
   return { rows, totalCount, page, pageSize };
 }

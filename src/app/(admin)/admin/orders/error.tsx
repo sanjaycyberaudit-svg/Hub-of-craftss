@@ -30,8 +30,13 @@ export default function AdminOrdersError({
           "Could not load orders. Try again — your other admin pages should still work.",
         ) + (error.digest ? ` (${error.digest})` : "")
       }
-      onRetry={() => reset()}
-      primaryHref="/admin/orders"
+      onRetry={() => {
+        reset();
+        if (typeof window !== "undefined") {
+          window.location.assign("/admin/orders?preset=this_month");
+        }
+      }}
+      primaryHref="/admin/orders?preset=this_month"
       primaryLabel="Reload orders"
       secondaryHref="/admin"
       secondaryLabel="Admin home"

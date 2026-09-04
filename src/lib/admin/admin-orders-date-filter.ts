@@ -229,7 +229,10 @@ export function validateAdminOrdersDateFilters(
  * Inclusive IST calendar range → UTC instant bounds for SQL.
  * [from 00:00 IST, to+1 day 00:00 IST).
  */
-export function istDateRangeToUtcBounds(fromDate: string, toDate: string): {
+export function istDateRangeToUtcBounds(
+  fromDate: string,
+  toDate: string,
+): {
   startUtc: string;
   endExclusiveUtc: string;
 } {
@@ -337,7 +340,7 @@ export function adminOrdersDateFiltersFromSearchParams(input: {
     return createRangeDateFilters(from, to);
   }
 
-  return createTodayDateFilters();
+  return createThisMonthDateFilters();
 }
 
 /** Build query params for date filter (merge with status/page elsewhere). */
