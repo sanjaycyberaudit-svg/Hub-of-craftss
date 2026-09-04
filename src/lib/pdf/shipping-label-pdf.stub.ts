@@ -2,6 +2,7 @@
 
 export type PdfLabelOrder = {
   id: string;
+  internalRef?: string | null;
   sender_details: string;
   recipient_details: string;
 };

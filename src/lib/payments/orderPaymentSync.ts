@@ -12,6 +12,7 @@ import { fulfillPaidOrderInventory } from "@/lib/orders/inventory-fulfillment";
 import { mergePaymentMeta, readPaymentMeta } from "@/lib/orders/payment-meta";
 import { appendCheckoutTelemetryEvent } from "@/lib/checkout/checkout-telemetry";
 import { detectPaidAmountMismatch } from "@/lib/payments/amount-check";
+import { assignInternalOrderRefIfNeeded } from "@/lib/orders/assign-internal-order-ref";
 import {
   canReleaseOrphanUnpaidHold,
   isReservationExpired,
@@ -40,6 +41,13 @@ type SyncInput =
  */
 async function runPaidOrderSideEffects(order: SelectOrders) {
   const failures: string[] = [];
+
+  try {
+    await assignInternalOrderRefIfNeeded(order.id);
+  } catch (error) {
+    console.error("[payments] internal ref assign failed:", error);
+    failures.push("internal_ref");
+  }
 
   try {
     const wa = await notifyOrderWhatsAppTargets(order);

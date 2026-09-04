@@ -24,10 +24,12 @@ export default function AdminOrdersError({
   return (
     <ErrorPageShell
       title="Orders could not load"
-      description={publicErrorMessage(
-        error,
-        "Could not load orders. Try again — your other admin pages should still work.",
-      )}
+      description={
+        publicErrorMessage(
+          error,
+          "Could not load orders. Try again — your other admin pages should still work.",
+        ) + (error.digest ? ` (${error.digest})` : "")
+      }
       onRetry={() => reset()}
       primaryHref="/admin/orders"
       primaryLabel="Reload orders"

@@ -3,6 +3,8 @@ import { siteConfig } from "@/config/site";
 /** Minimal order shape for shipping-label PDFs (matches Software-Saree-order). */
 export type PdfLabelOrder = {
   id: string;
+  /** Human invoice-style ref (YYMM####), shown on the label when present. */
+  internalRef?: string | null;
   sender_details: string;
   recipient_details: string;
 };
@@ -807,6 +809,14 @@ function drawOrderLabel(
   fromLines.forEach((line, i) => {
     doc.text(line, leftX, addressStartYFrom + i * lineHeightMm);
   });
+
+  // Internal ref (invoice-style) — top-right of the section when assigned.
+  const internalRef = String(order.internalRef ?? "").trim();
+  if (internalRef) {
+    doc.setFont(FONT_HEADING, "bold");
+    doc.setFontSize(Math.max(8, labelSize - 1));
+    doc.text(`Ref #${internalRef}`, rightX, sectionTop + 6);
+  }
 
   // Centre: logo or text at adjusted centerX / thanksCenterY
   if (contentType === "text" && customText && doc.splitTextToSize) {

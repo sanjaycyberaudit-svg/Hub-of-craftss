@@ -16,18 +16,22 @@ export function buildAdminPdfSenderDetails(): string {
 }
 
 export function adminOrderToPdfLabel(
-  order: Pick<AdminOrderListView, "id" | "copyAddressText">,
+  order: Pick<AdminOrderListView, "id" | "copyAddressText" | "internalRef">,
   senderDetails = buildAdminPdfSenderDetails(),
 ): PdfLabelOrder {
   return {
     id: order.id,
+    internalRef: order.internalRef ?? null,
     sender_details: senderDetails,
     recipient_details: order.copyAddressText || "Address not available",
   };
 }
 
 export function adminOrdersToPdfLabels(
-  orders: Pick<AdminOrderListView, "id" | "copyAddressText">[],
+  orders: Pick<
+    AdminOrderListView,
+    "id" | "copyAddressText" | "internalRef"
+  >[],
 ): PdfLabelOrder[] {
   const sender = buildAdminPdfSenderDetails();
   return orders.map((order) => adminOrderToPdfLabel(order, sender));
@@ -37,6 +41,7 @@ export function adminOrderToPackingSlip(
   order: Pick<
     AdminOrderListView,
     | "id"
+    | "internalRef"
     | "createdAt"
     | "customerName"
     | "customerMobile"
@@ -46,6 +51,7 @@ export function adminOrderToPackingSlip(
 ): PackingSlipOrder {
   return {
     id: order.id,
+    internalRef: order.internalRef ?? null,
     createdAt: order.createdAt,
     customerName: order.customerName,
     customerMobile: order.customerMobile,

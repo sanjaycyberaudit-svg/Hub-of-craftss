@@ -62,6 +62,7 @@ type OrderItemView = {
 type Props = {
   order: {
     id: string;
+    internalRef: string | null;
     createdAt: string;
     amount: number;
     currency: string;
@@ -263,6 +264,7 @@ export function AdminOrderDetailView({
       await downloadOrderPdf(
         adminOrderToPdfLabel({
           id: order.id,
+          internalRef: order.internalRef,
           copyAddressText,
         }),
       );
@@ -294,6 +296,7 @@ export function AdminOrderDetailView({
       await downloadPackingSlipPdf(
         adminOrderToPackingSlip({
           id: order.id,
+          internalRef: order.internalRef,
           createdAt: order.createdAt,
           customerName: order.customerName,
           customerMobile: order.customerMobile,
@@ -630,6 +633,14 @@ export function AdminOrderDetailView({
                 <span className="text-muted-foreground">Order ID:</span>{" "}
                 {order.id}
               </p>
+              {order.internalRef ? (
+                <p>
+                  <span className="text-muted-foreground">Internal Ref:</span>{" "}
+                  <span className="font-semibold tabular-nums">
+                    {order.internalRef}
+                  </span>
+                </p>
+              ) : null}
               <p>
                 <span className="text-muted-foreground">Placed:</span>{" "}
                 {formatOrderDateTimeIst(order.createdAt)}

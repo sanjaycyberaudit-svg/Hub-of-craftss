@@ -43,6 +43,7 @@ export type AdminOrderLineView = {
 
 export type AdminOrderListView = {
   id: string;
+  internalRef: string | null;
   createdAt: string;
   amount: number;
   orderStatus: string | null;
@@ -121,7 +122,9 @@ function combineWhere(
   dateFilter?: AdminOrdersDateFilterState | null,
 ): SQL {
   const segmentWhere = buildSegmentWhereClause(segment);
-  const dateWhere = buildDateWhereClause(dateFilter);
+  // Match SSR Tex: date window applies to paid list only (not unpaid/pending).
+  const dateWhere =
+    segment === "paid" ? buildDateWhereClause(dateFilter) : null;
   return dateWhere ? and(segmentWhere, dateWhere)! : segmentWhere;
 }
 
@@ -133,7 +136,7 @@ async function countOrders(where: SQL): Promise<number> {
   return Number(rows[0]?.count ?? 0);
 }
 
-/** Counts for the summary cards — respect the active date window. */
+/** Counts for the summary cards — paid respects date window; pending is all-time. */
 export async function getAdminOrdersCounts(
   dateFilter?: AdminOrdersDateFilterState | null,
 ): Promise<{
@@ -141,17 +144,30 @@ export async function getAdminOrdersCounts(
   pending: number;
 }> {
   // One scan instead of two COUNT queries — critical on Vercel postgres.js max:1.
+  // Paid card respects the date window; pending card is all-time (SSR Tex behavior).
   const paymentStatus = sql`lower(trim(${orders.payment_status}))`;
   const orderStatus = sql`lower(trim(coalesce(${orders.order_status}, '')))`;
-  const dateWhere = buildDateWhereClause(dateFilter);
+  const paidPredicate = sql`${paymentStatus} in ('paid', 'success', 'captured')`;
+  const pendingPredicate = sql`${orderStatus} <> 'cancelled' and (${orderStatus} = 'pending' or ${paymentStatus} in ('unpaid', 'pending', 'failed'))`;
+
+  let paidFilter = paidPredicate;
+  if (dateFilter) {
+    const resolved = resolveAdminOrdersDateFilters(dateFilter);
+    if (!resolved.allOrders && resolved.fromDate && resolved.toDate) {
+      const { startUtc, endExclusiveUtc } = istDateRangeToUtcBounds(
+        resolved.fromDate,
+        resolved.toDate,
+      );
+      paidFilter = sql`${paidPredicate} and ${orders.createdAt} >= ${new Date(startUtc)} and ${orders.createdAt} < ${new Date(endExclusiveUtc)}`;
+    }
+  }
 
   const rows = await db
     .select({
-      paid: sql<number>`count(*) filter (where ${paymentStatus} in ('paid', 'success', 'captured'))::int`,
-      pending: sql<number>`count(*) filter (where ${orderStatus} <> 'cancelled' and (${orderStatus} = 'pending' or ${paymentStatus} in ('unpaid', 'pending', 'failed')))::int`,
+      paid: sql<number>`count(*) filter (where ${paidFilter})::int`,
+      pending: sql<number>`count(*) filter (where ${pendingPredicate})::int`,
     })
-    .from(orders)
-    .where(dateWhere ?? sql`true`);
+    .from(orders);
 
   return {
     paid: Number(rows[0]?.paid ?? 0),
@@ -232,6 +248,7 @@ export async function getAdminOrdersList(
   const orderRows = await db
     .select({
       id: orders.id,
+      internalRef: orders.internal_ref,
       createdAt: orders.createdAt,
       amount: orders.amount,
       orderStatus: orders.order_status,
@@ -275,6 +292,7 @@ export async function getAdminOrdersList(
 
     return {
       id: row.id,
+      internalRef: row.internalRef ?? null,
       createdAt: toIsoCreatedAt(row.createdAt),
       amount: Number(row.amount),
       orderStatus: row.orderStatus,

@@ -21,19 +21,12 @@ import { publicErrorMessage } from "@/lib/api/public-error";
 import { withDbAsync } from "@/lib/supabase/db";
 import { Suspense } from "react";
 
-function OrdersContentSkeleton() {
+function OrdersListOnlySkeleton() {
   return (
-    <div className="space-y-6">
-      <div className="grid gap-4 md:grid-cols-2">
-        <Skeleton className="h-24 w-full rounded-lg" />
-        <Skeleton className="h-24 w-full rounded-lg" />
-      </div>
-      <Skeleton className="h-10 w-full max-w-xl" />
-      <div className="space-y-3">
-        {Array.from({ length: 6 }).map((_, index) => (
-          <Skeleton key={index} className="h-24 w-full rounded-lg" />
-        ))}
-      </div>
+    <div className="space-y-3" aria-busy="true">
+      {Array.from({ length: 4 }).map((_, index) => (
+        <Skeleton key={index} className="h-24 w-full rounded-lg" />
+      ))}
     </div>
   );
 }
@@ -81,15 +74,19 @@ async function withTimeout<T>(
   }
 }
 
+/**
+ * Match SSR Tex: do NOT wrap the async data load in Suspense.
+ * Suspense around the whole page body re-suspends on URL changes and can
+ * surface load failures via the page error boundary instead of the Alert.
+ * Only the client tabs (useSearchParams) need a Suspense boundary.
+ */
 export default async function OrdersPage({
   searchParams,
 }: AdminOrdersPageProps) {
   const resolved = await searchParams;
   return (
     <AdminShell heading="Orders">
-      <Suspense fallback={<OrdersContentSkeleton />}>
-        <OrdersPageContent searchParams={resolved} />
-      </Suspense>
+      <OrdersPageContent searchParams={resolved} />
     </AdminShell>
   );
 }
@@ -116,10 +113,8 @@ async function OrdersPageContent({
 
   try {
     pageSize = clampAdminOrdersPageSize(
-      Number.parseInt(
-        String(firstParam(searchParams[PAGE_SIZE_PARAM])),
-        10,
-      ) || undefined,
+      Number.parseInt(String(firstParam(searchParams[PAGE_SIZE_PARAM])), 10) ||
+        undefined,
     );
     segment = parseOrdersSegment(firstParam(searchParams[STATUS_PARAM]));
     const paidPage = parseAdminOrdersPage(searchParams[PAID_PAGE_PARAM]);
@@ -135,9 +130,7 @@ async function OrdersPageContent({
 
     // Sequential on purpose: Vercel uses a single postgres.js connection
     // (max: 1) against Supabase transaction pooler (port 6543). Concurrent
-    // queries pipeline on that socket and hang until the request dies —
-    // which previously looked like an endless skeleton, then the admin
-    // error boundary ("Something went wrong loading the admin panel").
+    // queries pipeline on that socket and hang until the request dies.
     const result = await withTimeout(
       withDbAsync(async () => {
         const nextCounts = await getAdminOrdersCounts(dateFilter);
@@ -194,17 +187,20 @@ async function OrdersPageContent({
         </Alert>
       ) : null}
 
-      <AdminOrdersSegmentTabs
-        segment={segment}
-        counts={counts}
-        paid={paid}
-        unpaid={unpaid}
-        paidPageParam={PAID_PAGE_PARAM}
-        unpaidPageParam={PENDING_PAGE_PARAM}
-        pageSizeParam={PAGE_SIZE_PARAM}
-        resetPageParams={resetPageParams}
-        dateFilter={dateFilter}
-      />
+      <Suspense fallback={<OrdersListOnlySkeleton />}>
+        <AdminOrdersSegmentTabs
+          key={segment}
+          segment={segment}
+          counts={counts}
+          paid={paid}
+          unpaid={unpaid}
+          paidPageParam={PAID_PAGE_PARAM}
+          unpaidPageParam={PENDING_PAGE_PARAM}
+          pageSizeParam={PAGE_SIZE_PARAM}
+          resetPageParams={resetPageParams}
+          dateFilter={dateFilter}
+        />
+      </Suspense>
     </div>
   );
 }

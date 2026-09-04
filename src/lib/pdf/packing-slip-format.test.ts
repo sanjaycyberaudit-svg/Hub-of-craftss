@@ -4,6 +4,7 @@ import {
   PACKING_SLIP_THANKS,
   formatPackingSlipDate,
   formatPackingSlipOrderHeading,
+  formatPackingSlipInternalRef,
   formatPackingSlipQuantity,
   buildPackingSlipFromLines,
   buildPackingSlipRecipientLines,
@@ -21,6 +22,11 @@ describe("packing slip format (Hub of craftss)", () => {
     expect(formatPackingSlipOrderHeading("INV-0501201")).toBe(
       "Order #INV-0501201",
     );
+  });
+
+  it("prints Ref # for internal invoice-style numbers", () => {
+    expect(formatPackingSlipInternalRef("26090001")).toBe("Ref #26090001");
+    expect(formatPackingSlipInternalRef(null)).toBeNull();
   });
 
   it("prints date like 16 August 2026 in IST", () => {

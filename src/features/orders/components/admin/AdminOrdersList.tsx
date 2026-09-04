@@ -171,7 +171,20 @@ function AdminOrderRow({
       <div className="flex flex-col gap-3 p-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0 flex-1 space-y-3">
           <div className="flex flex-wrap items-center gap-2">
-            <p className="font-semibold">#{order.id}</p>
+            {order.internalRef ? (
+              <p className="font-semibold tabular-nums">
+                Ref #{order.internalRef}
+              </p>
+            ) : null}
+            <p
+              className={
+                order.internalRef
+                  ? "text-xs text-muted-foreground"
+                  : "font-semibold"
+              }
+            >
+              #{order.id}
+            </p>
             <Badge variant="outline" className="capitalize">
               {(order.orderStatus ?? "pending").trim().toLowerCase()}
             </Badge>

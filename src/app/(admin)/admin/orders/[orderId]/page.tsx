@@ -39,6 +39,7 @@ type AdminOrderDetailPageProps = {
 
 function buildCourierCopyText(payload: {
   orderId: string;
+  internalRef?: string | null;
   createdAt: string;
   customerName: string | null;
   customerMobile: string | null;
@@ -64,6 +65,9 @@ function buildCourierCopyText(payload: {
   const lines = [
     `ORDER DISPATCH NOTE`,
     `Order ID: ${payload.orderId}`,
+    ...(payload.internalRef
+      ? [`Internal Ref: ${payload.internalRef}`]
+      : []),
     `Date: ${formatOrderDateTimeIst(payload.createdAt)}`,
     `Customer: ${payload.customerName || "Customer"}`,
     `Mobile: ${payload.customerMobile || "-"}`,
@@ -99,6 +103,7 @@ async function OrderDetailPage({ params }: AdminOrderDetailPageProps) {
   const orderRows = await db
     .select({
       id: orders.id,
+      internalRef: orders.internal_ref,
       createdAt: orders.createdAt,
       amount: orders.amount,
       currency: orders.currency,
@@ -178,6 +183,7 @@ async function OrderDetailPage({ params }: AdminOrderDetailPageProps) {
 
   const orderView = {
     id: order.id,
+    internalRef: order.internalRef ?? null,
     createdAt: new Date(order.createdAt).toISOString(),
     amount: Number(order.amount),
     currency: order.currency || "INR",
@@ -205,6 +211,7 @@ async function OrderDetailPage({ params }: AdminOrderDetailPageProps) {
   });
   const courierCopyText = buildCourierCopyText({
     orderId: orderView.id,
+    internalRef: orderView.internalRef,
     createdAt: orderView.createdAt,
     customerName: orderView.customerName,
     customerMobile: orderView.customerMobile,

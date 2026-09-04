@@ -52,6 +52,8 @@ export type PackingSlipItem = {
 
 export type PackingSlipOrder = {
   id: string;
+  /** Human invoice-style ref (YYMM####), shown with Order # when present. */
+  internalRef?: string | null;
   createdAt: string;
   customerName: string | null;
   customerMobile: string | null;
@@ -91,6 +93,16 @@ export function formatPackingSlipOrderHeading(orderId: string): string {
   if (!id) return "Order #";
   if (/^order\s*#/i.test(id)) return id;
   return `Order #${id}`;
+}
+
+/** Internal invoice-style line for packing slips, e.g. "Ref #26090001". */
+export function formatPackingSlipInternalRef(
+  internalRef: string | null | undefined,
+): string | null {
+  const ref = String(internalRef ?? "").trim();
+  if (!ref) return null;
+  if (/^ref\s*#/i.test(ref)) return ref;
+  return `Ref #${ref}`;
 }
 
 /** SHIP TO body lines (name, street, pincode city ST, country [, phone]). */
