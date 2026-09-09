@@ -79,7 +79,7 @@ describe("order confirmation email content", () => {
     expect(text).toContain("Payment: Cashfree");
     expect(text).toContain("Phone: +91 9876543210");
     expect(text).toContain("Mandala Kit (MK-001) × 1");
-    expect(text).toContain("GST (18%)");
+    expect(text).not.toContain("GST");
     expect(text).toContain("12 MG Road");
     expect(text).toContain("PIN: 625107");
     expect(text).toContain(baseInput.orderUrl);

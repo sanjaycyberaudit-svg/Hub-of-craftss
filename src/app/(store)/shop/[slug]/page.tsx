@@ -22,6 +22,8 @@ import {
 } from "@/features/products/components/ProductPriceDisplay";
 import { ProductBuyBox } from "@/features/products/components/ProductBuyBox";
 import { getEffectiveProductPrice } from "@/lib/products/discount";
+import { toGstInclusiveAmount } from "@/lib/courier/calculate";
+import { resolveCourierChargesConfig } from "@/lib/integrations/settings";
 import {
   formatProductPackLabel,
   type ProductPackFields,
@@ -167,6 +169,12 @@ async function ProductDetailPage({ params }: Props) {
       ? "Available options"
       : `Available ${optionName.toLowerCase()}`;
 
+  const courierConfig = await resolveCourierChargesConfig();
+  const jsonLdPrice = toGstInclusiveAmount(
+    getEffectiveProductPrice(displayPricing),
+    courierConfig,
+  );
+
   return (
     <Shell>
       <JsonLd
@@ -180,7 +188,7 @@ async function ProductDetailPage({ params }: Props) {
             name,
             slug: productSlug,
             description,
-            price: getEffectiveProductPrice(displayPricing),
+            price: jsonLdPrice,
             imageUrl: featuredImage?.key ? keytoUrl(featuredImage.key) : null,
             inStock: Number(stock ?? 0) > 0,
           }),

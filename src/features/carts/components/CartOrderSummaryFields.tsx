@@ -4,7 +4,7 @@ import { cn, formatPrice } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import type { CourierChargeBreakdown } from "@/lib/courier/calculate";
-import { formatCartGstLabel } from "@/features/carts/lib/cart-order-summary-display";
+import { shouldShowCartDiscountRows } from "@/features/carts/lib/cart-order-summary-display";
 
 export type CartOrderSummaryFieldsProps = {
   productCount: number;
@@ -52,12 +52,12 @@ export function CartOrderSummaryFields({
   discountAmount,
   discountedSubtotal,
   courierBreakdown,
-  gstEnabled,
-  gstPercentage,
-  gstAmount,
   totalAmount,
 }: CartOrderSummaryFieldsProps) {
-  const gstLabel = formatCartGstLabel({ gstEnabled, gstPercentage });
+  const showDiscountRows = shouldShowCartDiscountRows({
+    discountAmount,
+    promoPercentage,
+  });
 
   return (
     <>
@@ -157,15 +157,14 @@ export function CartOrderSummaryFields({
             <span>Subtotal</span>
             <span>{formatPrice(subtotal)}</span>
           </div>
-          {offerCodesEnabled ? (
+          {showDiscountRows ? (
             <>
               <div className="flex items-center justify-between">
-                <span>Discount</span>
                 <span>
-                  {promoPercentage > 0
-                    ? `- ${formatPrice(discountAmount)}`
-                    : formatPrice(0)}
+                  Discount
+                  {promoPercentage > 0 ? ` (${promoPercentage}%)` : ""}
                 </span>
+                <span>{`- ${formatPrice(discountAmount)}`}</span>
               </div>
               <div className="flex items-center justify-between">
                 <span>Subtotal after discount</span>
@@ -185,10 +184,6 @@ export function CartOrderSummaryFields({
               </span>
             </div>
           ) : null}
-          <div className="flex items-center justify-between">
-            <span>{gstLabel}</span>
-            <span>{gstEnabled ? formatPrice(gstAmount) : "Not applied"}</span>
-          </div>
           <div className="flex items-center justify-between border-t pt-2 font-semibold">
             <span>Total</span>
             <span>{formatPrice(totalAmount)}</span>

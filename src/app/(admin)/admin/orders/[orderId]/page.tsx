@@ -12,6 +12,7 @@ import { getOrderDispatchInfo } from "@/lib/dispatch/get-order-dispatch-info";
 import { buildDispatchNotificationText } from "@/lib/dispatch/dispatch-message";
 import { formatOrderDateTimeIst } from "@/lib/datetime/india";
 import { displayInternalOrderRef } from "@/lib/orders/internal-order-ref";
+import { buildOrderPaymentBreakdown } from "@/lib/orders/order-payment-breakdown";
 import {
   readCheckoutTelemetry,
   resolveCheckoutOutcome,
@@ -199,6 +200,14 @@ async function OrderDetailPage({ params }: AdminOrderDetailPageProps) {
     customerEmail: order.customerEmail,
     customerMobile: order.customerMobile,
     shippingAddress,
+    paymentBreakdown: buildOrderPaymentBreakdown({
+      paymentMeta: order.paymentMeta,
+      orderAmount: Number(order.amount),
+      lineItems: itemViews.map((item) => ({
+        unitPrice: item.unitPrice,
+        quantity: item.quantity,
+      })),
+    }),
     checkoutOutcome: resolveCheckoutOutcome({
       paymentStatus: order.paymentStatus,
       paymentMeta: order.paymentMeta,

@@ -4,8 +4,9 @@ import { DocumentType } from "@/gql";
 import { FetchCartQuery } from "../queries/cart-page-queries";
 import { expectedErrorsHandler } from "@/lib/urql";
 import {
+  buildCheckoutMoneyTotals,
   calculateCourierCharge,
-  calculateGstAmount,
+  toGstInclusiveAmount,
 } from "@/lib/courier/calculate";
 import { fetchWithTimeout } from "@/lib/network/fetchWithTimeout";
 import { cn } from "@/lib/utils";
@@ -233,11 +234,21 @@ function UserCartSection({
     !courierEnabled ||
     (pincodeLookup.status === "ready" && Boolean(courierBreakdown));
   const hasDeliveryStateSelected = pricingReady;
-  const gstAmount = calculateGstAmount({
-    taxableAmount: discountedSubtotal + courierCharge,
+  const money = buildCheckoutMoneyTotals({
+    exclusiveMerchandise: discountedSubtotal,
+    courierCharge,
     config: courierConfig,
   });
-  const totalAmount = discountedSubtotal + courierCharge + gstAmount;
+  const gstAmount = money.gstAmount;
+  const totalAmount = money.total;
+  const displaySubtotal = toGstInclusiveAmount(subtotal, courierConfig);
+  const displayDiscountAmount = toGstInclusiveAmount(
+    discountAmount,
+    courierConfig,
+  );
+  const displayCourierBreakdown = courierBreakdown
+    ? { ...courierBreakdown, charge: money.displayCourier }
+    : null;
 
   useEffect(() => {
     const draft = loadCheckoutAddressDraft();
@@ -591,10 +602,10 @@ function UserCartSection({
     appliedPromoCode,
     promoPercentage,
     onRemovePromo,
-    subtotal,
-    discountAmount,
-    discountedSubtotal,
-    courierBreakdown,
+    subtotal: displaySubtotal,
+    discountAmount: displayDiscountAmount,
+    discountedSubtotal: money.displayMerchandise,
+    courierBreakdown: displayCourierBreakdown,
     gstEnabled: courierConfig.gstEnabled,
     gstPercentage: courierConfig.gstPercentage,
     gstAmount,
