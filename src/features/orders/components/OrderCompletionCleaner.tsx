@@ -9,7 +9,8 @@ type Props = {
 
 /**
  * Clears persisted guest cart after a confirmed paid order.
- * Server-side paid status check prevents accidental cart wipe on failed orders.
+ * Caller must pass clearGuestCart from resolveCustomerOrderHeadline /
+ * isPaidPaymentStatus — never clear on unpaid return URLs.
  */
 export function OrderCompletionCleaner({ clearGuestCart }: Props) {
   const removeAllProducts = useCartStore((s) => s.removeAllProducts);

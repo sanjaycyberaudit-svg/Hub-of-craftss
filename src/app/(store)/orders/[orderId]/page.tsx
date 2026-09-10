@@ -30,7 +30,8 @@ import {
   orders,
   products,
 } from "@/lib/supabase/schema";
-import { formatDate, formatPrice, keytoUrl } from "@/lib/utils";
+import { cn, formatDate, formatPrice, keytoUrl } from "@/lib/utils";
+import { resolveCustomerOrderHeadline } from "@/lib/orders/customer-order-status";
 import { eq } from "drizzle-orm";
 import Image from "next/image";
 
@@ -141,6 +142,7 @@ async function TrackOrderPage({ params, searchParams }: TrackOrderProps) {
     .where(eq(orderLines.orderId, orderId));
 
   const stepIndex = currentStepIndex(order.orderStatus);
+  const headline = resolveCustomerOrderHeadline(order.paymentStatus);
   const dispatchInfo = await getOrderDispatchInfo(orderId);
   const shippingLines = buildShippingAddress({
     line1: order.addressLine1,
@@ -153,19 +155,39 @@ async function TrackOrderPage({ params, searchParams }: TrackOrderProps) {
 
   return (
     <Shell layout="narrow">
-      <OrderCompletionCleaner clearGuestCart={order.paymentStatus === "paid"} />
+      <OrderCompletionCleaner clearGuestCart={headline.clearGuestCart} />
 
       <div className="space-y-4 pb-20 md:pb-6">
-        <Card>
+        <Card
+          className={cn(
+            headline.tone === "paid" && "border-emerald-200/80",
+            headline.tone === "pending" && "border-amber-200/80",
+            headline.tone === "failed" && "border-destructive/40",
+          )}
+        >
           <CardHeader className="space-y-2">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <CardTitle className="text-lg sm:text-xl">
-                Order Confirmed
+                {headline.title}
               </CardTitle>
-              <Badge variant="outline" className="capitalize">
-                {order.paymentStatus}
+              <Badge
+                variant="outline"
+                className={cn(
+                  "capitalize",
+                  headline.tone === "paid" &&
+                    "border-emerald-300 text-emerald-800",
+                  headline.tone === "pending" &&
+                    "border-amber-300 text-amber-900",
+                  headline.tone === "failed" &&
+                    "border-destructive/50 text-destructive",
+                )}
+              >
+                {order.paymentStatus || "unpaid"}
               </Badge>
             </div>
+            <p className="text-sm text-muted-foreground">
+              {headline.description}
+            </p>
             <p className="text-sm text-muted-foreground">
               Order ID:{" "}
               <span className="font-medium text-foreground">#{order.id}</span>
@@ -187,28 +209,36 @@ async function TrackOrderPage({ params, searchParams }: TrackOrderProps) {
               </span>
             </p>
           </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-              {STATUS_STEPS.map((step, idx) => {
-                const completed = idx <= stepIndex;
-                return (
-                  <div
-                    key={step}
-                    className="flex items-center gap-2 rounded-md border px-3 py-2"
-                  >
-                    {completed ? (
-                      <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-                    ) : (
-                      <Circle className="h-4 w-4 text-muted-foreground" />
-                    )}
-                    <span className="text-xs font-medium capitalize">
-                      {step}
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
-          </CardContent>
+          {headline.showFulfillmentSteps ? (
+            <CardContent>
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                {STATUS_STEPS.map((step, idx) => {
+                  const completed = idx <= stepIndex;
+                  return (
+                    <div
+                      key={step}
+                      className="flex items-center gap-2 rounded-md border px-3 py-2"
+                    >
+                      {completed ? (
+                        <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                      ) : (
+                        <Circle className="h-4 w-4 text-muted-foreground" />
+                      )}
+                      <span className="text-xs font-medium capitalize">
+                        {step}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </CardContent>
+          ) : (
+            <CardContent>
+              <p className="rounded-md border border-dashed px-3 py-2 text-sm text-muted-foreground">
+                Fulfillment tracking appears here after payment is confirmed.
+              </p>
+            </CardContent>
+          )}
         </Card>
 
         {dispatchInfo ? (
@@ -324,6 +354,11 @@ async function TrackOrderPage({ params, searchParams }: TrackOrderProps) {
         </div>
 
         <div className="flex flex-wrap gap-2">
+          {headline.tone !== "paid" ? (
+            <Button asChild>
+              <Link href="/cart">Return to cart</Link>
+            </Button>
+          ) : null}
           <Button asChild variant="outline">
             <Link href="/shop">
               <Package className="mr-2 h-4 w-4" />
