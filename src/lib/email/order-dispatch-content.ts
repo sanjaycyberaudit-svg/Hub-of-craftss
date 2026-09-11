@@ -8,6 +8,7 @@ import {
   buildLineItemsTableHtml,
   buildOrderMetaBlockHtml,
   escapeHtml,
+  mapCustomerEmailLineItems,
   type OrderEmailLineItem,
   type OrderEmailShippingAddress,
 } from "./order-email-shared";
@@ -26,10 +27,16 @@ export type OrderDispatchEmailInput = {
   trackingNumber: string | null;
   trackingUrl: string | null;
   dispatchedAt: string;
+  /** Checkout payment_meta — used only to GST-include line unit prices. */
+  paymentMeta?: unknown;
 };
 
 export function buildOrderDispatchSubject(orderId: string) {
   return `Your order has shipped — #${orderId} · ${siteConfig.name}`;
+}
+
+function customerLineItems(input: OrderDispatchEmailInput) {
+  return mapCustomerEmailLineItems(input.lineItems, input.paymentMeta);
 }
 
 function addressLines(input: OrderDispatchEmailInput) {
@@ -48,6 +55,7 @@ function addressLines(input: OrderDispatchEmailInput) {
 }
 
 export function buildOrderDispatchPlainText(input: OrderDispatchEmailInput) {
+  const displayLines = customerLineItems(input);
   return [
     `Hi ${input.customerName?.trim() || "there"},`,
     `${siteConfig.name} order #${input.orderId} has been dispatched.`,
@@ -57,7 +65,7 @@ export function buildOrderDispatchPlainText(input: OrderDispatchEmailInput) {
     input.trackingUrl ? `Track package: ${input.trackingUrl}` : null,
     "",
     "Items in this order",
-    ...buildLineItemsPlainText(input.lineItems),
+    ...buildLineItemsPlainText(displayLines),
     "",
     "Shipping address",
     ...addressLines(input),
@@ -70,6 +78,7 @@ export function buildOrderDispatchPlainText(input: OrderDispatchEmailInput) {
 }
 
 export function buildOrderDispatchHtml(input: OrderDispatchEmailInput) {
+  const displayLines = customerLineItems(input);
   const tracking = [
     input.trackingNumber
       ? `<div><strong>Tracking number:</strong> ${escapeHtml(input.trackingNumber)}</div>`
@@ -83,7 +92,7 @@ export function buildOrderDispatchHtml(input: OrderDispatchEmailInput) {
     <p>Your order is on its way.</p>
     ${buildOrderMetaBlockHtml({ orderId: input.orderId, placedAt: input.createdAt, customerPhone: input.customerPhone })}
     <div style="padding:16px;background:#f8f8f8;border-radius:8px;line-height:1.6"><div><strong>Courier:</strong> ${escapeHtml(input.courierName)}</div><div><strong>Dispatched:</strong> ${escapeHtml(formatOrderDateTimeIst(input.dispatchedAt))}</div>${tracking}</div>
-    <h2 style="font-size:16px">Items in this order</h2>${buildLineItemsTableHtml(input.lineItems)}
+    <h2 style="font-size:16px">Items in this order</h2>${buildLineItemsTableHtml(displayLines)}
     <h2 style="font-size:16px">Shipping address</h2><div>${addressLines(input)
       .map((line) => `<div>${escapeHtml(line)}</div>`)
       .join("")}</div>
