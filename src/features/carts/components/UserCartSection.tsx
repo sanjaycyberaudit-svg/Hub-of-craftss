@@ -62,7 +62,7 @@ import {
   toSizeConfigFromCartPayload,
   withLiveLinePricing,
 } from "../lib/live-pricing";
-import { areAllOptionGroupsSelected } from "@/lib/products/sizeConfig-shared";
+import { areCartSelectionsComplete } from "@/features/carts/cart-options-checkout";
 import { getSaleProductPrice } from "@/lib/products/discount";
 import { isBulkOrderQuantity } from "../constants/bulkOrder";
 
@@ -405,19 +405,12 @@ function UserCartSection({
     () =>
       visibleCart
         .filter(({ node }) => {
-          const sizeConfig = toSizeConfigFromCartPayload(
-            sizeConfigsByProductId[node.product_id],
-          );
-          if (!sizeConfig.enabled || sizeConfig.groups.length === 0) {
-            return false;
-          }
           const item = localCart[node.product_id];
-          const selections =
-            item?.selections ??
-            (item?.size && sizeConfig.groups[0]
-              ? { [sizeConfig.groups[0].id]: item.size }
-              : {});
-          return !areAllOptionGroupsSelected(sizeConfig, selections);
+          return !areCartSelectionsComplete({
+            sizeConfig: sizeConfigsByProductId[node.product_id],
+            selections: item?.selections,
+            size: item?.size,
+          });
         })
         .map(({ node }) => node.product?.name)
         .filter((name): name is string => Boolean(name)),
@@ -619,6 +612,7 @@ function UserCartSection({
       order={order}
       promoCode={appliedPromoCode}
       missingSizeProductNames={missingSizeProductNames}
+      sizeConfigsByProductId={sizeConfigsByProductId}
       requireDeliveryStateSelection={courierEnabled}
       hasDeliveryStateSelected={!courierEnabled || hasDeliveryStateSelected}
     />

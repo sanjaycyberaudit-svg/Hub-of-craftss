@@ -45,10 +45,11 @@ function normalizeSelections(
         .toUpperCase();
       if (normalized) selections[key] = normalized;
     }
-    const first = Object.values(selections)[0];
+    // Keep legacy `size` mirrored for older checkout/readers (first selection).
+    const legacySize = Object.values(selections)[0];
     return {
       selections,
-      ...(first ? { size: first } : {}),
+      ...(legacySize ? { size: legacySize } : {}),
     };
   }
 

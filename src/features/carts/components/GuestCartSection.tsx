@@ -51,7 +51,7 @@ import {
   toSizeConfigFromCartPayload,
   withLiveLinePricing,
 } from "../lib/live-pricing";
-import { areAllOptionGroupsSelected } from "@/lib/products/sizeConfig-shared";
+import { areCartSelectionsComplete } from "@/features/carts/cart-options-checkout";
 import { getSaleProductPrice } from "@/lib/products/discount";
 import { useToast } from "@/components/ui/use-toast";
 
@@ -314,19 +314,12 @@ function GuestCartSection({
     () =>
       cartLines
         .filter(({ node }) => {
-          const sizeConfig = toSizeConfigFromCartPayload(
-            sizeConfigsByProductId[node.id],
-          );
-          if (!sizeConfig.enabled || sizeConfig.groups.length === 0) {
-            return false;
-          }
           const item = cartItems[node.id];
-          const selections =
-            item?.selections ??
-            (item?.size && sizeConfig.groups[0]
-              ? { [sizeConfig.groups[0].id]: item.size }
-              : {});
-          return !areAllOptionGroupsSelected(sizeConfig, selections);
+          return !areCartSelectionsComplete({
+            sizeConfig: sizeConfigsByProductId[node.id],
+            selections: item?.selections,
+            size: item?.size,
+          });
         })
         .map(({ node }) => node.name)
         .filter((name): name is string => Boolean(name)),
@@ -407,6 +400,7 @@ function GuestCartSection({
       order={cartItems}
       promoCode={appliedPromoCode}
       missingSizeProductNames={missingSizeProductNames}
+      sizeConfigsByProductId={sizeConfigsByProductId}
       requireDeliveryStateSelection={courierEnabled}
       hasDeliveryStateSelected={!courierEnabled || hasDeliveryStateSelected}
     />
