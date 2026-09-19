@@ -15,6 +15,7 @@ import {
   getProductSizeConfig,
 } from "@/lib/products/sizeConfig";
 import { buildBreadcrumbJsonLd, buildProductJsonLd } from "@/lib/seo/json-ld";
+import { buildSocialImages } from "@/lib/seo/social-image";
 import { getPublishedProductDetailCached } from "@/lib/storefront/product-detail";
 import {
   ProductDiscountBadge,
@@ -53,13 +54,15 @@ type Props = {
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const resolvedParams = await params;
   const data = await getPublishedProductDetailCached(resolvedParams.slug);
-  const productName = data?.productsCollection?.edges?.[0]?.node?.name;
+  const product = data?.productsCollection?.edges?.[0]?.node;
+  const productName = product?.name;
   const path = `/shop/${resolvedParams.slug}`;
 
   if (productName) {
     const productDescription =
-      data?.productsCollection?.edges?.[0]?.node?.description?.trim() ||
+      product?.description?.trim() ||
       `Buy ${productName} online from Hub of craftss. Premium terracotta and craft supplies with secure checkout.`;
+    const social = buildSocialImages(product?.featuredImage?.key, productName);
     return {
       title: productName,
       description: productDescription,
@@ -70,7 +73,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
         title: `${productName} | Hub of craftss`,
         description: productDescription,
         url: path,
+        ...social.openGraph,
       },
+      twitter: social.twitter,
     };
   }
 

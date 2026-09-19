@@ -16,7 +16,9 @@ import {
 } from "@/lib/storefront/product-queries";
 import { buildShopSearchVariables } from "@/lib/storefront/search-params";
 import { getProductPackLabelsByIds } from "@/lib/products/pack.server";
+import { buildSocialImages } from "@/lib/seo/social-image";
 import { toTitleCase, unslugify } from "@/lib/utils";
+import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import { Suspense } from "react";
 
@@ -31,7 +33,9 @@ interface CategoryPageProps {
   }>;
 }
 
-export async function generateMetadata({ params }: CategoryPageProps) {
+export async function generateMetadata({
+  params,
+}: CategoryPageProps): Promise<Metadata> {
   const resolvedParams = await params;
   const slugFallback = toTitleCase(unslugify(resolvedParams.collectionSlug));
   const data = await getCollectionPageCached(resolvedParams.collectionSlug);
@@ -40,10 +44,12 @@ export async function generateMetadata({ params }: CategoryPageProps) {
     collection?.label?.trim() ||
     (collection?.slug ? toTitleCase(unslugify(collection.slug)) : slugFallback);
   const path = `/collections/${collection?.slug ?? resolvedParams.collectionSlug}`;
+  const description = `Shop ${titleName} craft supplies at Hub of craftss. Premium terracotta and art & craft materials with secure online ordering.`;
+  const social = buildSocialImages(collection?.featuredImage?.key, titleName);
 
   return {
     title: titleName,
-    description: `Shop ${titleName} craft supplies at Hub of craftss. Premium terracotta and art & craft materials with secure online ordering.`,
+    description,
     alternates: {
       canonical: path,
     },
@@ -51,7 +57,9 @@ export async function generateMetadata({ params }: CategoryPageProps) {
       title: `${titleName} | Hub of craftss`,
       description: `Shop ${titleName} craft supplies at Hub of craftss.`,
       url: path,
+      ...social.openGraph,
     },
+    twitter: social.twitter,
   };
 }
 
