@@ -39,6 +39,17 @@ describe("applyPublicCdnCacheHeaders", () => {
     expect(response.headers.get("vercel-cache-tag")).toBe(
       "sf-storefront,sf-product-p1,sf-product-p2",
     );
+    expect(response.headers.get("cache-tag")).toBe(
+      "sf-storefront,sf-product-p1,sf-product-p2",
+    );
+  });
+
+  it("lets Cloudflare hold responses longer than Vercel, since writes purge it", () => {
+    const response = publicCdnJson({ ok: true });
+
+    expect(response.headers.get("cloudflare-cdn-cache-control")).toBe(
+      "public, max-age=300",
+    );
   });
 
   it("always carries the storefront-wide tag for full purges", () => {

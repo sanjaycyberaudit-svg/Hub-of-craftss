@@ -8,6 +8,12 @@ export const STOREFRONT_REVALIDATE_SECONDS = 1800;
  */
 export const STOREFRONT_API_CDN_SECONDS = 60;
 
+/**
+ * Cloudflare (in front of Vercel) keeps storefront JSON longer: writes purge it
+ * by `Cache-Tag`, so this only bounds staleness when a purge is rate-limited.
+ */
+export const CLOUDFLARE_API_CACHE_SECONDS = 300;
+
 /** Longer TTL for mostly-static marketing pages. */
 export const STOREFRONT_STATIC_REVALIDATE_SECONDS = 3600;
 
