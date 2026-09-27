@@ -94,6 +94,7 @@
     "@urql/exchange-graphcache": "^6.4.1",
     "@urql/exchange-retry": "^1.2.1",
     "@urql/next": "^1.1.0",
+    "@vercel/functions": "^3.9.9",
     "aws4fetch": "^1.0.20",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.0",

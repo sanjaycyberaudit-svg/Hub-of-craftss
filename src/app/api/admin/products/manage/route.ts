@@ -8,7 +8,11 @@ import {
   publicValidationPayload,
 } from "@/lib/api/public-error";
 import { getSessionUser, isAdminUser } from "@/lib/auth/admin";
-import { invalidateStorefrontCache } from "@/lib/cache/invalidate-storefront";
+import {
+  invalidateProductCaches,
+  loadProductCacheIdentities,
+  type ProductCacheScope,
+} from "@/lib/cache/invalidate-storefront";
 import db from "@/lib/supabase/db";
 import { products, type InsertProducts } from "@/lib/supabase/schema";
 import { eq } from "drizzle-orm";
@@ -38,25 +42,19 @@ async function ensureAdmin() {
   return user;
 }
 
-function softRevalidateCatalog() {
+/** Never fails the save: the product is already written. */
+async function softRevalidateCatalog(scope: ProductCacheScope) {
   try {
     revalidatePath("/admin/products");
-    revalidatePath("/shop");
-    revalidatePath("/featured");
+    await invalidateProductCaches(scope);
   } catch (error) {
-    console.error("[products/manage] revalidatePath failed:", error);
+    console.error("[products/manage] cache invalidation failed:", error);
   }
-  void invalidateStorefrontCache().catch((error) => {
-    console.error("[products/manage] invalidateStorefrontCache failed:", error);
-  });
 }
 
-async function revalidateProductPages() {
+async function revalidateProductPages(scope: ProductCacheScope) {
   revalidatePath("/admin/products");
-  revalidatePath("/shop");
-  revalidatePath("/featured");
-  revalidatePath("/collections");
-  await invalidateStorefrontCache();
+  await invalidateProductCaches(scope);
 }
 
 function adminSaveErrorMessage(error: unknown) {
@@ -82,8 +80,9 @@ export async function DELETE(request: NextRequest) {
     );
   }
 
+  const previous = await loadProductCacheIdentities(parsed.data.ids);
   const outcome = await deleteOrArchiveProducts(parsed.data.ids);
-  await revalidateProductPages();
+  await revalidateProductPages({ productIds: parsed.data.ids, previous });
 
   return NextResponse.json(outcome);
 }
@@ -138,9 +137,8 @@ export async function PATCH(request: NextRequest) {
   }
 
   revalidatePath("/admin/products");
-  revalidatePath("/shop");
   revalidatePath("/cart");
-  await invalidateStorefrontCache();
+  await invalidateProductCaches({ productIds: [updated.id] });
 
   return NextResponse.json({ ok: true, product: updated });
 }
@@ -169,7 +167,7 @@ export async function POST(request: NextRequest) {
       parsed.data.product as InsertProducts,
       { imageMediaIds: parsed.data.imageMediaIds },
     );
-    softRevalidateCatalog();
+    await softRevalidateCatalog({ productIds: [String(saved.id)] });
     return NextResponse.json({ ok: true, product: saved });
   } catch (error) {
     logServerError("products/manage POST", error);
@@ -201,12 +199,14 @@ export async function PUT(request: NextRequest) {
   }
 
   try {
+    const productId = parsed.data.productId;
+    const previous = await loadProductCacheIdentities([productId]);
     const saved = await updateProductRecord(
-      parsed.data.productId,
+      productId,
       parsed.data.product as InsertProducts,
       { imageMediaIds: parsed.data.imageMediaIds },
     );
-    softRevalidateCatalog();
+    await softRevalidateCatalog({ productIds: [productId], previous });
     return NextResponse.json({ ok: true, product: saved });
   } catch (error) {
     logServerError("products/manage PUT", error);

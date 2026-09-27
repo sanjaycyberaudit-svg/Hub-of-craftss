@@ -1,6 +1,5 @@
 import "server-only";
 
-import { revalidatePath } from "next/cache";
 import { after } from "next/server";
 import type {
   AllCollectionsQueryQuery,
@@ -8,7 +7,10 @@ import type {
   SearchQuery,
   SearchQueryVariables,
 } from "@/gql/graphql";
+import { EDGE_CACHE_TAGS } from "@/lib/cache/constants";
+import { purgeEdgeCacheTags } from "@/lib/cache/edge-cache";
 import { redisDelByPrefix } from "@/lib/cache/redis";
+import { revalidateProductListPages } from "@/lib/cache/storefront-pages";
 import { clearStorefrontMemoryCache } from "@/lib/cache/storefront-cache";
 import type { StorefrontProductSearchVariables } from "@/lib/storefront/search-params";
 import {
@@ -307,13 +309,10 @@ async function runCatalogMirrorSync(): Promise<void> {
   // Mirror reads cached between the storefront bust and the sync finishing are stale.
   if (result.skipped === false && result.changed) {
     await clearCatalogMirrorCaches();
-    // Pages rebuilt during that window embedded the pre-sync mirror data too.
+    // Pages and API responses built during that window used pre-sync mirror data.
     if (isCatalogD1Enabled()) {
-      try {
-        revalidatePath("/", "layout");
-      } catch (error) {
-        console.warn("[catalog-d1] page revalidate failed:", error);
-      }
+      revalidateProductListPages();
+      await purgeEdgeCacheTags([EDGE_CACHE_TAGS.lists]);
     }
   }
 }

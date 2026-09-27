@@ -1,3 +1,4 @@
+import { EDGE_CACHE_TAGS } from "@/lib/cache/constants";
 import { publicCdnJson } from "@/lib/cache/public-cdn-cache";
 import { fetchProductNameSuggestionsCached } from "@/lib/storefront/product-name-suggest";
 import { NextRequest, NextResponse } from "next/server";
@@ -12,7 +13,7 @@ export async function GET(request: NextRequest) {
       params.get("limit"),
     );
 
-    return publicCdnJson(result);
+    return publicCdnJson(result, { cacheTags: [EDGE_CACHE_TAGS.lists] });
   } catch (error) {
     console.error("[storefront/products/suggest] GET failed:", error);
     return NextResponse.json(

@@ -3,6 +3,7 @@ import {
   fetchProductSearchCached,
 } from "@/lib/storefront/product-queries";
 import { filterDraftProductsFromCollection } from "@/lib/storefront/filter-draft-products";
+import { EDGE_CACHE_TAGS } from "@/lib/cache/constants";
 import { publicCdnJson } from "@/lib/cache/public-cdn-cache";
 import {
   parseProductListRequest,
@@ -25,22 +26,25 @@ export async function GET(request: NextRequest) {
         ),
       );
 
-      return publicCdnJson({
-        productsCollection,
-        matchingCollections: [],
-      });
+      return publicCdnJson(
+        { productsCollection, matchingCollections: [] },
+        { cacheTags: [EDGE_CACHE_TAGS.lists] },
+      );
     }
 
     const searchResult = await fetchProductSearchCached(
       variables as StorefrontProductSearchVariables,
     );
 
-    return publicCdnJson({
-      ...searchResult,
-      productsCollection: await filterDraftProductsFromCollection(
-        searchResult.productsCollection,
-      ),
-    });
+    return publicCdnJson(
+      {
+        ...searchResult,
+        productsCollection: await filterDraftProductsFromCollection(
+          searchResult.productsCollection,
+        ),
+      },
+      { cacheTags: [EDGE_CACHE_TAGS.lists] },
+    );
   } catch (error) {
     console.error("[storefront/products] GET failed:", error);
     return NextResponse.json(

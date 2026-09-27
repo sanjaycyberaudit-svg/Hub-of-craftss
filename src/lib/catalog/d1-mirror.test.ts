@@ -1,7 +1,12 @@
 /** @jest-environment node */
 jest.mock("server-only", () => ({}));
 jest.mock("next/server", () => ({ after: jest.fn() }));
-jest.mock("next/cache", () => ({ revalidatePath: jest.fn() }));
+jest.mock("../cache/storefront-pages", () => ({
+  revalidateProductListPages: jest.fn(),
+}));
+jest.mock("../cache/edge-cache", () => ({
+  purgeEdgeCacheTags: jest.fn(async () => undefined),
+}));
 jest.mock("../cache/redis", () => ({
   redisDelByPrefix: jest.fn(async () => undefined),
 }));

@@ -52,7 +52,8 @@ import { eq, inArray } from "drizzle-orm";
 import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
 
 import { cookies } from "next/headers";
-import { NextResponse } from "next/server";
+import { after, NextResponse } from "next/server";
+import { invalidateProductCaches } from "@/lib/cache/invalidate-storefront";
 import { z } from "zod";
 
 const shippingSchema = z.object({
@@ -516,6 +517,21 @@ export async function POST(request: Request) {
     const order = insertedOrder[0];
     createdOrderId = order.id;
     const accessToken = createOrderAccessToken(order.id, order.createdAt);
+
+    if (reserveStock) {
+      // Held stock must show on these products' pages; never delay checkout for it.
+      const heldProductIds = productsQuantity.map((line) => line.id);
+      after(() =>
+        invalidateProductCaches({ productIds: heldProductIds }).catch(
+          (error) => {
+            console.warn(
+              "[checkout] product cache invalidation failed:",
+              error,
+            );
+          },
+        ),
+      );
+    }
 
     if (preferCashfree) {
       const payment = await createCashfreePayment({

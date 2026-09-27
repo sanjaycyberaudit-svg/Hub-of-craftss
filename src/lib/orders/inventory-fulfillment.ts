@@ -1,4 +1,4 @@
-import { invalidateStorefrontCache } from "@/lib/cache/invalidate-storefront";
+import { invalidateProductCaches } from "@/lib/cache/invalidate-storefront";
 import {
   getIntegrationSetting,
   INTEGRATION_KEYS,
@@ -180,6 +180,8 @@ export async function fulfillPaidOrderInventory(
     })
     .where(eq(orders.id, order.id));
 
-  await invalidateStorefrontCache();
+  await invalidateProductCaches({
+    productIds: lines.map((line) => line.productId),
+  });
   return { fulfilled: true };
 }

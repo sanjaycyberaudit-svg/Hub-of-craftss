@@ -17,6 +17,7 @@ import {
 import { buildBreadcrumbJsonLd, buildProductJsonLd } from "@/lib/seo/json-ld";
 import { buildSocialImages } from "@/lib/seo/social-image";
 import { getPublishedProductDetailCached } from "@/lib/storefront/product-detail";
+import { getFeaturedRecommendationsCached } from "@/lib/storefront/recommendations";
 import {
   ProductDiscountBadge,
   ProductPriceDisplay,
@@ -103,8 +104,13 @@ async function ProductDetailPage({ params }: Props) {
     featuredImage,
   } = productEdge.node;
   const productSlug = resolvedParams.slug;
+  const recommendations = await withFallback(
+    "pdp:recommendations",
+    () => getFeaturedRecommendationsCached(4),
+    null,
+  );
   const recommendationIds =
-    data.recommendations?.edges?.map(({ node }) => node.id) ?? [];
+    recommendations?.edges?.map(({ node }) => node.id) ?? [];
   const [sizeConfig, livePricing, packFieldsById, recommendationPackLabels] =
     await Promise.all([
       // Variant data gates add-to-cart, so it must not silently degrade.
@@ -288,8 +294,8 @@ async function ProductDetailPage({ params }: Props) {
       <Header heading={`We Think You'll Love`} />
 
       <div className="container grid grid-cols-2 lg:grid-cols-4 gap-x-8 ">
-        {data.recommendations &&
-          data.recommendations.edges.map(({ node }) => (
+        {recommendations &&
+          recommendations.edges.map(({ node }) => (
             <ProductCard
               key={node.id}
               product={node}

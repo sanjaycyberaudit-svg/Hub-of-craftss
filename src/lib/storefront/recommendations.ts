@@ -1,5 +1,10 @@
 import { ProductCardFragment } from "@/features/products/components/ProductCard";
-import type { RecomendationProductsQueryQuery } from "@/gql/graphql";
+import type {
+  FeaturedRecommendationsQueryQuery,
+  FeaturedRecommendationsQueryQueryVariables,
+  RecomendationProductsQueryQuery,
+} from "@/gql/graphql";
+import { FeaturedRecommendationsQueryDocument } from "./documents";
 import { gql } from "@/gql";
 import { CACHE_TAGS } from "@/lib/cache/constants";
 import { withStorefrontCache } from "@/lib/cache/storefront-cache";
@@ -18,6 +23,25 @@ const RecommendationProductsQuery = gql(/* GraphQL */ `
     }
   }
 `);
+
+/** Newest featured products for the product page strip; one entry shared by every product page. */
+export async function getFeaturedRecommendationsCached(first = 4) {
+  const data = await withStorefrontCache(
+    `sf:recommendations:featured:${first}`,
+    async () => {
+      const { data, error } = await getClient().query<
+        FeaturedRecommendationsQueryQuery,
+        FeaturedRecommendationsQueryQueryVariables
+      >(FeaturedRecommendationsQueryDocument, { first });
+      if (error) throw error;
+      return data ?? null;
+    },
+    { tags: [CACHE_TAGS.products, CACHE_TAGS.drafts] },
+  );
+
+  if (!data?.recommendations) return null;
+  return filterDraftProductsFromCollection(data.recommendations);
+}
 
 export async function getRecommendationProductsCached(first = 4) {
   const data = await withStorefrontCache(

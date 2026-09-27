@@ -4,12 +4,8 @@ import type {
 } from "@/gql/graphql";
 import { cache } from "react";
 import { getClient } from "@/lib/urql";
-import { CACHE_TAGS } from "@/lib/cache/constants";
+import { CACHE_TAGS, productDetailCacheTag } from "@/lib/cache/constants";
 import { withStorefrontCache } from "@/lib/cache/storefront-cache";
-import {
-  filterDraftEdges,
-  getDraftProductIdSet,
-} from "@/lib/storefront/filter-draft-products";
 import { isProductSlugPublished } from "@/lib/storefront/product-visibility";
 import { ProductDetailPageQueryDocument } from "./documents";
 
@@ -17,12 +13,19 @@ async function isProductSlugPublishedCached(slug: string): Promise<boolean> {
   return withStorefrontCache(
     `sf:published:${slug}`,
     () => isProductSlugPublished(slug),
-    { revalidate: 60, tags: [CACHE_TAGS.products, CACHE_TAGS.drafts] },
+    {
+      revalidate: 60,
+      tags: [productDetailCacheTag(slug), CACHE_TAGS.productDetails],
+    },
   );
 }
 
+/**
+ * Holds only this product's data, so a write to one product clears one entry.
+ * The recommendations strip is shared: see getFeaturedRecommendationsCached.
+ */
 export async function getProductDetailCached(productSlug: string) {
-  const data = await withStorefrontCache(
+  return withStorefrontCache(
     `sf:product:${productSlug}`,
     async () => {
       const { data, error } = await getClient().query<
@@ -32,16 +35,8 @@ export async function getProductDetailCached(productSlug: string) {
       if (error) throw error;
       return data;
     },
-    { tags: [CACHE_TAGS.products, CACHE_TAGS.drafts] },
+    { tags: [productDetailCacheTag(productSlug), CACHE_TAGS.productDetails] },
   );
-
-  if (!data?.recommendations?.edges?.length) return data;
-
-  const draftIds = await getDraftProductIdSet();
-  return {
-    ...data,
-    recommendations: filterDraftEdges(data.recommendations, draftIds),
-  };
 }
 
 /** Returns null when the slug is draft or missing. */

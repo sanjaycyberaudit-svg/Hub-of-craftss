@@ -1,5 +1,11 @@
 import { NextResponse } from "next/server";
-import { STOREFRONT_API_CDN_SECONDS } from "./constants";
+import { EDGE_CACHE_TAGS, STOREFRONT_API_CDN_SECONDS } from "./constants";
+
+type PublicCdnOptions = {
+  revalidateSeconds?: number;
+  /** Purge handles for writes (see EDGE_CACHE_TAGS); `all` is always added. */
+  cacheTags?: readonly string[];
+};
 
 /**
  * Headers for public JSON/listing APIs that may be cached at Cloudflare edge.
@@ -7,7 +13,10 @@ import { STOREFRONT_API_CDN_SECONDS } from "./constants";
  */
 export function applyPublicCdnCacheHeaders(
   response: NextResponse,
-  revalidateSeconds = STOREFRONT_API_CDN_SECONDS,
+  {
+    revalidateSeconds = STOREFRONT_API_CDN_SECONDS,
+    cacheTags = [],
+  }: PublicCdnOptions = {},
 ): NextResponse {
   const staleWhileRevalidate = Math.max(revalidateSeconds, 60);
 
@@ -19,6 +28,10 @@ export function applyPublicCdnCacheHeaders(
     "CDN-Cache-Control",
     `public, max-age=${revalidateSeconds}`,
   );
+  response.headers.set(
+    "Vercel-Cache-Tag",
+    [...new Set([EDGE_CACHE_TAGS.all, ...cacheTags])].join(","),
+  );
   response.headers.delete("vary");
 
   return response;
@@ -26,11 +39,10 @@ export function applyPublicCdnCacheHeaders(
 
 export function publicCdnJson<T>(
   data: T,
-  init?: ResponseInit,
-  revalidateSeconds = STOREFRONT_API_CDN_SECONDS,
+  options: PublicCdnOptions & { init?: ResponseInit } = {},
 ): NextResponse {
   return applyPublicCdnCacheHeaders(
-    NextResponse.json(data, init),
-    revalidateSeconds,
+    NextResponse.json(data, options.init),
+    options,
   );
 }

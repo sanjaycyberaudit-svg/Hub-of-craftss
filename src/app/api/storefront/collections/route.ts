@@ -1,3 +1,5 @@
+import { EDGE_CACHE_TAGS } from "@/lib/cache/constants";
+import { publicCdnJson } from "@/lib/cache/public-cdn-cache";
 import { HOME_CATEGORIES_PAGE_SIZE } from "@/lib/storefront/collections-page";
 import { fetchCollectionsPage } from "@/lib/storefront/collections-page.server";
 import { NextRequest, NextResponse } from "next/server";
@@ -14,11 +16,7 @@ export async function GET(request: NextRequest) {
 
   try {
     const page = await fetchCollectionsPage({ first, after });
-    return NextResponse.json(page, {
-      headers: {
-        "Cache-Control": "public, s-maxage=60, stale-while-revalidate=300",
-      },
-    });
+    return publicCdnJson(page, { cacheTags: [EDGE_CACHE_TAGS.lists] });
   } catch (error) {
     console.error("[storefront/collections] GET failed:", error);
     return NextResponse.json(

@@ -1,3 +1,5 @@
+import { EDGE_CACHE_TAGS } from "@/lib/cache/constants";
+import { publicCdnJson } from "@/lib/cache/public-cdn-cache";
 import { getProductPackLabelsByIds } from "@/lib/products/pack.server";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -28,13 +30,9 @@ export async function GET(request: NextRequest) {
 
   try {
     const labels = await getProductPackLabelsByIds(productIds);
-    return NextResponse.json(
+    return publicCdnJson(
       { labels },
-      {
-        headers: {
-          "Cache-Control": "public, s-maxage=60, stale-while-revalidate=300",
-        },
-      },
+      { cacheTags: productIds.map(EDGE_CACHE_TAGS.product) },
     );
   } catch (error) {
     console.error("[storefront/pack-labels] GET failed:", error);

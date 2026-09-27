@@ -1,3 +1,4 @@
+import { EDGE_CACHE_TAGS } from "@/lib/cache/constants";
 import { publicCdnJson } from "@/lib/cache/public-cdn-cache";
 import {
   DEFAULT_PRODUCT_OPTION_NAME,
@@ -81,7 +82,9 @@ export async function GET(request: NextRequest) {
           },
         );
       });
-      return publicCdnJson(payload);
+      return publicCdnJson(payload, {
+        cacheTags: productIds.slice(0, 100).map(EDGE_CACHE_TAGS.product),
+      });
     }
 
     if (!productId) {
@@ -92,7 +95,9 @@ export async function GET(request: NextRequest) {
     }
 
     const config = await getProductSizeConfig(productId);
-    return publicCdnJson(toApiPayload(config));
+    return publicCdnJson(toApiPayload(config), {
+      cacheTags: [EDGE_CACHE_TAGS.product(productId)],
+    });
   } catch (error) {
     console.error("[size-config] GET failed:", error);
     return NextResponse.json(emptyPayload, { status: 200 });

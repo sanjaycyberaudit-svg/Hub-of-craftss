@@ -1,6 +1,12 @@
 import { isControlFlowError, withRetry } from "@/lib/resilience";
 import { STOREFRONT_REVALIDATE_SECONDS } from "./constants";
-import { isRedisCacheEnabled, redisGet, redisSet } from "./redis";
+import {
+  isRedisCacheEnabled,
+  redisDel,
+  redisDelByPrefix,
+  redisGet,
+  redisSet,
+} from "./redis";
 
 type CacheOptions = {
   revalidate?: number;
@@ -107,6 +113,22 @@ export function clearStorefrontMemoryCache(prefix?: string): void {
       memoryCache.delete(key);
     }
   }
+}
+
+/** Removes entries by exact key and by key prefix, in Redis and this isolate. */
+export async function clearStorefrontCacheEntries({
+  keys = [],
+  prefixes = [],
+}: {
+  keys?: readonly string[];
+  prefixes?: readonly string[];
+}): Promise<void> {
+  await Promise.all([
+    redisDel(keys.map((key) => key + REDIS_KEY_SUFFIX)),
+    ...prefixes.map((prefix) => redisDelByPrefix(prefix)),
+  ]);
+  keys.forEach((key) => memoryCache.delete(key));
+  prefixes.forEach((prefix) => clearStorefrontMemoryCache(prefix));
 }
 
 /** Reads the newest envelope available, preferring shared Redis over the isolate. */

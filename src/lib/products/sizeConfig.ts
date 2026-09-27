@@ -1,5 +1,5 @@
-import { CACHE_TAGS } from "@/lib/cache/constants";
-import { invalidateStorefrontCache } from "@/lib/cache/invalidate-storefront";
+import { CACHE_TAGS, productSizeCacheTag } from "@/lib/cache/constants";
+import { invalidateProductCaches } from "@/lib/cache/invalidate-storefront";
 import { withStorefrontCache } from "@/lib/cache/storefront-cache";
 import db from "@/lib/supabase/db";
 import { apiSettings } from "@/lib/supabase/schema";
@@ -35,7 +35,7 @@ export async function getProductSizeConfig(
   return withStorefrontCache(
     `sf:size:${productId}`,
     () => loadProductSizeConfig(productId),
-    { tags: [CACHE_TAGS.sizeConfig] },
+    { tags: [productSizeCacheTag(productId), CACHE_TAGS.sizeConfig] },
   );
 }
 
@@ -67,7 +67,7 @@ export async function getProductSizeConfigsByProductIds(productIds: string[]) {
       const map = await loadProductSizeConfigsByProductIds(unique);
       return Object.fromEntries(map.entries());
     },
-    { tags: [CACHE_TAGS.sizeConfig] },
+    { tags: [CACHE_TAGS.sizeBatch, CACHE_TAGS.sizeConfig] },
   );
 
   return new Map(Object.entries(serialized));
@@ -111,5 +111,9 @@ export async function upsertProductSizeConfig(params: {
     }
   }
 
-  await invalidateStorefrontCache();
+  // Option prices/quantities only show on the product page and in the cart.
+  await invalidateProductCaches({
+    productIds: [params.productId],
+    lists: false,
+  });
 }

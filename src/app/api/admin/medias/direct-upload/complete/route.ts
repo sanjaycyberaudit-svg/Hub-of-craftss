@@ -1,6 +1,5 @@
 import { publicErrorMessage } from "@/lib/api/public-error";
 import { invalidateAdminMediaCache } from "@/lib/admin/media-library";
-import { invalidateStorefrontCache } from "@/lib/cache/invalidate-storefront";
 import { getSessionUser, isAdminUser } from "@/lib/auth/admin";
 import {
   finalizeDirectUpload,
@@ -39,10 +38,8 @@ export async function POST(request: NextRequest) {
       purpose: parsed.data.purpose as DirectUploadPurpose,
     });
 
+    // Storing media changes nothing on the storefront until a product uses it.
     invalidateAdminMediaCache();
-    if (parsed.data.purpose === "product-draft") {
-      await invalidateStorefrontCache();
-    }
 
     return NextResponse.json(result, { status: 201 });
   } catch (error) {

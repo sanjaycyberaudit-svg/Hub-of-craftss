@@ -3,7 +3,11 @@
 import db from "@/lib/supabase/db";
 import { productMedias, products } from "@/lib/supabase/schema";
 import { requireAdminActionUser } from "@/lib/auth/require-admin";
-import { invalidateStorefrontCache } from "@/lib/cache/invalidate-storefront";
+import {
+  invalidateProductCaches,
+  loadProductCacheIdentities,
+  type ProductCacheScope,
+} from "@/lib/cache/invalidate-storefront";
 import { insertProductWithoutTransaction } from "@/lib/admin/product-insert";
 import {
   buildBulkProductInsertValues,
@@ -30,11 +34,11 @@ function revalidateProductCatalogPaths() {
   }
 }
 
-async function softInvalidateStorefrontCache() {
+async function softInvalidateProductCaches(scope: ProductCacheScope) {
   try {
-    await invalidateStorefrontCache();
+    await invalidateProductCaches(scope);
   } catch (error) {
-    console.error("[products] invalidateStorefrontCache failed:", error);
+    console.error("[products] invalidateProductCaches failed:", error);
   }
 }
 
@@ -45,7 +49,7 @@ export const createProductAction = async (
   await requireAdminActionUser();
   const created = await createProductRecord(product, options);
   revalidateProductCatalogPaths();
-  void softInvalidateStorefrontCache();
+  await softInvalidateProductCaches({ productIds: [String(created.id)] });
   return [created];
 };
 
@@ -55,9 +59,10 @@ export const updateProductAction = async (
   options?: ProductImageOptions,
 ) => {
   await requireAdminActionUser();
+  const previous = await loadProductCacheIdentities([productId]);
   const updated = await updateProductRecord(productId, product, options);
   revalidateProductCatalogPaths();
-  void softInvalidateStorefrontCache();
+  await softInvalidateProductCaches({ productIds: [productId], previous });
   return [updated];
 };
 
@@ -148,7 +153,9 @@ export async function createDraftProductsFromMedia(
     }
 
     revalidateProductCatalogPaths();
-    await invalidateStorefrontCache();
+    await invalidateProductCaches({
+      productIds: createdProducts.map((row) => row.id),
+    });
     return createdProducts;
   } catch (error) {
     throw mapProductSaveError(error);

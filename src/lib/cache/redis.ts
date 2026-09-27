@@ -128,6 +128,15 @@ export async function redisSet<T>(
   }
 }
 
+export async function redisDel(keys: readonly string[]): Promise<void> {
+  if (keys.length === 0) return;
+  try {
+    await redisCommand(["DEL", ...keys]);
+  } catch (error) {
+    console.warn("[cache] Redis DEL failed:", error);
+  }
+}
+
 export async function redisDelByPrefix(prefix: string): Promise<void> {
   try {
     const keys = await redisCommand(["KEYS", `${prefix}*`]);
