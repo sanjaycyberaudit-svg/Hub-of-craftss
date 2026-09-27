@@ -20,7 +20,6 @@ Run `npm run validate:identity` first and log in as the account in
 
 ```bash
 cd workers/hub-catalog
-npx wrangler d1 create hub-catalog          # copy database_id into wrangler.jsonc
 npx wrangler secret put SUPABASE_ANON_KEY   # Hub project anon key
 npx wrangler secret put CATALOG_SYNC_SECRET # long random value
 npx wrangler deploy

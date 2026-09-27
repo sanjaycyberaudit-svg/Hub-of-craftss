@@ -67,10 +67,10 @@ const MAX_SYNC_PASSES = 3;
 const PRODUCT_SELECT =
   "id,name,slug,description,rating::text,badge,price::text,discount_enabled," +
   "discount_percent,stock,featured,created_at,collection_id,featured_image_id," +
-  "medias!featured_image_id(key,alt)";
+  "medias!featured_image(key,alt)";
 const COLLECTION_SELECT =
   "id,label,slug,title,description,order,featured_image_id," +
-  "medias!featured_image_id(key,alt)";
+  "medias!featured_image(key,alt)";
 
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -105,6 +105,14 @@ function bindAll(db: D1Database, statements: SqlStatement[]) {
 
 async function ensureSchema(env: Env) {
   await env.DB.batch(SCHEMA_STATEMENTS.map((sql) => env.DB.prepare(sql)));
+  const { results } = await env.DB.prepare(
+    "SELECT name FROM pragma_table_info('products')",
+  ).all<{ name: string }>();
+  if (!results.some((column) => column.name === "name_rank")) {
+    await env.DB.prepare(
+      "ALTER TABLE products ADD COLUMN name_rank INTEGER NOT NULL DEFAULT 0",
+    ).run();
+  }
 }
 
 async function readMeta(env: Env): Promise<Record<string, string>> {
@@ -119,6 +127,7 @@ async function fetchAllSupabaseRows<T>(
   table: string,
   select: string,
   filter = "",
+  order = "id.asc",
 ): Promise<T[]> {
   const base = env.SUPABASE_URL.replace(/\/+$/, "");
   const rows: T[] = [];
@@ -126,7 +135,7 @@ async function fetchAllSupabaseRows<T>(
     const offset = page * SUPABASE_PAGE_SIZE;
     const url =
       `${base}/rest/v1/${table}?select=${encodeURIComponent(select)}` +
-      `${filter ? `&${filter}` : ""}&order=id.asc` +
+      `${filter ? `&${filter}` : ""}&order=${order}` +
       `&limit=${SUPABASE_PAGE_SIZE}&offset=${offset}`;
     const res = await fetch(url, {
       headers: {
@@ -169,7 +178,7 @@ async function runSyncPass(
   env: Env,
   options: { allowEmpty: boolean },
 ): Promise<SyncPassResult> {
-  const [productRows, collectionRows] = await Promise.all([
+  const [productRows, collectionRows, nameOrder] = await Promise.all([
     fetchAllSupabaseRows<SupabaseProductRow>(
       env,
       "products",
@@ -181,7 +190,16 @@ async function runSyncPass(
       "collections",
       COLLECTION_SELECT,
     ),
+    // SQLite cannot reproduce the Postgres collation, so let Postgres rank names.
+    fetchAllSupabaseRows<{ id: string }>(
+      env,
+      "products",
+      "id",
+      "is_draft=eq.false",
+      "name.asc,id.asc",
+    ),
   ]);
+  const nameRanks = new Map(nameOrder.map((row, index) => [row.id, index]));
   const [productHashes, collectionHashes] = await Promise.all([
     readHashes(env, "products"),
     readHashes(env, "collections"),
@@ -198,7 +216,15 @@ async function runSyncPass(
   }
 
   const [products, collections] = await Promise.all([
-    Promise.all(productRows.map(toProductMirrorRow)),
+    Promise.all(
+      productRows.map((row, index) =>
+        // A product published between the two reads sorts last until the next sync.
+        toProductMirrorRow(
+          row,
+          nameRanks.get(row.id) ?? nameOrder.length + index,
+        ),
+      ),
+    ),
     Promise.all(collectionRows.map(toCollectionMirrorRow)),
   ]);
   const productDiff = diffMirrorRows(productHashes, products);

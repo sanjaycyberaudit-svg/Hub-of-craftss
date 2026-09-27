@@ -15,8 +15,7 @@
     {
       "binding": "DB",
       "database_name": "hub-catalog",
-      // Fill in from `npx wrangler d1 create hub-catalog` (see README).
-      "database_id": "00000000-0000-0000-0000-000000000000"
+      "database_id": "a7c2ace3-a28a-41fb-bd19-e6826e172d03"
     }
   ],
   "triggers": {

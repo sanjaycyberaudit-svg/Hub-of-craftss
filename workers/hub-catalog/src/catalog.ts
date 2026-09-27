@@ -72,6 +72,7 @@ export const PRODUCT_COLUMNS = [
   "image_id",
   "image_key",
   "image_alt",
+  "name_rank",
   "row_hash",
 ] as const;
 
@@ -145,8 +146,10 @@ async function sha256Hex(text: string): Promise<string> {
   ).join("");
 }
 
+/** `nameRank` is the row's position in Postgres `ORDER BY name, id`. */
 export async function toProductMirrorRow(
   row: SupabaseProductRow,
+  nameRank: number,
 ): Promise<MirrorRow> {
   const createdAtMs = Date.parse(row.created_at);
   if (!Number.isFinite(createdAtMs)) {
@@ -181,6 +184,7 @@ export async function toProductMirrorRow(
     row.featured_image_id,
     row.medias?.key ?? null,
     row.medias?.alt ?? null,
+    nameRank,
   ];
   const rowHash = await sha256Hex(JSON.stringify(values));
   return { id: row.id, row_hash: rowHash, values: [...values, rowHash] };
@@ -364,7 +368,7 @@ function graphqlOrderBy(sort: CatalogSort | null): string {
     case "newest":
       return "p.created_at_ms DESC, p.id ASC";
     case "name_asc":
-      return "p.name COLLATE NOCASE ASC, p.id ASC";
+      return "p.name_rank ASC, p.id ASC";
     default:
       return "p.id ASC";
   }
@@ -372,7 +376,7 @@ function graphqlOrderBy(sort: CatalogSort | null): string {
 
 /** Matches compareProducts() in product-price-search.ts (effective price, name tiebreak). */
 function priceEngineOrderBy(sort: CatalogSort | null): string {
-  const tail = "p.name COLLATE NOCASE ASC, p.id ASC";
+  const tail = "p.name_rank ASC, p.id ASC";
   switch (sort) {
     case "best_match":
       return `COALESCE(p.featured, 0) DESC, p.created_at_ms DESC, ${tail}`;

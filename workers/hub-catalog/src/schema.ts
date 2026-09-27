@@ -21,6 +21,7 @@ export const SCHEMA_STATEMENTS: readonly string[] = [
     image_id TEXT NOT NULL,
     image_key TEXT,
     image_alt TEXT,
+    name_rank INTEGER NOT NULL DEFAULT 0,
     row_hash TEXT NOT NULL
   )`,
   `CREATE TABLE IF NOT EXISTS collections (

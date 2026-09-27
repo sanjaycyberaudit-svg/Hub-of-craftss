@@ -115,10 +115,17 @@ let supabaseCollections: SupabaseCollectionRow[];
 let supabaseFailure: number | null;
 let requestedUrls: string[];
 
+/** Stand-in for the Postgres locale collation (unlike SQLite's byte order). */
+const postgresNameOrder = (a: SupabaseProductRow, b: SupabaseProductRow) =>
+  a.name.localeCompare(b.name, "en") || a.id.localeCompare(b.id);
+
 function page<T>(rows: T[], url: URL) {
   const limit = Number(url.searchParams.get("limit"));
   const offset = Number(url.searchParams.get("offset"));
-  return rows.slice(offset, offset + limit);
+  const ordered = url.searchParams.get("order")?.startsWith("name")
+    ? [...(rows as unknown as SupabaseProductRow[])].sort(postgresNameOrder)
+    : rows;
+  return (ordered as T[]).slice(offset, offset + limit);
 }
 
 beforeEach(() => {
@@ -247,7 +254,7 @@ describe("sync", () => {
     )!;
     expect(productUrl).toContain("is_draft=eq.false");
     expect(decodeURIComponent(productUrl)).toContain(
-      "medias!featured_image_id(key,alt)",
+      "medias!featured_image(key,alt)",
     );
     expect(productUrl.startsWith(SUPABASE_URL)).toBe(true);
 
@@ -269,19 +276,26 @@ describe("sync", () => {
     });
 
     supabaseProducts[0] = { ...supabaseProducts[0], price: "549.00" };
-    supabaseProducts = supabaseProducts.filter((p) => p.id !== "p4");
-    const changed = await runSync(env);
-    expect((changed as any).passes[0]).toMatchObject({
+    const repriced = await runSync(env);
+    expect((repriced as any).passes[0]).toMatchObject({
       upserted: 1,
-      deleted: 1,
+      deleted: 0,
     });
-
     const row = sqlite
       .prepare("SELECT price, price_paise FROM products WHERE id = 'p1'")
       .get();
     expect(row).toMatchObject({ price: "549.00", price_paise: 54900 });
+
+    // Removing the last product by name shifts no other product's name_rank.
+    const lastByName = [...supabaseProducts].sort(postgresNameOrder).at(-1)!.id;
+    supabaseProducts = supabaseProducts.filter((p) => p.id !== lastByName);
+    const removed = await runSync(env);
+    expect((removed as any).passes[0]).toMatchObject({
+      upserted: 0,
+      deleted: 1,
+    });
     expect(
-      sqlite.prepare("SELECT id FROM products WHERE id = 'p4'").get(),
+      sqlite.prepare("SELECT id FROM products WHERE id = ?").get(lastByName),
     ).toBeUndefined();
   });
 
@@ -350,6 +364,23 @@ describe("sync", () => {
         .prepare("SELECT value FROM catalog_meta WHERE key = 'sync_pending'")
         .get(),
     ).toBeUndefined();
+  });
+
+  it("adds name_rank to a mirror created before the column existed", async () => {
+    sqlite.exec(`CREATE TABLE products (
+      id TEXT PRIMARY KEY NOT NULL, name TEXT NOT NULL, slug TEXT NOT NULL,
+      description TEXT, rating TEXT NOT NULL, badge TEXT, price TEXT NOT NULL,
+      price_paise INTEGER NOT NULL, effective_paise INTEGER NOT NULL,
+      effective_rupees INTEGER NOT NULL, discount_enabled INTEGER NOT NULL,
+      discount_percent INTEGER, stock INTEGER, featured INTEGER,
+      created_at TEXT NOT NULL, created_at_ms INTEGER NOT NULL, collection_id TEXT,
+      image_id TEXT NOT NULL, image_key TEXT, image_alt TEXT, row_hash TEXT NOT NULL)`);
+    expect(await runSync(env)).toMatchObject({ ok: true, status: "synced" });
+    expect(
+      sqlite
+        .prepare("SELECT COUNT(*) AS n FROM products WHERE name_rank >= 0")
+        .get(),
+    ).toMatchObject({ n: 4 });
   });
 
   it("runs from the cron trigger", async () => {
@@ -453,6 +484,30 @@ describe("reads", () => {
     it("orders BEST_MATCH with null featured first, then newest", async () => {
       const { body } = await call("/products/search?sort=best_match");
       expect(ids(body)).toEqual(["p2", "p4", "p1", "p3"]);
+    });
+
+    it("sorts by name in Postgres collation order, not SQLite byte order", async () => {
+      supabaseProducts = [
+        product({ id: "n1", name: "Banana box" }),
+        product({ id: "n2", name: "6*6 square stone" }),
+        product({ id: "n3", name: "apple tray" }),
+        product({ id: "n4", name: "6-Piece chisel" }),
+      ];
+      await runSync(env);
+      const expected = [...supabaseProducts]
+        .sort(postgresNameOrder)
+        .map((p) => p.id);
+      const byteOrder = [...supabaseProducts]
+        .sort((a, b) => (a.name < b.name ? -1 : 1))
+        .map((p) => p.id);
+      expect(expected).not.toEqual(byteOrder);
+
+      const { body } = await call("/products/search?sort=name_asc");
+      expect(ids(body)).toEqual(expected);
+      const priced = await call(
+        "/products/search?sort=name_asc&price_min=0&price_max=5000",
+      );
+      expect(ids(priced.body)).toEqual(expected);
     });
 
     it("sorts GraphQL search by list price, not sale price", async () => {
