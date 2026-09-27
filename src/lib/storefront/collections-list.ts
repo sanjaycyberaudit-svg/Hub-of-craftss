@@ -1,4 +1,6 @@
-import { CollectionCardFragment } from "@/features/collections";
+import "server-only";
+
+import { CollectionCardFragment } from "@/features/collections/components/CollectionsCard";
 import type { AllCollectionsQueryQuery } from "@/gql/graphql";
 import { gql } from "@/gql";
 import { CACHE_TAGS } from "@/lib/cache/constants";
@@ -37,3 +39,6 @@ export async function getAllCollectionsCached(): Promise<
     { revalidate: 300, tags: [CACHE_TAGS.collections] },
   );
 }
+
+// Keep fragment document referenced for gql registration.
+void CollectionCardFragment;
