@@ -1,6 +1,6 @@
 import { isControlFlowError, withRetry } from "@/lib/resilience";
 import { STOREFRONT_REVALIDATE_SECONDS } from "./constants";
-import { redisGet, redisSet } from "./redis";
+import { isRedisCacheEnabled, redisGet, redisSet } from "./redis";
 
 type CacheOptions = {
   revalidate?: number;
@@ -20,7 +20,11 @@ type CacheEnvelope<T> = {
   freshUntil: number;
 };
 
-type MemoryEntry = { envelope: CacheEnvelope<unknown>; expiresAt: number };
+type MemoryEntry = {
+  envelope: CacheEnvelope<unknown>;
+  expiresAt: number;
+  storedAt: number;
+};
 
 /**
  * Suffix (not prefix) so `redisDelByPrefix("sf:…")` invalidation keeps working.
@@ -30,6 +34,11 @@ type MemoryEntry = { envelope: CacheEnvelope<unknown>; expiresAt: number };
 const REDIS_KEY_SUFFIX = "|v2";
 
 const MAX_MEMORY_ENTRIES = 256;
+/**
+ * Admin invalidation clears Redis but only the memory of the instance that ran
+ * it, so other instances must re-check Redis at least this often.
+ */
+const MEMORY_TRUST_MS = 15_000;
 /** How long a stale copy stays usable after it expires. */
 const STALE_MULTIPLIER = 20;
 const MIN_STALE_SECONDS = 900;
@@ -60,14 +69,14 @@ function isEnvelope<T>(value: unknown): value is CacheEnvelope<T> {
   );
 }
 
-function memoryGet<T>(key: string): CacheEnvelope<T> | null {
+function memoryGet(key: string): MemoryEntry | null {
   const entry = memoryCache.get(key);
   if (!entry) return null;
   if (Date.now() > entry.expiresAt) {
     memoryCache.delete(key);
     return null;
   }
-  return entry.envelope as CacheEnvelope<T>;
+  return entry;
 }
 
 function memorySet<T>(
@@ -83,6 +92,7 @@ function memorySet<T>(
   memoryCache.set(key, {
     envelope: envelope as CacheEnvelope<unknown>,
     expiresAt: Date.now() + Math.max(30, ttlSeconds) * 1000,
+    storedAt: Date.now(),
   });
 }
 
@@ -103,25 +113,44 @@ export function clearStorefrontMemoryCache(prefix?: string): void {
 async function readEnvelope<T>(
   key: string,
   revalidate: number,
-): Promise<CacheEnvelope<T> | null> {
-  const local = memoryGet<T>(key);
-  // A fresh isolate-local copy is authoritative enough; skip the Redis round trip.
-  if (local && local.freshUntil > Date.now()) return local;
+): Promise<{ envelope: CacheEnvelope<T>; fromMemory: boolean } | null> {
+  const entry = memoryGet(key);
+  const local = entry ? (entry.envelope as CacheEnvelope<T>) : null;
+  const now = Date.now();
+  const redisEnabled = isRedisCacheEnabled();
+  const localTrusted =
+    !!entry && (!redisEnabled || now - entry.storedAt < MEMORY_TRUST_MS);
+
+  if (local && local.freshUntil > now && localTrusted) {
+    return { envelope: local, fromMemory: true };
+  }
 
   const remote = await redisGet<unknown>(key + REDIS_KEY_SUFFIX);
 
-  if (remote === null || remote === undefined) return local;
+  if (remote === null || remote === undefined) {
+    if (!local) return null;
+    // Redis no longer has it (invalidated): reload, keeping the copy as a fallback.
+    return {
+      envelope: localTrusted ? local : { ...local, freshUntil: 0 },
+      fromMemory: true,
+    };
+  }
 
   if (isEnvelope<T>(remote)) {
-    if (local && local.freshUntil > remote.freshUntil) return local;
-    return remote;
+    if (local && localTrusted && local.freshUntil > remote.freshUntil) {
+      return { envelope: local, fromMemory: true };
+    }
+    return { envelope: remote, fromMemory: false };
   }
 
   // Unexpected shape (hand-written key, partial rollout): treat as one fresh cycle.
   return {
-    __swr: 1,
-    value: remote as T,
-    freshUntil: Date.now() + revalidate * 1000,
+    envelope: {
+      __swr: 1,
+      value: remote as T,
+      freshUntil: now + revalidate * 1000,
+    },
+    fromMemory: false,
   };
 }
 
@@ -142,9 +171,10 @@ export async function withStorefrontCache<T>(
   const revalidate = options.revalidate ?? STOREFRONT_REVALIDATE_SECONDS;
   const staleTtl = staleTtlSeconds(revalidate);
 
-  const cached = await readEnvelope<T>(key, revalidate);
-  if (cached && cached.freshUntil > Date.now()) {
-    memorySet(key, cached, staleTtl);
+  const read = await readEnvelope<T>(key, revalidate);
+  const cached = read?.envelope ?? null;
+  if (read && cached && cached.freshUntil > Date.now()) {
+    if (!read.fromMemory) memorySet(key, cached, staleTtl);
     return cached.value;
   }
 

@@ -1,5 +1,6 @@
 import "server-only";
 
+import { revalidatePath } from "next/cache";
 import { after } from "next/server";
 import type {
   AllCollectionsQueryQuery,
@@ -295,6 +296,14 @@ async function runCatalogMirrorSync(): Promise<void> {
   // Mirror reads cached between the storefront bust and the sync finishing are stale.
   if (result.skipped === false && result.changed) {
     await clearCatalogMirrorCaches();
+    // Pages rebuilt during that window embedded the pre-sync mirror data too.
+    if (isCatalogD1Enabled()) {
+      try {
+        revalidatePath("/", "layout");
+      } catch (error) {
+        console.warn("[catalog-d1] page revalidate failed:", error);
+      }
+    }
   }
 }
 

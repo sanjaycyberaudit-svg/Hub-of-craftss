@@ -1,4 +1,4 @@
-import { revalidateTag } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 import { ADMIN_PRODUCTS_LIST_TAG } from "@/lib/admin/getAdminProductsList";
 import { scheduleCatalogMirrorSync } from "@/lib/catalog/d1-mirror";
 import { CACHE_TAGS } from "./constants";
@@ -29,6 +29,18 @@ const COLLECTION_REDIS_PREFIXES = [
 
 async function clearRedisPrefixes(prefixes: readonly string[]) {
   await Promise.all(prefixes.map((prefix) => redisDelByPrefix(prefix)));
+}
+
+/**
+ * Pages served from Redis/memory never call `unstable_cache`, so they carry no
+ * tags and `revalidateTag` alone leaves their ISR HTML up to `revalidate` old.
+ */
+function revalidateStorefrontPages() {
+  try {
+    revalidatePath("/", "layout");
+  } catch (error) {
+    console.warn("[cache] storefront page revalidate failed:", error);
+  }
 }
 
 /** Bust admin products table cache after catalog writes. */
@@ -63,6 +75,7 @@ export async function invalidateStorefrontCache() {
     console.warn("[cache] memory clear failed:", error);
   }
 
+  revalidateStorefrontPages();
   scheduleCatalogMirrorSync();
 }
 
@@ -92,5 +105,6 @@ export async function invalidateStorefrontCollectionsCache() {
     console.warn("[cache] collection memory clear failed:", error);
   }
 
+  revalidateStorefrontPages();
   scheduleCatalogMirrorSync();
 }

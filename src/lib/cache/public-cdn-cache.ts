@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { STOREFRONT_REVALIDATE_SECONDS } from "./constants";
+import { STOREFRONT_API_CDN_SECONDS } from "./constants";
 
 /**
  * Headers for public JSON/listing APIs that may be cached at Cloudflare edge.
@@ -7,7 +7,7 @@ import { STOREFRONT_REVALIDATE_SECONDS } from "./constants";
  */
 export function applyPublicCdnCacheHeaders(
   response: NextResponse,
-  revalidateSeconds = STOREFRONT_REVALIDATE_SECONDS,
+  revalidateSeconds = STOREFRONT_API_CDN_SECONDS,
 ): NextResponse {
   const staleWhileRevalidate = Math.max(revalidateSeconds, 60);
 
@@ -27,7 +27,7 @@ export function applyPublicCdnCacheHeaders(
 export function publicCdnJson<T>(
   data: T,
   init?: ResponseInit,
-  revalidateSeconds = STOREFRONT_REVALIDATE_SECONDS,
+  revalidateSeconds = STOREFRONT_API_CDN_SECONDS,
 ): NextResponse {
   return applyPublicCdnCacheHeaders(
     NextResponse.json(data, init),
