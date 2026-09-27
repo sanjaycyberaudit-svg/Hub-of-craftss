@@ -64,6 +64,8 @@
         "mediaWorkerName": { "type": "string" },
         "productionWranglerConfig": { "type": "string" },
         "mediaWranglerConfig": { "type": "string" },
+        "catalogWorkerName": { "type": "string" },
+        "catalogWranglerConfig": { "type": "string" },
         "r2": {
           "type": "object",
           "required": ["mediaBucket", "nextCacheBucket", "s3Endpoint"],

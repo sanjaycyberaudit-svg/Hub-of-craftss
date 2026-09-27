@@ -140,6 +140,33 @@ if (identity.cloudflare.mediaWranglerConfig) {
   }
 }
 
+// --- Catalog D1 mirror wrangler (optional file) ---
+if (identity.cloudflare.catalogWranglerConfig) {
+  const catalogConfigPath = path.join(
+    PROJECT_ROOT,
+    identity.cloudflare.catalogWranglerConfig,
+  );
+  if (fs.existsSync(catalogConfigPath)) {
+    const { data: catalog } = readJsoncFile(catalogConfigPath);
+    if (
+      identity.cloudflare.catalogWorkerName &&
+      catalog.name !== identity.cloudflare.catalogWorkerName
+    ) {
+      err(
+        `Catalog worker name "${catalog.name}" ≠ identity ${identity.cloudflare.catalogWorkerName}`,
+      );
+    }
+    if (catalog.account_id !== identity.cloudflare.accountId) {
+      err("Catalog wrangler account_id ≠ identity cloudflare.accountId");
+    }
+    if (catalog.vars?.SUPABASE_URL !== identity.supabase.url) {
+      err("Catalog wrangler vars.SUPABASE_URL ≠ identity supabase.url");
+    }
+  } else {
+    warn(`Catalog wrangler config missing: ${identity.cloudflare.catalogWranglerConfig}`);
+  }
+}
+
 // --- Optional live wrangler login check ---
 if (strictWranglerLogin) {
   try {

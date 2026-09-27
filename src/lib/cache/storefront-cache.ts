@@ -5,6 +5,8 @@ import { redisGet, redisSet } from "./redis";
 type CacheOptions = {
   revalidate?: number;
   tags?: string[];
+  /** Set false when the caller has its own fallback and must fail fast. */
+  retry?: boolean;
 };
 
 /**
@@ -146,7 +148,10 @@ export async function withStorefrontCache<T>(
     return cached.value;
   }
 
-  const load = () => withRetry(loader, { label: `cache:${key}` });
+  const load =
+    options.retry === false
+      ? loader
+      : () => withRetry(loader, { label: `cache:${key}` });
 
   try {
     let value: T;

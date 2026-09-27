@@ -27,6 +27,8 @@
     "mediaWorkerName": "hub-of-craftss-media",
     "productionWranglerConfig": "wrangler.workers.new-account.jsonc",
     "mediaWranglerConfig": "workers/r2-media-proxy/wrangler.jsonc",
+    "catalogWorkerName": "hub-catalog",
+    "catalogWranglerConfig": "workers/hub-catalog/wrangler.jsonc",
     "r2": {
       "mediaBucket": "hubofcraftss-cdn",
       "nextCacheBucket": "hubofcraftss-next-cache",

@@ -1,0 +1,26 @@
+{
+  "$schema": "../../node_modules/wrangler/config-schema.json",
+  "name": "hub-catalog",
+  "account_id": "542992b23690c0c07bb23e5fecffa6ec",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-09-01",
+  "workers_dev": true,
+  "observability": {
+    "enabled": true
+  },
+  "vars": {
+    "SUPABASE_URL": "https://xytdexahcdyhykvuwpys.supabase.co"
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "hub-catalog",
+      // Fill in from `npx wrangler d1 create hub-catalog` (see README).
+      "database_id": "00000000-0000-0000-0000-000000000000"
+    }
+  ],
+  "triggers": {
+    // Safety net if an admin-write sync is missed; unchanged rows cost no writes.
+    "crons": ["*/30 * * * *"]
+  }
+}

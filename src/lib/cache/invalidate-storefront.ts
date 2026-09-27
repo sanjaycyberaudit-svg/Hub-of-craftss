@@ -1,5 +1,6 @@
 import { revalidateTag } from "next/cache";
 import { ADMIN_PRODUCTS_LIST_TAG } from "@/lib/admin/getAdminProductsList";
+import { scheduleCatalogMirrorSync } from "@/lib/catalog/d1-mirror";
 import { CACHE_TAGS } from "./constants";
 import { redisDelByPrefix } from "./redis";
 import { clearStorefrontMemoryCache } from "./storefront-cache";
@@ -61,6 +62,8 @@ export async function invalidateStorefrontCache() {
   } catch (error) {
     console.warn("[cache] memory clear failed:", error);
   }
+
+  scheduleCatalogMirrorSync();
 }
 
 /**
@@ -88,4 +91,6 @@ export async function invalidateStorefrontCollectionsCache() {
   } catch (error) {
     console.warn("[cache] collection memory clear failed:", error);
   }
+
+  scheduleCatalogMirrorSync();
 }

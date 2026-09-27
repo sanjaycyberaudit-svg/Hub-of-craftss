@@ -5,6 +5,12 @@ import type { AllCollectionsQueryQuery } from "@/gql/graphql";
 import { gql } from "@/gql";
 import { CACHE_TAGS } from "@/lib/cache/constants";
 import { withStorefrontCache } from "@/lib/cache/storefront-cache";
+import {
+  CATALOG_CACHE_SECONDS,
+  fetchCatalogCollections,
+  isCatalogD1Enabled,
+} from "@/lib/catalog/d1-mirror";
+import { isControlFlowError } from "@/lib/resilience";
 import { getClient } from "@/lib/urql";
 
 const AllCollectionsQuery = gql(/* GraphQL */ `
@@ -26,6 +32,26 @@ const AllCollectionsQuery = gql(/* GraphQL */ `
 export async function getAllCollectionsCached(): Promise<
   AllCollectionsQueryQuery["collectionsCollection"] | null
 > {
+  if (isCatalogD1Enabled()) {
+    try {
+      return await withStorefrontCache(
+        "sf:collection:d1:all",
+        fetchCatalogCollections,
+        {
+          revalidate: CATALOG_CACHE_SECONDS,
+          tags: [CACHE_TAGS.collections],
+          retry: false,
+        },
+      );
+    } catch (error) {
+      if (isControlFlowError(error)) throw error;
+      console.warn(
+        "[catalog-d1] collections fell back to Supabase:",
+        error instanceof Error ? error.message : error,
+      );
+    }
+  }
+
   return withStorefrontCache(
     "sf:collections:all",
     async () => {
