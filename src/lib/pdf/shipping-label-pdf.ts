@@ -171,8 +171,8 @@ async function fetchPdfSettingsForRendering(): Promise<PdfRenderOptions> {
   };
 }
 
-// A4: 210mm x 297mm. Bulk PDFs pack up to 4 distinct labels per page.
-// Single-order download uses one label-tall page (SECTION_H), not 4 copies.
+// A4: 210mm x 297mm. PDFs pack up to 4 distinct labels per page; a single
+// order fills the first row only (no repeated copies).
 const A4_W = 210;
 const A4_H = 297;
 const SECTIONS_PER_PAGE = 4;
@@ -934,7 +934,7 @@ function drawSectionBorder(
   }
 }
 
-/** One order → one label-sized page (not 4 copies on A4). */
+/** One order → A4 page with the label in the first of the 4 sticker rows. */
 export async function downloadOrderPdf(order: PdfLabelOrder) {
   if (typeof window === "undefined") {
     console.warn("[PDF] downloadOrderPdf called in SSR context");
@@ -946,8 +946,8 @@ export async function downloadOrderPdf(order: PdfLabelOrder) {
     const renderOptions = await fetchPdfSettingsForRendering();
     console.log(`[PDF] Creating jsPDF document...`);
     const { jsPDF } = await import("jspdf");
-    // Page height = one label strip so print/PDF shows a single sticker, not blank A4.
-    const doc = new jsPDF({ unit: "mm", format: [A4_W, SECTION_H] });
+    // Same A4 4-row sheet as bulk, so it prints on the A4 sticker stock.
+    const doc = new jsPDF({ unit: "mm", format: "a4" });
     const d = doc as unknown as DocShape &
       Parameters<typeof drawSectionBorder>[0];
     const resolved = resolveOrderLabelLayout(d, order, renderOptions);
