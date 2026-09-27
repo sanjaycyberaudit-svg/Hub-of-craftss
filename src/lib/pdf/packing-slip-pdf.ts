@@ -7,6 +7,7 @@ import {
   formatPackingSlipDate,
   formatPackingSlipOrderHeading,
   formatPackingSlipInternalRef,
+  formatPackingSlipMoney,
   formatPackingSlipQuantity,
   resolvePackingSlipShopAddressLines,
   type PackingSlipOrder,
@@ -15,6 +16,7 @@ import {
 export type {
   PackingSlipItem,
   PackingSlipOrder,
+  PackingSlipSummaryRow,
 } from "@/lib/pdf/packing-slip-format";
 
 const A4_W = 210;
@@ -227,12 +229,50 @@ function drawAddresses(
   return y + 7 + maxLines * lineH + 4;
 }
 
-function drawItemHeader(doc: Doc, y: number): number {
+/** Right edges of the PRICE / QUANTITY / AMOUNT columns when prices are shown. */
+const COL_AMOUNT_X = A4_W - MARGIN;
+const COL_QTY_X = COL_AMOUNT_X - 30;
+const COL_PRICE_X = COL_QTY_X - 26;
+
+function hasItemPrices(order: PackingSlipOrder): boolean {
+  return (
+    order.items.length > 0 &&
+    order.items.every(
+      (item) =>
+        typeof item.unitPrice === "number" && Number.isFinite(item.unitPrice),
+    )
+  );
+}
+
+function drawItemHeader(doc: Doc, y: number, withPrices: boolean): number {
   doc.setFont("helvetica", "bold");
   doc.setFontSize(9);
   doc.text("ITEMS", MARGIN, y);
-  doc.text("QUANTITY", A4_W - MARGIN, y, { align: "right" });
+  if (withPrices) {
+    doc.text("PRICE", COL_PRICE_X, y, { align: "right" });
+    doc.text("QUANTITY", COL_QTY_X, y, { align: "right" });
+    doc.text("AMOUNT", COL_AMOUNT_X, y, { align: "right" });
+  } else {
+    doc.text("QUANTITY", A4_W - MARGIN, y, { align: "right" });
+  }
   return y + 4;
+}
+
+function drawSummary(doc: Doc, order: PackingSlipOrder, y: number): number {
+  const rows = order.summary ?? [];
+  if (rows.length === 0) return y;
+  const labelX = A4_W - MARGIN - 70;
+  let cursor = ensureSpace(doc, y, rows.length * 6 + 8);
+  drawRule(doc, cursor);
+  cursor += 7;
+  for (const row of rows) {
+    doc.setFont("helvetica", row.emphasize ? "bold" : "normal");
+    doc.setFontSize(row.emphasize ? 11 : 10);
+    doc.text(row.label, labelX, cursor);
+    doc.text(row.value, COL_AMOUNT_X, cursor, { align: "right" });
+    cursor += row.emphasize ? 7 : 6;
+  }
+  return cursor;
 }
 
 function ensureSpace(doc: Doc, y: number, need: number): number {
@@ -298,12 +338,15 @@ async function drawPackingSlip(
   let y = drawHeader(doc, order, 22);
   y = drawAddresses(doc, order, y, shopAddressLines);
   y += 4;
-  y = drawItemHeader(doc, y);
-  // Printed sheet: ITEMS / QUANTITY sit on a full-width rule, then product rows.
+  const withPrices = hasItemPrices(order);
+  y = drawItemHeader(doc, y, withPrices);
+  // Printed sheet: column headers sit on a full-width rule, then product rows.
   drawRule(doc, y);
   y += 7;
 
-  const nameWidth = A4_W - MARGIN * 2 - THUMB_MM - 28;
+  const nameWidth = withPrices
+    ? COL_PRICE_X - 24 - (MARGIN + THUMB_MM + 4)
+    : A4_W - MARGIN * 2 - THUMB_MM - 28;
   for (let i = 0; i < order.items.length; i++) {
     const item = order.items[i];
     doc.setFont("helvetica", "normal");
@@ -324,12 +367,29 @@ async function drawPackingSlip(
     doc.setFont("helvetica", "normal");
     doc.setFontSize(10);
     doc.text(nameLines, MARGIN + THUMB_MM + 4, y + 2);
-    doc.text(formatPackingSlipQuantity(item.quantity), A4_W - MARGIN, y + 2, {
-      align: "right",
-    });
+    if (withPrices) {
+      const unit = Number(item.unitPrice);
+      doc.text(formatPackingSlipMoney(unit), COL_PRICE_X, y + 2, {
+        align: "right",
+      });
+      doc.text(formatPackingSlipQuantity(item.quantity), COL_QTY_X, y + 2, {
+        align: "right",
+      });
+      doc.text(
+        formatPackingSlipMoney(unit * item.quantity),
+        COL_AMOUNT_X,
+        y + 2,
+        { align: "right" },
+      );
+    } else {
+      doc.text(formatPackingSlipQuantity(item.quantity), A4_W - MARGIN, y + 2, {
+        align: "right",
+      });
+    }
     y += rowH;
   }
 
+  y = drawSummary(doc, order, y);
   drawFooter(doc, y, shopAddressLines);
 }
 

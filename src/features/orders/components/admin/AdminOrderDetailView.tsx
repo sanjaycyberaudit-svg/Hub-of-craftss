@@ -87,6 +87,7 @@ type Props = {
     paymentBreakdown: OrderPaymentBreakdown;
     checkoutOutcome: CheckoutOutcome | null;
     checkoutTelemetry: CheckoutTelemetryState | null;
+    pricingMeta: Record<string, unknown>;
   };
   items: OrderItemView[];
   copyAddressText: string;
@@ -301,12 +302,15 @@ export function AdminOrderDetailView({
           id: order.id,
           internalRef: order.internalRef,
           createdAt: order.createdAt,
+          amount: order.amount,
+          pricingMeta: order.pricingMeta,
           customerName: order.customerName,
           customerMobile: order.customerMobile,
           shippingAddress: order.shippingAddress,
           lines: items.map((item) => ({
             id: item.id,
             quantity: item.quantity,
+            unitPrice: item.unitPrice,
             productName: item.productName,
             productCode: item.productCode,
             imageUrl: item.imageUrl,

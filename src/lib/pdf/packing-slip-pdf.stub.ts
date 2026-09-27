@@ -4,6 +4,13 @@ export type PackingSlipItem = {
   name: string;
   quantity: number;
   imageUrl: string;
+  unitPrice?: number | null;
+};
+
+export type PackingSlipSummaryRow = {
+  label: string;
+  value: string;
+  emphasize?: boolean;
 };
 
 export type PackingSlipOrder = {
@@ -21,6 +28,7 @@ export type PackingSlipOrder = {
     country: string | null;
   } | null;
   items: PackingSlipItem[];
+  summary?: PackingSlipSummaryRow[] | null;
 };
 
 export async function downloadOrderPdf(_order: PackingSlipOrder) {

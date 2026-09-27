@@ -1,7 +1,10 @@
 import { siteConfig } from "@/config/site";
+import { toGstInclusiveAmount } from "@/lib/courier/calculate";
 import {
   PACKING_SLIP_BRAND,
   PACKING_SLIP_THANKS,
+  buildPackingSlipPricing,
+  formatPackingSlipMoney,
   formatPackingSlipDate,
   formatPackingSlipOrderHeading,
   formatPackingSlipInternalRef,
@@ -116,6 +119,66 @@ describe("packing slip format (Hub of craftss)", () => {
     expect(footer.address).toBe(
       "No 162, Kasim Residency, Sarojini Nagar, Madurai – 625107, Tamil Nadu, India",
     );
+  });
+
+  it("formats money with Rs. (no rupee glyph for PDF fonts)", () => {
+    expect(formatPackingSlipMoney(1234)).toBe("Rs. 1,234");
+    expect(formatPackingSlipMoney(529.82)).toBe("Rs. 530");
+  });
+
+  it("prints GST-inclusive unit prices and summary rows that add up to Total", () => {
+    const gstConfig = { gstEnabled: true, gstPercentage: 18 };
+    const pricing = buildPackingSlipPricing({
+      orderAmount: 624,
+      paymentMeta: {
+        subtotalAmount: 449,
+        courierCharge: 80,
+        courierRule: "qty1_base",
+        gstAmount: 95,
+        gstEnabled: true,
+        gstPercentage: 18,
+      },
+      lines: [{ unitPrice: 449, quantity: 1 }],
+    });
+
+    expect(pricing.unitPrices).toEqual([toGstInclusiveAmount(449, gstConfig)]);
+    expect(pricing.summary).toEqual([
+      {
+        label: "Subtotal",
+        value: formatPackingSlipMoney(toGstInclusiveAmount(449, gstConfig)),
+        emphasize: undefined,
+      },
+      {
+        label: "Courier",
+        value: formatPackingSlipMoney(toGstInclusiveAmount(80, gstConfig)),
+        emphasize: undefined,
+      },
+      { label: "Total", value: "Rs. 624", emphasize: true },
+    ]);
+    expect(pricing.summary.some((row) => /GST/.test(row.label))).toBe(false);
+  });
+
+  it("keeps plain prices and shows Free courier when GST was off", () => {
+    const pricing = buildPackingSlipPricing({
+      orderAmount: 700,
+      paymentMeta: {
+        subtotalAmount: 700,
+        courierCharge: 0,
+        courierRule: "free_shipping",
+        gstEnabled: false,
+      },
+      lines: [
+        { unitPrice: 250, quantity: 2 },
+        { unitPrice: 200, quantity: 1 },
+      ],
+    });
+
+    expect(pricing.unitPrices).toEqual([250, 200]);
+    expect(pricing.summary.map((row) => [row.label, row.value])).toEqual([
+      ["Subtotal", "Rs. 700"],
+      ["Courier", "Free"],
+      ["Total", "Rs. 700"],
+    ]);
   });
 
   it("falls back to the code address when admin shop contact is off", () => {

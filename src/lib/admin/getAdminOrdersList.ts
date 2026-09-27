@@ -1,4 +1,5 @@
 import { buildShippingAddressCopyText } from "@/lib/orders/shipping-address-text";
+import { pickOrderPricingMeta } from "@/lib/orders/order-payment-breakdown";
 import {
   resolveCheckoutOutcome,
   type CheckoutOutcome,
@@ -35,6 +36,8 @@ export {
 export type AdminOrderLineView = {
   id: string;
   quantity: number;
+  /** Exclusive unit price snapshot (order_lines.price). */
+  unitPrice: number;
   productName: string;
   productCode: string | null;
   imageUrl: string;
@@ -46,6 +49,8 @@ export type AdminOrderListView = {
   internalRef: string | null;
   createdAt: string;
   amount: number;
+  /** Pricing subset of payment_meta (for packing-slip totals). */
+  pricingMeta: Record<string, unknown>;
   orderStatus: string | null;
   paymentStatus: string;
   checkoutOutcome: CheckoutOutcome | null;
@@ -195,6 +200,7 @@ async function loadOrderLinesByOrderId(
       id: orderLines.id,
       orderId: orderLines.orderId,
       quantity: orderLines.quantity,
+      unitPrice: orderLines.price,
       productName: products.name,
       productCode: products.productCode,
       imageKey: medias.key,
@@ -209,6 +215,7 @@ async function loadOrderLinesByOrderId(
     const line: AdminOrderLineView = {
       id: row.id,
       quantity: row.quantity,
+      unitPrice: Number(row.unitPrice ?? 0) || 0,
       productName: row.productName || "Product",
       productCode: row.productCode ?? null,
       imageUrl: keytoUrl(row.imageKey ?? undefined),
@@ -366,6 +373,7 @@ export async function getAdminOrdersList(
         internalRef: row.internalRef ?? null,
         createdAt: toIsoCreatedAt(row.createdAt),
         amount: Number(row.amount) || 0,
+        pricingMeta: pickOrderPricingMeta(row.paymentMeta),
         orderStatus: row.orderStatus,
         paymentStatus: row.paymentStatus || "unpaid",
         checkoutOutcome,
@@ -386,6 +394,7 @@ export async function getAdminOrdersList(
         internalRef: null,
         createdAt: toIsoCreatedAt(row.createdAt),
         amount: Number(row.amount) || 0,
+        pricingMeta: {},
         orderStatus: row.orderStatus,
         paymentStatus: row.paymentStatus || "unpaid",
         checkoutOutcome: null,

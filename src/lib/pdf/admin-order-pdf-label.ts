@@ -1,6 +1,9 @@
 import { siteConfig } from "@/config/site";
 import type { AdminOrderListView } from "@/lib/admin/getAdminOrdersList";
-import type { PackingSlipOrder } from "@/lib/pdf/packing-slip-format";
+import {
+  buildPackingSlipPricing,
+  type PackingSlipOrder,
+} from "@/lib/pdf/packing-slip-format";
 import type { PdfLabelOrder } from "@/lib/pdf/shipping-label-pdf";
 
 /** Shop FROM block for parcel labels (matches Software-Saree-order sender_details). */
@@ -28,10 +31,7 @@ export function adminOrderToPdfLabel(
 }
 
 export function adminOrdersToPdfLabels(
-  orders: Pick<
-    AdminOrderListView,
-    "id" | "copyAddressText" | "internalRef"
-  >[],
+  orders: Pick<AdminOrderListView, "id" | "copyAddressText" | "internalRef">[],
 ): PdfLabelOrder[] {
   const sender = buildAdminPdfSenderDetails();
   return orders.map((order) => adminOrderToPdfLabel(order, sender));
@@ -43,12 +43,23 @@ export function adminOrderToPackingSlip(
     | "id"
     | "internalRef"
     | "createdAt"
+    | "amount"
+    | "pricingMeta"
     | "customerName"
     | "customerMobile"
     | "shippingAddress"
     | "lines"
   >,
 ): PackingSlipOrder {
+  const lines = order.lines ?? [];
+  const pricing = buildPackingSlipPricing({
+    paymentMeta: order.pricingMeta,
+    orderAmount: order.amount,
+    lines: lines.map((line) => ({
+      unitPrice: line.unitPrice,
+      quantity: line.quantity,
+    })),
+  });
   return {
     id: order.id,
     internalRef: order.internalRef ?? null,
@@ -56,11 +67,13 @@ export function adminOrderToPackingSlip(
     customerName: order.customerName,
     customerMobile: order.customerMobile,
     shippingAddress: order.shippingAddress,
-    items: (order.lines ?? []).map((line) => ({
+    items: lines.map((line, index) => ({
       name: line.productName,
       quantity: line.quantity,
       imageUrl: line.imageUrl,
+      unitPrice: pricing.unitPrices[index],
     })),
+    summary: pricing.summary,
   };
 }
 

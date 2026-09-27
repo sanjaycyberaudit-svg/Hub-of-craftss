@@ -26,6 +26,32 @@ export type OrderPaymentBreakdown = {
   hasPricingMeta: boolean;
 };
 
+const ORDER_PRICING_META_KEYS = [
+  "subtotalAmount",
+  "discountAmount",
+  "discountPercentage",
+  "promoPercentage",
+  "discountedSubtotal",
+  "courierCharge",
+  "courierRule",
+  "gstAmount",
+  "gstEnabled",
+  "gstPercentage",
+  "promoCode",
+] as const;
+
+/** Only the payment_meta fields needed to rebuild the money breakdown. */
+export function pickOrderPricingMeta(
+  paymentMeta: unknown,
+): Record<string, unknown> {
+  const meta = readPaymentMeta(paymentMeta);
+  const picked: Record<string, unknown> = {};
+  for (const key of ORDER_PRICING_META_KEYS) {
+    if (meta[key] !== undefined) picked[key] = meta[key];
+  }
+  return picked;
+}
+
 function asFiniteNumber(value: unknown): number | null {
   const n = typeof value === "number" ? value : Number(value);
   if (!Number.isFinite(n)) return null;
