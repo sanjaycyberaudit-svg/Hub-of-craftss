@@ -1,10 +1,8 @@
 import { siteConfig } from "@/config/site";
 import { parseAddressLines } from "@/lib/admin/shop-contact";
-import { toGstInclusiveAmount } from "@/lib/courier/calculate";
 import { INDIA_TIME_ZONE } from "@/lib/datetime/india";
 import { displayInternalOrderRef } from "@/lib/orders/internal-order-ref";
 import { buildOrderPaymentBreakdown } from "@/lib/orders/order-payment-breakdown";
-import { readPaymentMeta } from "@/lib/orders/payment-meta";
 import type { ShippingAddressFields } from "@/lib/orders/shipping-address-text";
 
 export const PACKING_SLIP_BRAND = siteConfig.name;
@@ -52,7 +50,7 @@ export type PackingSlipItem = {
   name: string;
   quantity: number;
   imageUrl: string;
-  /** GST-inclusive unit price as the customer paid (cart-style). */
+  /** Taxable (GST-exclusive) unit price from order_lines.price. */
   unitPrice?: number | null;
 };
 
@@ -87,9 +85,9 @@ export function formatPackingSlipMoney(amount: number): string {
 }
 
 /**
- * Customer-facing prices for the packing slip: GST-inclusive unit prices and
- * Subtotal / Discount / Courier / Total rows (no separate GST row), the same
- * display as cart and order emails so visible rows add up to Total.
+ * Internal (GST filing) prices for the packing slip: taxable unit prices and
+ * Subtotal / Discount / Courier / GST / Total rows — the admin breakdown, so
+ * taxable value + GST = Total.
  */
 export function buildPackingSlipPricing(args: {
   paymentMeta: unknown;
@@ -97,36 +95,26 @@ export function buildPackingSlipPricing(args: {
   /** Exclusive unit prices from order_lines.price. */
   lines: Array<{ unitPrice: number; quantity: number }>;
 }): { unitPrices: number[]; summary: PackingSlipSummaryRow[] } {
-  const meta = readPaymentMeta(args.paymentMeta);
-  const gstPercentage = Number(meta.gstPercentage ?? 0);
-  const gstConfig = {
-    gstEnabled: meta.gstEnabled === true,
-    gstPercentage: Number.isFinite(gstPercentage) ? gstPercentage : 0,
-  };
-  const inclusive = gstConfig.gstEnabled && gstConfig.gstPercentage > 0;
-
-  const unitPrices = args.lines.map((line) => {
-    const unit = Math.max(0, Number(line.unitPrice) || 0);
-    return inclusive ? toGstInclusiveAmount(unit, gstConfig) : unit;
-  });
+  const unitPrices = args.lines.map((line) =>
+    Math.max(0, Number(line.unitPrice) || 0),
+  );
 
   const breakdown = buildOrderPaymentBreakdown({
     paymentMeta: args.paymentMeta,
     orderAmount: args.orderAmount,
     lineItems: args.lines,
-    includeGst: false,
   });
 
   const summary: PackingSlipSummaryRow[] = [];
   for (const line of breakdown.lines) {
-    if (line.valueKind === "not_applied") continue;
     let value: string;
-    if (line.valueKind === "free") value = "Free";
+    if (line.valueKind === "not_applied") value = "Not applied";
+    else if (line.valueKind === "free") value = "Free";
     else if (line.key === "discount")
       value = `- ${formatPackingSlipMoney(line.amount)}`;
     else value = formatPackingSlipMoney(line.amount);
     summary.push({
-      label: line.label,
+      label: line.key === "subtotal" ? "Subtotal (excl. GST)" : line.label,
       value,
       emphasize: line.emphasize,
     });

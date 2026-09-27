@@ -1,5 +1,4 @@
 import { siteConfig } from "@/config/site";
-import { toGstInclusiveAmount } from "@/lib/courier/calculate";
 import {
   PACKING_SLIP_BRAND,
   PACKING_SLIP_THANKS,
@@ -126,8 +125,7 @@ describe("packing slip format (Hub of craftss)", () => {
     expect(formatPackingSlipMoney(529.82)).toBe("Rs. 530");
   });
 
-  it("prints GST-inclusive unit prices and summary rows that add up to Total", () => {
-    const gstConfig = { gstEnabled: true, gstPercentage: 18 };
+  it("prints taxable unit prices and a separate GST row for filing", () => {
     const pricing = buildPackingSlipPricing({
       orderAmount: 624,
       paymentMeta: {
@@ -141,21 +139,14 @@ describe("packing slip format (Hub of craftss)", () => {
       lines: [{ unitPrice: 449, quantity: 1 }],
     });
 
-    expect(pricing.unitPrices).toEqual([toGstInclusiveAmount(449, gstConfig)]);
-    expect(pricing.summary).toEqual([
-      {
-        label: "Subtotal",
-        value: formatPackingSlipMoney(toGstInclusiveAmount(449, gstConfig)),
-        emphasize: undefined,
-      },
-      {
-        label: "Courier",
-        value: formatPackingSlipMoney(toGstInclusiveAmount(80, gstConfig)),
-        emphasize: undefined,
-      },
-      { label: "Total", value: "Rs. 624", emphasize: true },
+    expect(pricing.unitPrices).toEqual([449]);
+    expect(pricing.summary.map((row) => [row.label, row.value])).toEqual([
+      ["Subtotal (excl. GST)", "Rs. 449"],
+      ["Courier", "Rs. 80"],
+      ["GST (18%)", "Rs. 95"],
+      ["Total", "Rs. 624"],
     ]);
-    expect(pricing.summary.some((row) => /GST/.test(row.label))).toBe(false);
+    expect(pricing.summary.at(-1)?.emphasize).toBe(true);
   });
 
   it("keeps plain prices and shows Free courier when GST was off", () => {
@@ -175,7 +166,7 @@ describe("packing slip format (Hub of craftss)", () => {
 
     expect(pricing.unitPrices).toEqual([250, 200]);
     expect(pricing.summary.map((row) => [row.label, row.value])).toEqual([
-      ["Subtotal", "Rs. 700"],
+      ["Subtotal (excl. GST)", "Rs. 700"],
       ["Courier", "Free"],
       ["Total", "Rs. 700"],
     ]);
