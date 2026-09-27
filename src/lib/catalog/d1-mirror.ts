@@ -117,6 +117,18 @@ export function mapOrderByToCatalogSort(
   return null;
 }
 
+type NextPatchedFetch = typeof fetch & { _nextOriginalFetch?: typeof fetch };
+
+/**
+ * Callers cache results in `withStorefrontCache`. Next's patched fetch would
+ * treat these calls as page data: a no-store fetch turns ISR pages dynamic at
+ * runtime (failed background revalidation) and adds `no-store` to API responses.
+ */
+function unpatchedFetch(): typeof fetch {
+  const patched = globalThis.fetch as NextPatchedFetch;
+  return (patched._nextOriginalFetch ?? patched).bind(globalThis);
+}
+
 async function catalogRequest<T>(
   path: string,
   init: { method?: "GET" | "POST"; timeoutMs?: number } = {},
@@ -126,13 +138,12 @@ async function catalogRequest<T>(
 
   let res: Response;
   try {
-    res = await fetch(`${config.baseUrl}${path}`, {
+    res = await unpatchedFetch()(`${config.baseUrl}${path}`, {
       method: init.method ?? "GET",
       headers: {
         Authorization: `Bearer ${config.secret}`,
         Accept: "application/json",
       },
-      cache: "no-store",
       signal: AbortSignal.timeout(init.timeoutMs ?? READ_TIMEOUT_MS),
     });
   } catch (error) {

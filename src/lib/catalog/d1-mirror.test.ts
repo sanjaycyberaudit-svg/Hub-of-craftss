@@ -147,7 +147,23 @@ describe("fetchCatalogProductSearch", () => {
       offset: "8",
     });
     expect(init.headers.Authorization).toBe("Bearer s3cret");
-    expect(init.cache).toBe("no-store");
+    expect(init.cache).toBeUndefined();
+  });
+
+  it("bypasses Next's patched fetch so ISR pages stay static", async () => {
+    const original = jest.fn(async () =>
+      respond({ checkedAt: freshAt(), productsCollection: products }),
+    );
+    const patched = jest.fn() as unknown as typeof fetch & {
+      _nextOriginalFetch?: typeof fetch;
+    };
+    patched._nextOriginalFetch = original as unknown as typeof fetch;
+    global.fetch = patched;
+
+    await fetchCatalogProductSearch({ search: "jute", first: 4 });
+
+    expect(original).toHaveBeenCalledTimes(1);
+    expect(patched).not.toHaveBeenCalled();
   });
 
   it("omits the term for the match-all search", async () => {
