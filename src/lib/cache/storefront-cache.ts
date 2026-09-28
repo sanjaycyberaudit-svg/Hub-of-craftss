@@ -13,6 +13,12 @@ type CacheOptions = {
   tags?: string[];
   /** Set false when the caller has its own fallback and must fail fast. */
   retry?: boolean;
+  /**
+   * Set false for admin-edited settings: after an admin save clears Redis, the
+   * Next.js Data Cache can still return the pre-save value (stale-while-
+   * revalidate), which would be written straight back into Redis.
+   */
+  dataCache?: boolean;
 };
 
 /**
@@ -208,7 +214,7 @@ export async function withStorefrontCache<T>(
   try {
     let value: T;
 
-    if (isCloudflareWorkerRuntime()) {
+    if (isCloudflareWorkerRuntime() || options.dataCache === false) {
       value = await load();
     } else {
       const { unstable_cache } = await import("next/cache");

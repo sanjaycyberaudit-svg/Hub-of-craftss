@@ -11,8 +11,14 @@ jest.mock("./redis", () => ({
   }),
 }));
 
+/** When set, the mocked Data Cache serves this instead of calling the loader. */
+let mockDataCacheStale: unknown = undefined;
+
 jest.mock("next/cache", () => ({
-  unstable_cache: (fn: (...args: unknown[]) => unknown) => fn,
+  unstable_cache:
+    (fn: (...args: unknown[]) => unknown) =>
+    async (...args: unknown[]) =>
+      mockDataCacheStale !== undefined ? mockDataCacheStale : fn(...args),
 }));
 
 import { redisGet } from "./redis";
@@ -26,6 +32,7 @@ describe("withStorefrontCache", () => {
     clearStorefrontMemoryCache();
     mockRedisStore.clear();
     mockRedisEnabled = false;
+    mockDataCacheStale = undefined;
     jest.mocked(redisGet).mockClear();
     jest.spyOn(console, "error").mockImplementation(() => {});
     jest.spyOn(console, "warn").mockImplementation(() => {});
@@ -156,6 +163,32 @@ describe("withStorefrontCache", () => {
       expect(await withStorefrontCache(key, loader, { revalidate: 1800 })).toBe(
         "old",
       );
+    });
+
+    it("dataCache:false refills Redis from the loader, not a stale Data Cache", async () => {
+      const key = `test:settings:${Math.random()}`;
+      const start = Date.now();
+      const now = jest.spyOn(Date, "now").mockReturnValue(start);
+      // Admin saved: Redis cleared, but the Data Cache still holds the old row.
+      mockDataCacheStale = "old";
+      const loader = jest.fn(async () => "new");
+
+      expect(
+        await withStorefrontCache(key, loader, {
+          revalidate: 1800,
+          dataCache: false,
+        }),
+      ).toBe("new");
+      await Promise.resolve();
+      expect((mockRedisStore.get(`${key}|v2`) as { value: string }).value).toBe(
+        "new",
+      );
+
+      const other = `test:products:${Math.random()}`;
+      now.mockReturnValue(start + 1);
+      expect(
+        await withStorefrontCache(other, loader, { revalidate: 1800 }),
+      ).toBe("old");
     });
   });
 });

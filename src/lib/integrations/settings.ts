@@ -710,6 +710,7 @@ export async function getStorefrontRuntimeBundleCached(): Promise<StorefrontRunt
   return withStorefrontCache("sf:runtime-bundle", loadStorefrontRuntimeBundle, {
     revalidate: STOREFRONT_REVALIDATE_SECONDS,
     tags: [CACHE_TAGS.settings],
+    dataCache: false,
   });
 }
 
@@ -951,5 +952,6 @@ export async function getHomeBannerSlidesCached(): Promise<
   return withStorefrontCache("sf:home-banner", getHomeBannerSlides, {
     revalidate: STOREFRONT_REVALIDATE_SECONDS,
     tags: [CACHE_TAGS.settings],
+    dataCache: false,
   });
 }
