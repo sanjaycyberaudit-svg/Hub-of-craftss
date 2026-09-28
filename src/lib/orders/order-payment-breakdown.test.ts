@@ -1,4 +1,3 @@
-import { toGstInclusiveAmount } from "@/lib/courier/calculate";
 import { buildOrderPaymentBreakdown } from "./order-payment-breakdown";
 
 describe("buildOrderPaymentBreakdown", () => {
@@ -97,11 +96,9 @@ describe("buildOrderPaymentBreakdown", () => {
     expect(result.lines.find((l) => l.key === "total")?.amount).toBe(999);
   });
 
-  it("customer email: inclusive subtotal, courier as entered + GST on courier", () => {
-    const gstConfig = { gstEnabled: true, gstPercentage: 18 };
+  it("shows courier as entered with a single GST line (no courier GST row)", () => {
     const result = buildOrderPaymentBreakdown({
       orderAmount: 624,
-      includeGst: false,
       paymentMeta: {
         subtotalAmount: 449,
         courierCharge: 80,
@@ -115,45 +112,17 @@ describe("buildOrderPaymentBreakdown", () => {
     expect(result.lines.map((l) => l.key)).toEqual([
       "subtotal",
       "courier",
-      "courierGst",
+      "gst",
       "total",
     ]);
-    const subtotal = result.lines.find((l) => l.key === "subtotal")!.amount;
-    const courier = result.lines.find((l) => l.key === "courier")!.amount;
-    const courierGst = result.lines.find((l) => l.key === "courierGst")!;
-    expect(subtotal).toBe(toGstInclusiveAmount(449, gstConfig));
-    expect(courier).toBe(80);
-    expect(courierGst.label).toBe("GST (18%) on courier");
-    expect(
-      Math.round((subtotal + courier + courierGst.amount) * 100) / 100,
-    ).toBe(624);
-    expect(result.lines.some((l) => l.key === "gst")).toBe(false);
+    expect(result.lines.find((l) => l.key === "subtotal")?.amount).toBe(449);
+    expect(result.lines.find((l) => l.key === "courier")?.amount).toBe(80);
+    expect(result.lines.find((l) => l.key === "gst")?.amount).toBe(95);
   });
 
-  it("customer email: free courier has no GST-on-courier row", () => {
-    const result = buildOrderPaymentBreakdown({
-      orderAmount: 1180,
-      includeGst: false,
-      paymentMeta: {
-        subtotalAmount: 1000,
-        courierCharge: 0,
-        courierRule: "free_shipping",
-        gstAmount: 180,
-        gstEnabled: true,
-        gstPercentage: 18,
-      },
-    });
-    expect(result.lines.map((l) => l.key)).toEqual([
-      "subtotal",
-      "courier",
-      "total",
-    ]);
-  });
-
-  it("customer email: no inflation when GST was off at checkout", () => {
+  it("marks GST as not applied when it was off at checkout", () => {
     const result = buildOrderPaymentBreakdown({
       orderAmount: 529,
-      includeGst: false,
       paymentMeta: {
         subtotalAmount: 449,
         courierCharge: 80,
@@ -166,41 +135,9 @@ describe("buildOrderPaymentBreakdown", () => {
 
     expect(result.lines.find((l) => l.key === "subtotal")?.amount).toBe(449);
     expect(result.lines.find((l) => l.key === "courier")?.amount).toBe(80);
+    expect(result.lines.find((l) => l.key === "gst")?.valueKind).toBe(
+      "not_applied",
+    );
     expect(result.lines.find((l) => l.key === "total")?.amount).toBe(529);
-  });
-
-  it("omits GST line when includeGst is false and still inflates when GST on", () => {
-    const gstConfig = { gstEnabled: true, gstPercentage: 18 };
-    const result = buildOrderPaymentBreakdown({
-      orderAmount: 4404,
-      includeGst: false,
-      paymentMeta: {
-        subtotalAmount: 3632,
-        discountAmount: 0,
-        discountPercentage: 0,
-        discountedSubtotal: 3632,
-        courierCharge: 100,
-        courierRule: "qty1_base",
-        gstAmount: 672,
-        gstEnabled: true,
-        gstPercentage: 18,
-      },
-    });
-
-    expect(result.total).toBe(4404);
-    expect(result.lines.map((l) => l.key)).toEqual([
-      "subtotal",
-      "courier",
-      "courierGst",
-      "total",
-    ]);
-    expect(result.lines.find((l) => l.key === "subtotal")?.amount).toBe(
-      toGstInclusiveAmount(3632, gstConfig),
-    );
-    expect(result.lines.find((l) => l.key === "courier")?.amount).toBe(100);
-    expect(result.lines.find((l) => l.key === "courierGst")?.amount).toBe(
-      18.24,
-    );
-    expect(result.lines.find((l) => l.key === "total")?.amount).toBe(4404);
   });
 });

@@ -84,7 +84,6 @@ export async function loadOrderDispatchInput(
     }),
     shippingAddress: addressRow ?? null,
     orderUrl: `${siteConfig.url.replace(/\/$/, "")}/orders/${order.id}?token=${encodeURIComponent(token)}`,
-    paymentMeta: order.payment_meta,
     ...dispatch,
   };
 }

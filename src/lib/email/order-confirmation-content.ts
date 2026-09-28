@@ -8,7 +8,6 @@ import {
   buildLineItemsTableHtml,
   buildOrderMetaBlockHtml,
   escapeHtml,
-  mapCustomerEmailLineItems,
   type OrderEmailLineItem,
   type OrderEmailShippingAddress,
 } from "@/lib/email/order-email-shared";
@@ -49,7 +48,6 @@ export function buildOrderConfirmationSubject(orderId: string): string {
 }
 
 function buildBreakdownLines(input: OrderConfirmationEmailInput) {
-  // Pass exclusive unit prices — breakdown inflates rows when includeGst is false.
   return buildOrderPaymentBreakdown({
     paymentMeta: input.paymentMeta,
     orderAmount: input.orderAmount,
@@ -57,12 +55,11 @@ function buildBreakdownLines(input: OrderConfirmationEmailInput) {
       unitPrice: line.unitPrice,
       quantity: line.quantity,
     })),
-    includeGst: false,
   });
 }
 
 function customerLineItems(input: OrderConfirmationEmailInput) {
-  return mapCustomerEmailLineItems(input.lineItems, input.paymentMeta);
+  return input.lineItems;
 }
 
 export function buildOrderConfirmationPlainText(

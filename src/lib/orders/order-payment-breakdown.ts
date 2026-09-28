@@ -2,10 +2,6 @@ import {
   formatCartGstLabel,
   shouldShowCartDiscountRows,
 } from "@/features/carts/lib/cart-order-summary-display";
-import {
-  splitCourierGstForDisplay,
-  toGstInclusiveAmount,
-} from "@/lib/courier/calculate";
 import { readPaymentMeta } from "@/lib/orders/payment-meta";
 
 export type OrderPaymentBreakdownLine = {
@@ -14,7 +10,6 @@ export type OrderPaymentBreakdownLine = {
     | "discount"
     | "discountedSubtotal"
     | "courier"
-    | "courierGst"
     | "gst"
     | "total";
   label: string;
@@ -71,22 +66,15 @@ function asNonNegative(value: unknown): number | null {
 /**
  * Build cart-like admin/customer order money rows from checkout payment_meta.
  * Total is always `orderAmount` — never invented from incomplete parts.
- *
- * Customer email (`includeGst: false`): omit the full GST line and, when GST
- * was on at checkout, show subtotal/discount GST-inclusive (same as cart), the
- * courier as entered by admin, and a "GST on courier" row so rows add up.
- * Admin default keeps exclusive amounts + a GST line.
+ * Same layout as the cart: exclusive amounts, courier as entered, one GST line.
  */
 export function buildOrderPaymentBreakdown(params: {
   paymentMeta: unknown;
   orderAmount: number;
   lineItems?: Array<{ unitPrice: number; quantity: number }>;
-  /** When false, omit the GST line (customer email). Default true for admin. */
-  includeGst?: boolean;
 }): OrderPaymentBreakdown {
   const meta = readPaymentMeta(params.paymentMeta);
   const total = Math.max(0, asFiniteNumber(params.orderAmount) ?? 0);
-  const includeGst = params.includeGst !== false;
 
   const subtotalFromMeta = asNonNegative(meta.subtotalAmount);
   const lineSubtotal =
@@ -114,12 +102,6 @@ export function buildOrderPaymentBreakdown(params: {
       ? meta.promoCode.trim()
       : null;
 
-  /** Cart-style inclusive display when hiding the GST line. */
-  const customerInclusive = !includeGst && gstEnabled && gstPercentage > 0;
-  const gstConfig = { gstEnabled, gstPercentage };
-  const displayMoney = (exclusive: number) =>
-    customerInclusive ? toGstInclusiveAmount(exclusive, gstConfig) : exclusive;
-
   const hasPricingMeta =
     subtotalFromMeta !== null ||
     courierCharge !== null ||
@@ -134,7 +116,7 @@ export function buildOrderPaymentBreakdown(params: {
       key: "subtotal",
       label: "Subtotal",
       valueKind: "money",
-      amount: displayMoney(subtotal),
+      amount: subtotal,
     });
   }
 
@@ -150,14 +132,14 @@ export function buildOrderPaymentBreakdown(params: {
       key: "discount",
       label: `Discount${pctLabel}${promoLabel}`,
       valueKind: "money",
-      amount: displayMoney(Math.abs(discountAmount)),
+      amount: Math.abs(discountAmount),
     });
     if (discountedSubtotal !== null) {
       lines.push({
         key: "discountedSubtotal",
         label: "Subtotal after discount",
         valueKind: "money",
-        amount: displayMoney(discountedSubtotal),
+        amount: discountedSubtotal,
       });
     }
   }
@@ -172,29 +154,9 @@ export function buildOrderPaymentBreakdown(params: {
       valueKind: isFree ? "free" : "money",
       amount: courierCharge ?? 0,
     });
-
-    if (customerInclusive && !isFree && (courierCharge ?? 0) > 0) {
-      const merchandiseExclusive = showDiscount ? discountedSubtotal : subtotal;
-      const courierGst =
-        merchandiseExclusive !== null
-          ? splitCourierGstForDisplay({
-              total,
-              displayMerchandise: displayMoney(merchandiseExclusive),
-              courierCharge: courierCharge ?? 0,
-            })
-          : 0;
-      if (courierGst > 0) {
-        lines.push({
-          key: "courierGst",
-          label: `${formatCartGstLabel({ gstEnabled, gstPercentage })} on courier`,
-          valueKind: "money",
-          amount: courierGst,
-        });
-      }
-    }
   }
 
-  if (includeGst && (gstAmount !== null || gstEnabled)) {
+  if (gstAmount !== null || gstEnabled) {
     lines.push({
       key: "gst",
       label: formatCartGstLabel({ gstEnabled, gstPercentage }),

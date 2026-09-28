@@ -1,4 +1,3 @@
-import { toGstInclusiveAmount } from "@/lib/courier/calculate";
 import { formatInr } from "@/lib/utils";
 import {
   buildOrderDispatchHtml,
@@ -37,10 +36,6 @@ describe("order dispatch email content", () => {
     trackingNumber: "DL123456789",
     trackingUrl: "https://track.example.com/DL123456789",
     dispatchedAt: "2026-01-16T08:00:00.000Z",
-    paymentMeta: {
-      gstEnabled: true,
-      gstPercentage: 18,
-    },
   };
 
   it("uses Hub branding in the subject", () => {
@@ -52,13 +47,9 @@ describe("order dispatch email content", () => {
   it("includes dispatch details in text and html", () => {
     const text = buildOrderDispatchPlainText(input);
     const html = buildOrderDispatchHtml(input);
-    const inclusiveUnit = toGstInclusiveAmount(500, {
-      gstEnabled: true,
-      gstPercentage: 18,
-    });
     expect(text).toContain("Hub of craftss order #ord_dispatch1");
     expect(text).toContain("Tracking number: DL123456789");
-    expect(text).toContain(formatInr(inclusiveUnit * 2));
+    expect(text).toContain(formatInr(500 * 2));
     expect(html).toContain("Hub of craftss");
     expect(html).toContain("Track package");
   });

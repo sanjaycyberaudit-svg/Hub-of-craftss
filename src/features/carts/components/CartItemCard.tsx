@@ -189,6 +189,7 @@ function CartItemCard({
       <CardFooter className="flex shrink-0 flex-col items-end gap-1 p-0 md:flex-row md:items-center md:gap-3">
         <ProductPriceDisplay
           product={product}
+          inclusive={false}
           layout="inline"
           className="text-sm md:text-base"
         />

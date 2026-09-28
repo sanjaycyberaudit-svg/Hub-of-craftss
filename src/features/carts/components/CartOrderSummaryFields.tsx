@@ -29,8 +29,6 @@ export type CartOrderSummaryFieldsProps = {
   discountAmount: number;
   discountedSubtotal: number;
   courierBreakdown: CourierChargeBreakdown | null;
-  /** GST on the as-entered courier charge (merchandise is already inclusive). */
-  courierGstAmount: number;
   gstEnabled: boolean;
   gstPercentage: number;
   gstAmount: number;
@@ -57,9 +55,9 @@ export function CartOrderSummaryFields({
   discountAmount,
   discountedSubtotal,
   courierBreakdown,
-  courierGstAmount,
   gstEnabled,
   gstPercentage,
+  gstAmount,
   totalAmount,
 }: CartOrderSummaryFieldsProps) {
   const showDiscountRows = shouldShowCartDiscountRows({
@@ -192,12 +190,10 @@ export function CartOrderSummaryFields({
               </span>
             </div>
           ) : null}
-          {courierEnabled && gstEnabled && courierGstAmount > 0 ? (
-            <div className="flex items-center justify-between">
-              <span>{`${formatCartGstLabel({ gstEnabled, gstPercentage })} on courier`}</span>
-              <span>{formatPrice(courierGstAmount)}</span>
-            </div>
-          ) : null}
+          <div className="flex items-center justify-between">
+            <span>{formatCartGstLabel({ gstEnabled, gstPercentage })}</span>
+            <span>{gstEnabled ? formatPrice(gstAmount) : "Not applied"}</span>
+          </div>
           <div className="flex items-center justify-between border-t pt-2 font-semibold">
             <span>Total</span>
             <span>{formatPrice(totalAmount)}</span>

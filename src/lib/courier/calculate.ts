@@ -155,24 +155,6 @@ export function toGstInclusiveAmount(
 }
 
 /**
- * GST attributable to courier when merchandise is shown GST-inclusive and the
- * courier is shown as entered by admin (remainder of the charged total).
- */
-export function splitCourierGstForDisplay(params: {
-  total: number;
-  displayMerchandise: number;
-  courierCharge: number;
-}): number {
-  if (!(params.courierCharge > 0)) return 0;
-  return Math.max(
-    0,
-    roundRupeeAmount(
-      params.total - params.displayMerchandise - params.courierCharge,
-    ),
-  );
-}
-
-/**
  * Single source of truth for checkout / cart totals.
  * GST is applied once on exclusive merchandise + courier (never on inclusive display).
  */
@@ -187,11 +169,6 @@ export function buildCheckoutMoneyTotals(params: {
   total: number;
   /** Storefront-visible merchandise (inclusive when GST on). */
   displayMerchandise: number;
-  /**
-   * GST line shown beside the as-entered courier charge. Derived as the
-   * remainder so displayMerchandise + courierCharge + this === total exactly.
-   */
-  displayCourierGst: number;
 } {
   const exclusiveMerchandise = roundRupeeAmount(
     Math.max(0, Number(params.exclusiveMerchandise) || 0),
@@ -207,21 +184,14 @@ export function buildCheckoutMoneyTotals(params: {
     exclusiveMerchandise + courierCharge + gstAmount,
   );
 
-  const displayMerchandise = toGstInclusiveAmount(
-    exclusiveMerchandise,
-    params.config,
-  );
-
   return {
     exclusiveMerchandise,
     courierCharge,
     gstAmount,
     total,
-    displayMerchandise,
-    displayCourierGst: splitCourierGstForDisplay({
-      total,
-      displayMerchandise,
-      courierCharge,
-    }),
+    displayMerchandise: toGstInclusiveAmount(
+      exclusiveMerchandise,
+      params.config,
+    ),
   };
 }

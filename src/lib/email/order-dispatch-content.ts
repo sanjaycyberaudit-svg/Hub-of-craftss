@@ -8,7 +8,6 @@ import {
   buildLineItemsTableHtml,
   buildOrderMetaBlockHtml,
   escapeHtml,
-  mapCustomerEmailLineItems,
   type OrderEmailLineItem,
   type OrderEmailShippingAddress,
 } from "./order-email-shared";
@@ -27,8 +26,6 @@ export type OrderDispatchEmailInput = {
   trackingNumber: string | null;
   trackingUrl: string | null;
   dispatchedAt: string;
-  /** Checkout payment_meta — used only to GST-include line unit prices. */
-  paymentMeta?: unknown;
 };
 
 export function buildOrderDispatchSubject(orderId: string) {
@@ -36,7 +33,7 @@ export function buildOrderDispatchSubject(orderId: string) {
 }
 
 function customerLineItems(input: OrderDispatchEmailInput) {
-  return mapCustomerEmailLineItems(input.lineItems, input.paymentMeta);
+  return input.lineItems;
 }
 
 function addressLines(input: OrderDispatchEmailInput) {
