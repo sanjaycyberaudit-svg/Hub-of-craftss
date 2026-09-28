@@ -4,7 +4,10 @@ import { cn, formatPrice } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import type { CourierChargeBreakdown } from "@/lib/courier/calculate";
-import { shouldShowCartDiscountRows } from "@/features/carts/lib/cart-order-summary-display";
+import {
+  formatCartGstLabel,
+  shouldShowCartDiscountRows,
+} from "@/features/carts/lib/cart-order-summary-display";
 
 export type CartOrderSummaryFieldsProps = {
   productCount: number;
@@ -26,6 +29,8 @@ export type CartOrderSummaryFieldsProps = {
   discountAmount: number;
   discountedSubtotal: number;
   courierBreakdown: CourierChargeBreakdown | null;
+  /** GST on the as-entered courier charge (merchandise is already inclusive). */
+  courierGstAmount: number;
   gstEnabled: boolean;
   gstPercentage: number;
   gstAmount: number;
@@ -52,6 +57,9 @@ export function CartOrderSummaryFields({
   discountAmount,
   discountedSubtotal,
   courierBreakdown,
+  courierGstAmount,
+  gstEnabled,
+  gstPercentage,
   totalAmount,
 }: CartOrderSummaryFieldsProps) {
   const showDiscountRows = shouldShowCartDiscountRows({
@@ -182,6 +190,12 @@ export function CartOrderSummaryFields({
                     ? formatPrice(courierBreakdown.charge)
                     : formatPrice(0)}
               </span>
+            </div>
+          ) : null}
+          {courierEnabled && gstEnabled && courierGstAmount > 0 ? (
+            <div className="flex items-center justify-between">
+              <span>{`${formatCartGstLabel({ gstEnabled, gstPercentage })} on courier`}</span>
+              <span>{formatPrice(courierGstAmount)}</span>
             </div>
           ) : null}
           <div className="flex items-center justify-between border-t pt-2 font-semibold">

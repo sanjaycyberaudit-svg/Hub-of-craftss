@@ -107,11 +107,39 @@ describe("GST inclusive display helpers", () => {
     expect(money.gstAmount).toBe(expectedGst);
     expect(money.total).toBe(1000 + 80 + expectedGst);
     expect(money.displayMerchandise).toBe(1180);
-    expect(money.displayCourier).toBe(toGstInclusiveAmount(80, gstOn));
-    // Inclusive display rows must not be used as a second GST base.
-    expect(money.total).not.toBe(
-      money.displayMerchandise + money.displayCourier + money.gstAmount,
-    );
+    // Courier shown as entered; its GST is a separate row; rows sum to total.
+    expect(money.courierCharge).toBe(80);
+    expect(money.displayCourierGst).toBe(14.4);
+    expect(
+      money.displayMerchandise + money.courierCharge + money.displayCourierGst,
+    ).toBe(money.total);
+  });
+
+  it("courier GST row sums exactly to total with awkward paise", () => {
+    const money = buildCheckoutMoneyTotals({
+      exclusiveMerchandise: 449.99,
+      courierCharge: 50,
+      config: gstOn,
+    });
+    expect(money.displayMerchandise).toBe(toGstInclusiveAmount(449.99, gstOn));
+    expect(
+      Math.round(
+        (money.displayMerchandise +
+          money.courierCharge +
+          money.displayCourierGst) *
+          100,
+      ) / 100,
+    ).toBe(money.total);
+    expect(money.displayCourierGst).toBeCloseTo(9, 1);
+  });
+
+  it("no courier GST row when courier is free", () => {
+    const money = buildCheckoutMoneyTotals({
+      exclusiveMerchandise: 1000,
+      courierCharge: 0,
+      config: gstOn,
+    });
+    expect(money.displayCourierGst).toBe(0);
   });
 
   it("when GST off, display amounts equal exclusive and gst is 0", () => {
@@ -123,6 +151,7 @@ describe("GST inclusive display helpers", () => {
     expect(money.gstAmount).toBe(0);
     expect(money.total).toBe(580);
     expect(money.displayMerchandise).toBe(500);
-    expect(money.displayCourier).toBe(80);
+    expect(money.courierCharge).toBe(80);
+    expect(money.displayCourierGst).toBe(0);
   });
 });

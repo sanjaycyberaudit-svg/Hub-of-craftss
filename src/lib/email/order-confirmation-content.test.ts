@@ -125,11 +125,9 @@ describe("order confirmation email content", () => {
     expect(text).toContain(
       `Subtotal: ${formatInr(toGstInclusiveAmount(449, gstConfig))}`,
     );
-    expect(text).toContain(
-      `Courier: ${formatInr(toGstInclusiveAmount(80, gstConfig))}`,
-    );
+    expect(text).toContain(`Courier: ${formatInr(80)}`);
+    expect(text).toContain(`GST (18%) on courier: ${formatInr(14.18)}`);
     expect(text).toContain(`Total: ${formatInr(624)}`);
-    expect(text).not.toContain("GST");
   });
 
   it("renders product images and payment details in html", () => {

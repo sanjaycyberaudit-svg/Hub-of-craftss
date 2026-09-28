@@ -2,7 +2,10 @@ import {
   formatCartGstLabel,
   shouldShowCartDiscountRows,
 } from "@/features/carts/lib/cart-order-summary-display";
-import { toGstInclusiveAmount } from "@/lib/courier/calculate";
+import {
+  splitCourierGstForDisplay,
+  toGstInclusiveAmount,
+} from "@/lib/courier/calculate";
 import { readPaymentMeta } from "@/lib/orders/payment-meta";
 
 export type OrderPaymentBreakdownLine = {
@@ -11,6 +14,7 @@ export type OrderPaymentBreakdownLine = {
     | "discount"
     | "discountedSubtotal"
     | "courier"
+    | "courierGst"
     | "gst"
     | "total";
   label: string;
@@ -68,9 +72,9 @@ function asNonNegative(value: unknown): number | null {
  * Build cart-like admin/customer order money rows from checkout payment_meta.
  * Total is always `orderAmount` — never invented from incomplete parts.
  *
- * Customer email (`includeGst: false`): omit GST line and, when GST was on at
- * checkout, show subtotal/discount/courier as GST-inclusive amounts (same
- * `toGstInclusiveAmount` as cart) so visible rows add up to Total.
+ * Customer email (`includeGst: false`): omit the full GST line and, when GST
+ * was on at checkout, show subtotal/discount GST-inclusive (same as cart), the
+ * courier as entered by admin, and a "GST on courier" row so rows add up.
  * Admin default keeps exclusive amounts + a GST line.
  */
 export function buildOrderPaymentBreakdown(params: {
@@ -166,8 +170,28 @@ export function buildOrderPaymentBreakdown(params: {
       key: "courier",
       label: "Courier",
       valueKind: isFree ? "free" : "money",
-      amount: isFree ? courierCharge ?? 0 : displayMoney(courierCharge ?? 0),
+      amount: courierCharge ?? 0,
     });
+
+    if (customerInclusive && !isFree && (courierCharge ?? 0) > 0) {
+      const merchandiseExclusive = showDiscount ? discountedSubtotal : subtotal;
+      const courierGst =
+        merchandiseExclusive !== null
+          ? splitCourierGstForDisplay({
+              total,
+              displayMerchandise: displayMoney(merchandiseExclusive),
+              courierCharge: courierCharge ?? 0,
+            })
+          : 0;
+      if (courierGst > 0) {
+        lines.push({
+          key: "courierGst",
+          label: `${formatCartGstLabel({ gstEnabled, gstPercentage })} on courier`,
+          valueKind: "money",
+          amount: courierGst,
+        });
+      }
+    }
   }
 
   if (includeGst && (gstAmount !== null || gstEnabled)) {

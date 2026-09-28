@@ -169,10 +169,6 @@ function GuestCartSection({
     discountAmount,
     courierConfig,
   );
-  const displayCourierBreakdown = courierBreakdown
-    ? { ...courierBreakdown, charge: money.displayCourier }
-    : null;
-
   useEffect(() => {
     const draft = loadCheckoutAddressDraft();
     if (draft?.postal_code) setDeliveryPincode(draft.postal_code);
@@ -387,7 +383,8 @@ function GuestCartSection({
     subtotal: displaySubtotal,
     discountAmount: displayDiscountAmount,
     discountedSubtotal: money.displayMerchandise,
-    courierBreakdown: displayCourierBreakdown,
+    courierBreakdown,
+    courierGstAmount: money.displayCourierGst,
     gstEnabled: courierConfig.gstEnabled,
     gstPercentage: courierConfig.gstPercentage,
     gstAmount,

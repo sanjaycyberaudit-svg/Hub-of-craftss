@@ -97,7 +97,7 @@ describe("buildOrderPaymentBreakdown", () => {
     expect(result.lines.find((l) => l.key === "total")?.amount).toBe(999);
   });
 
-  it("customer email: inclusive subtotal/courier, no GST line (screenshot case)", () => {
+  it("customer email: inclusive subtotal, courier as entered + GST on courier", () => {
     const gstConfig = { gstEnabled: true, gstPercentage: 18 };
     const result = buildOrderPaymentBreakdown({
       orderAmount: 624,
@@ -115,16 +115,39 @@ describe("buildOrderPaymentBreakdown", () => {
     expect(result.lines.map((l) => l.key)).toEqual([
       "subtotal",
       "courier",
+      "courierGst",
       "total",
     ]);
-    expect(result.lines.find((l) => l.key === "subtotal")?.amount).toBe(
-      toGstInclusiveAmount(449, gstConfig),
-    );
-    expect(result.lines.find((l) => l.key === "courier")?.amount).toBe(
-      toGstInclusiveAmount(80, gstConfig),
-    );
-    expect(result.lines.find((l) => l.key === "total")?.amount).toBe(624);
+    const subtotal = result.lines.find((l) => l.key === "subtotal")!.amount;
+    const courier = result.lines.find((l) => l.key === "courier")!.amount;
+    const courierGst = result.lines.find((l) => l.key === "courierGst")!;
+    expect(subtotal).toBe(toGstInclusiveAmount(449, gstConfig));
+    expect(courier).toBe(80);
+    expect(courierGst.label).toBe("GST (18%) on courier");
+    expect(
+      Math.round((subtotal + courier + courierGst.amount) * 100) / 100,
+    ).toBe(624);
     expect(result.lines.some((l) => l.key === "gst")).toBe(false);
+  });
+
+  it("customer email: free courier has no GST-on-courier row", () => {
+    const result = buildOrderPaymentBreakdown({
+      orderAmount: 1180,
+      includeGst: false,
+      paymentMeta: {
+        subtotalAmount: 1000,
+        courierCharge: 0,
+        courierRule: "free_shipping",
+        gstAmount: 180,
+        gstEnabled: true,
+        gstPercentage: 18,
+      },
+    });
+    expect(result.lines.map((l) => l.key)).toEqual([
+      "subtotal",
+      "courier",
+      "total",
+    ]);
   });
 
   it("customer email: no inflation when GST was off at checkout", () => {
@@ -168,13 +191,15 @@ describe("buildOrderPaymentBreakdown", () => {
     expect(result.lines.map((l) => l.key)).toEqual([
       "subtotal",
       "courier",
+      "courierGst",
       "total",
     ]);
     expect(result.lines.find((l) => l.key === "subtotal")?.amount).toBe(
       toGstInclusiveAmount(3632, gstConfig),
     );
-    expect(result.lines.find((l) => l.key === "courier")?.amount).toBe(
-      toGstInclusiveAmount(100, gstConfig),
+    expect(result.lines.find((l) => l.key === "courier")?.amount).toBe(100);
+    expect(result.lines.find((l) => l.key === "courierGst")?.amount).toBe(
+      18.24,
     );
     expect(result.lines.find((l) => l.key === "total")?.amount).toBe(4404);
   });
