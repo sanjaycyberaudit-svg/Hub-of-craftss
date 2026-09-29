@@ -9,11 +9,11 @@ import {
 } from "./resolve-database-url";
 
 const SESSION_URL =
-  "postgresql://postgres.xytdexahcdyhykvuwpys:secret@aws-1-ap-south-1.pooler.supabase.com:5432/postgres";
+  "postgresql://postgres.hbazwsedkjgkatkdljtq:secret@aws-0-ap-south-1.pooler.supabase.com:5432/postgres";
 const TRANSACTION_URL =
-  "postgresql://postgres.xytdexahcdyhykvuwpys:secret@aws-1-ap-south-1.pooler.supabase.com:6543/postgres";
-const AWS0_URL =
-  "postgresql://postgres.xytdexahcdyhykvuwpys:secret@aws-0-ap-south-1.pooler.supabase.com:5432/postgres";
+  "postgresql://postgres.hbazwsedkjgkatkdljtq:secret@aws-0-ap-south-1.pooler.supabase.com:6543/postgres";
+const AWS1_URL =
+  "postgresql://postgres.hbazwsedkjgkatkdljtq:secret@aws-1-ap-south-1.pooler.supabase.com:6543/postgres";
 
 describe("resolve-database-url (Hub)", () => {
   const env = process.env;
@@ -23,6 +23,7 @@ describe("resolve-database-url (Hub)", () => {
     delete process.env.SUPABASE_DB_SESSION_POOLER;
     delete process.env.SUPABASE_DB_POOLER_URL;
     delete process.env.SUPABASE_DB_FORCE_TRANSACTION_POOLER;
+    delete process.env.SUPABASE_DB_AWS_PREFIX;
     delete process.env.VERCEL;
   });
 
@@ -30,19 +31,19 @@ describe("resolve-database-url (Hub)", () => {
     process.env = env;
   });
 
-  it("builds transaction pooler URL on aws-1 by default", () => {
+  it("builds transaction pooler URL on aws-0 by default", () => {
     const url = buildSupabasePoolerUrl({
-      projectRef: "xytdexahcdyhykvuwpys",
+      projectRef: "hbazwsedkjgkatkdljtq",
       password: "p@ss",
     });
     expect(url).toContain(`:${TRANSACTION_POOLER_PORT}/postgres`);
-    expect(url).toContain("aws-1-ap-south-1.pooler.supabase.com");
+    expect(url).toContain("aws-0-ap-south-1.pooler.supabase.com");
   });
 
   it("builds session pooler when explicitly requested", () => {
     process.env.SUPABASE_DB_SESSION_POOLER = "true";
     const url = buildSupabasePoolerUrl({
-      projectRef: "xytdexahcdyhykvuwpys",
+      projectRef: "hbazwsedkjgkatkdljtq",
       password: "p@ss",
     });
     expect(url).toContain(`:${SESSION_POOLER_PORT}/postgres`);
@@ -69,23 +70,20 @@ describe("resolve-database-url (Hub)", () => {
     expect(result.rewrites).toHaveLength(0);
   });
 
-  it("rewrites aws-0 host to aws-1 for Hub", () => {
-    const result = normalizePoolerDatabaseUrl(AWS0_URL);
-    expect(result.url).toContain("aws-1-ap-south-1.pooler.supabase.com");
-    expect(result.url).toContain(`:${TRANSACTION_POOLER_PORT}/`);
-    expect(result.rewrites).toEqual(
-      expect.arrayContaining([
-        "aws-0 host → aws-1",
-        `:${SESSION_POOLER_PORT} session → :${TRANSACTION_POOLER_PORT} transaction`,
-      ]),
+  it("never rewrites an explicit pooler host (aws-0 / aws-1 is per project)", () => {
+    expect(normalizePoolerDatabaseUrl(TRANSACTION_URL).url).toContain(
+      "aws-0-ap-south-1.pooler.supabase.com",
     );
+    const aws1 = normalizePoolerDatabaseUrl(AWS1_URL);
+    expect(aws1.url).toBe(AWS1_URL);
+    expect(aws1.rewrites).toHaveLength(0);
   });
 
-  it("rewrites legacy db.<ref>.supabase.co to aws-1 transaction pooler", () => {
+  it("rewrites legacy db.<ref>.supabase.co to aws-0 transaction pooler", () => {
     const legacy =
-      "postgresql://postgres:xxx@db.xytdexahcdyhykvuwpys.supabase.co:5432/postgres";
+      "postgresql://postgres:xxx@db.hbazwsedkjgkatkdljtq.supabase.co:5432/postgres";
     const url = resolveDatabaseUrl(legacy);
-    expect(url).toContain("aws-1-ap-south-1.pooler.supabase.com");
+    expect(url).toContain("aws-0-ap-south-1.pooler.supabase.com");
     expect(url).toContain(`:${TRANSACTION_POOLER_PORT}/postgres`);
   });
 
@@ -93,12 +91,12 @@ describe("resolve-database-url (Hub)", () => {
     const info = describeDatabaseUrl(SESSION_URL);
     expect(info.pooler).toBe(true);
     expect(info.port).toBe(String(TRANSACTION_POOLER_PORT));
-    expect(info.host).toContain("aws-1-ap-south-1.pooler.supabase.com");
+    expect(info.host).toContain("aws-0-ap-south-1.pooler.supabase.com");
   });
 
   it("rewrites transaction pooler to session port for BEGIN work", () => {
     const url = resolveSessionDatabaseUrl(TRANSACTION_URL);
     expect(url).toContain(`:${SESSION_POOLER_PORT}/`);
-    expect(url).toContain("aws-1-ap-south-1.pooler.supabase.com");
+    expect(url).toContain("aws-0-ap-south-1.pooler.supabase.com");
   });
 });

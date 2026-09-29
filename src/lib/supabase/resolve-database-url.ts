@@ -1,9 +1,11 @@
 /**
  * Supabase direct host db.<ref>.supabase.co is unreliable from Vercel.
- * Hub of craftss uses aws-1-ap-south-1 transaction pooler (port 6543).
+ * Hub of craftss uses aws-0-ap-south-1 transaction pooler (port 6543).
+ * The pooler host (aws-0 / aws-1) is per project; the wrong one fails with
+ * "tenant/user not found", so an explicit pooler host is never rewritten.
  */
 const DEFAULT_REGION = "ap-south-1";
-const DEFAULT_AWS_PREFIX = "aws-1";
+const DEFAULT_AWS_PREFIX = "aws-0";
 export const TRANSACTION_POOLER_PORT = 6543;
 export const SESSION_POOLER_PORT = 5432;
 
@@ -66,7 +68,6 @@ function parseLegacyDirectUrl(
 
 /**
  * Normalize Supabase pooler URLs for serverless (Hub):
- * - aws-0 → aws-1 (this shop uses aws-1)
  * - session :5432 → transaction :6543 (unless session explicitly requested)
  */
 export function normalizePoolerDatabaseUrl(url: string): DatabaseUrlResolution {
@@ -76,11 +77,6 @@ export function normalizePoolerDatabaseUrl(url: string): DatabaseUrlResolution {
     const parsed = new URL(toHttpUrl(url));
     if (!/\.pooler\.supabase\.com$/i.test(parsed.hostname)) {
       return { url, rewrites };
-    }
-
-    if (/^aws-0-/i.test(parsed.hostname)) {
-      parsed.hostname = parsed.hostname.replace(/^aws-0-/i, "aws-1-");
-      rewrites.push("aws-0 host → aws-1");
     }
 
     const port = Number(parsed.port || SESSION_POOLER_PORT);
@@ -187,7 +183,7 @@ export function resolveDatabaseUrl(raw?: string): string {
 /**
  * Session-mode pooler (port 5432) supports multi-statement transactions.
  * Transaction-mode pooler (6543) breaks postgres.js `begin()` under load.
- * Keep Hub aws-1 host; only rewrite the port (or use SUPABASE_DB_SESSION_URL).
+ * Keep the pooler host; only rewrite the port (or use SUPABASE_DB_SESSION_URL).
  */
 export function resolveSessionDatabaseUrl(raw?: string): string {
   const sessionOverride = process.env.SUPABASE_DB_SESSION_URL?.trim();

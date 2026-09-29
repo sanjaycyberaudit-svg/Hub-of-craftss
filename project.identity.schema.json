@@ -45,7 +45,9 @@
       "properties": {
         "projectRef": { "type": "string", "minLength": 10 },
         "url": { "type": "string", "format": "uri" },
-        "regionHint": { "type": "string" }
+        "regionHint": { "type": "string" },
+        "ownerEmail": { "type": "string" },
+        "poolerHost": { "type": "string" }
       }
     },
     "cloudflare": {

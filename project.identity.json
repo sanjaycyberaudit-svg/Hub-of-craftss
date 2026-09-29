@@ -16,9 +16,11 @@
     ]
   },
   "supabase": {
-    "projectRef": "xytdexahcdyhykvuwpys",
-    "url": "https://xytdexahcdyhykvuwpys.supabase.co",
-    "regionHint": "ap-south-1"
+    "projectRef": "hbazwsedkjgkatkdljtq",
+    "url": "https://hbazwsedkjgkatkdljtq.supabase.co",
+    "regionHint": "ap-south-1",
+    "ownerEmail": "shaarunew01@gmail.com",
+    "poolerHost": "aws-0-ap-south-1.pooler.supabase.com"
   },
   "cloudflare": {
     "accountEmail": "shaarunew01@gmail.com",
