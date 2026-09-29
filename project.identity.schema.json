@@ -47,7 +47,8 @@
         "url": { "type": "string", "format": "uri" },
         "regionHint": { "type": "string" },
         "ownerEmail": { "type": "string" },
-        "poolerHost": { "type": "string" }
+        "poolerHost": { "type": "string" },
+        "googleOAuthClientId": { "type": "string" }
       }
     },
     "cloudflare": {

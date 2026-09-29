@@ -20,7 +20,8 @@
     "url": "https://hbazwsedkjgkatkdljtq.supabase.co",
     "regionHint": "ap-south-1",
     "ownerEmail": "shaarunew01@gmail.com",
-    "poolerHost": "aws-0-ap-south-1.pooler.supabase.com"
+    "poolerHost": "aws-0-ap-south-1.pooler.supabase.com",
+    "googleOAuthClientId": "988544856777-05bvseo3918cuchj5el3ootdacs71q8p.apps.googleusercontent.com"
   },
   "cloudflare": {
     "accountEmail": "shaarunew01@gmail.com",
