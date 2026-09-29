@@ -2115,7 +2115,7 @@ function DiscountPreview({
       <p className="text-xs font-medium text-muted-foreground mb-1">
         Exclusive DB price (storefront adds GST when enabled)
       </p>
-      <ProductPriceDisplay product={previewProduct} inclusive={false} />
+      <ProductPriceDisplay product={previewProduct} />
       <p className="mt-2 text-xs text-muted-foreground">
         MRP {formatPrice(getOriginalProductPrice(previewProduct))} → sale{" "}
         {formatPrice(getSaleProductPrice(previewProduct))}

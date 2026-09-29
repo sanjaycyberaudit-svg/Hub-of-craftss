@@ -16,9 +16,7 @@ import {
 
 import { useAuth } from "@/providers/AuthProvider";
 import { useBulkOrderGuardConfig } from "@/providers/BulkOrderGuardProvider";
-import { useCourierChargesConfig } from "@/providers/CourierChargesProvider";
 import { useStockControlConfig } from "@/providers/StockControlProvider";
-import { toGstInclusiveAmount } from "@/lib/courier/calculate";
 import { formatPrice } from "@/lib/utils";
 import BulkOrderGuardDialog from "./BulkOrderGuardDialog";
 import { isBulkOrderQuantity } from "../constants/bulkOrder";
@@ -53,7 +51,6 @@ function AddProductToCartForm({
   const { toast } = useToast();
   const bulkOrder = useBulkOrderGuardConfig();
   const stockControl = useStockControlConfig();
-  const courierConfig = useCourierChargesConfig();
   const { addProductToCart } = useCartActions(user, productId, stock ?? null);
   const [bulkGuardOpen, setBulkGuardOpen] = useState(false);
   const [uncontrolledSelections, setUncontrolledSelections] =
@@ -211,12 +208,7 @@ function AddProductToCartForm({
                         const priceLabel =
                           option.price != null &&
                           Number.isFinite(Number(option.price))
-                            ? ` · ${formatPrice(
-                                toGstInclusiveAmount(
-                                  Number(option.price),
-                                  courierConfig,
-                                ),
-                              )}`
+                            ? ` · ${formatPrice(Number(option.price))}`
                             : "";
                         return (
                           <option
