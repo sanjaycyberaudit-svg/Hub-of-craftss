@@ -1,3 +1,4 @@
+import { toGstInclusiveAmount } from "@/lib/courier/calculate";
 import { formatInr } from "@/lib/utils";
 import { siteConfig } from "@/config/site";
 import {
@@ -74,23 +75,27 @@ describe("order confirmation email content", () => {
 
   it("includes items, summary, address, and order link in plain text", () => {
     const text = buildOrderConfirmationPlainText(baseInput);
+    const inclusiveUnit = toGstInclusiveAmount(1000, {
+      gstEnabled: true,
+      gstPercentage: 18,
+    });
 
     expect(text).toContain("Hi Sanjay");
     expect(text).toContain("Order #ord_test123");
     expect(text).toContain("Payment: Cashfree");
     expect(text).toContain("Phone: +91 9876543210");
     expect(text).toContain("Mandala Kit (MK-001) × 1");
-    expect(text).toContain(formatInr(1000));
+    expect(text).toContain(formatInr(inclusiveUnit));
     expect(text).toContain("Subtotal");
     expect(text).toContain("Courier");
-    expect(text).toContain("GST (18%)");
+    expect(text).not.toContain("GST");
     expect(text).toContain("12 MG Road");
     expect(text).toContain("PIN: 625107");
     expect(text).toContain(baseInput.orderUrl);
     expect(text).toContain(siteConfig.email);
   });
 
-  it("shows cart-style summary: courier as entered and one GST line", () => {
+  it("shows cart-style inclusive summary for the customer screenshot case", () => {
     const input: OrderConfirmationEmailInput = {
       ...baseInput,
       orderAmount: 624,
@@ -113,17 +118,26 @@ describe("order confirmation email content", () => {
         },
       ],
     };
+    const gstConfig = { gstEnabled: true, gstPercentage: 18 };
     const text = buildOrderConfirmationPlainText(input);
 
-    expect(text).toContain(`Subtotal: ${formatInr(449)}`);
-    expect(text).toContain(`Courier: ${formatInr(80)}`);
-    expect(text).toContain(`GST (18%): ${formatInr(95)}`);
-    expect(text).not.toContain("on courier");
+    expect(text).toContain(formatInr(toGstInclusiveAmount(449, gstConfig)));
+    expect(text).toContain(
+      `Subtotal: ${formatInr(toGstInclusiveAmount(449, gstConfig))}`,
+    );
+    expect(text).toContain(
+      `Courier: ${formatInr(toGstInclusiveAmount(80, gstConfig))}`,
+    );
     expect(text).toContain(`Total: ${formatInr(624)}`);
+    expect(text).not.toContain("GST");
   });
 
   it("renders product images and payment details in html", () => {
     const html = buildOrderConfirmationHtml(baseInput);
+    const inclusiveUnit = toGstInclusiveAmount(1000, {
+      gstEnabled: true,
+      gstPercentage: 18,
+    });
 
     expect(html).toContain("Order confirmed");
     expect(html).toContain("mandala.jpg");
@@ -131,7 +145,7 @@ describe("order confirmation email content", () => {
     expect(html).toContain("Cashfree");
     expect(html).toContain("View order");
     expect(html).toContain("hub-of-craftss-logo.png");
-    expect(html).toContain(formatInr(1000));
-    expect(html).toContain("GST (18%)");
+    expect(html).toContain(formatInr(inclusiveUnit));
+    expect(html).not.toContain(">GST");
   });
 });

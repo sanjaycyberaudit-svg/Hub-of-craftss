@@ -107,11 +107,11 @@ describe("GST inclusive display helpers", () => {
     expect(money.gstAmount).toBe(expectedGst);
     expect(money.total).toBe(1000 + 80 + expectedGst);
     expect(money.displayMerchandise).toBe(1180);
-    // Cart rows: exclusive subtotal + courier as entered + one GST line = total.
-    expect(money.courierCharge).toBe(80);
-    expect(
-      money.exclusiveMerchandise + money.courierCharge + money.gstAmount,
-    ).toBe(money.total);
+    expect(money.displayCourier).toBe(toGstInclusiveAmount(80, gstOn));
+    // Inclusive display rows must not be used as a second GST base.
+    expect(money.total).not.toBe(
+      money.displayMerchandise + money.displayCourier + money.gstAmount,
+    );
   });
 
   it("when GST off, display amounts equal exclusive and gst is 0", () => {
@@ -123,6 +123,6 @@ describe("GST inclusive display helpers", () => {
     expect(money.gstAmount).toBe(0);
     expect(money.total).toBe(580);
     expect(money.displayMerchandise).toBe(500);
-    expect(money.courierCharge).toBe(80);
+    expect(money.displayCourier).toBe(80);
   });
 });

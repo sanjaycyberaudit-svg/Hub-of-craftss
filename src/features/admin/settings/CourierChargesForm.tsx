@@ -320,8 +320,9 @@ export function CourierChargesForm() {
             Enable GST
           </label>
           <p className="text-xs text-muted-foreground">
-            Applied once on discounted merchandise plus courier. Prices show
-            excluding GST; cart, orders and emails add a separate GST line.
+            Applied once on discounted merchandise plus courier. Storefront
+            product prices show GST-inclusive amounts; admin orders and packing
+            keep exclusive price plus a separate GST line.
           </p>
           <div className="mt-3 space-y-2">
             <Label htmlFor="gst-percentage">GST percentage</Label>

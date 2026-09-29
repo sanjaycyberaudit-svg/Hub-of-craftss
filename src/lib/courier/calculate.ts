@@ -169,6 +169,8 @@ export function buildCheckoutMoneyTotals(params: {
   total: number;
   /** Storefront-visible merchandise (inclusive when GST on). */
   displayMerchandise: number;
+  /** Storefront-visible courier (inclusive when GST on). */
+  displayCourier: number;
 } {
   const exclusiveMerchandise = roundRupeeAmount(
     Math.max(0, Number(params.exclusiveMerchandise) || 0),
@@ -193,5 +195,6 @@ export function buildCheckoutMoneyTotals(params: {
       exclusiveMerchandise,
       params.config,
     ),
+    displayCourier: toGstInclusiveAmount(courierCharge, params.config),
   };
 }

@@ -5,6 +5,7 @@ import type { CartSizeConfigPayload } from "@/lib/storefront/cart-server";
 import {
   buildCheckoutMoneyTotals,
   calculateCourierCharge,
+  toGstInclusiveAmount,
 } from "@/lib/courier/calculate";
 import { fetchWithTimeout } from "@/lib/network/fetchWithTimeout";
 import { useQuery } from "@urql/next";
@@ -163,6 +164,15 @@ function GuestCartSection({
   });
   const gstAmount = money.gstAmount;
   const totalAmount = money.total;
+  const displaySubtotal = toGstInclusiveAmount(subtotal, courierConfig);
+  const displayDiscountAmount = toGstInclusiveAmount(
+    discountAmount,
+    courierConfig,
+  );
+  const displayCourierBreakdown = courierBreakdown
+    ? { ...courierBreakdown, charge: money.displayCourier }
+    : null;
+
   useEffect(() => {
     const draft = loadCheckoutAddressDraft();
     if (draft?.postal_code) setDeliveryPincode(draft.postal_code);
@@ -374,10 +384,10 @@ function GuestCartSection({
     appliedPromoCode,
     promoPercentage,
     onRemovePromo,
-    subtotal,
-    discountAmount,
-    discountedSubtotal: money.exclusiveMerchandise,
-    courierBreakdown,
+    subtotal: displaySubtotal,
+    discountAmount: displayDiscountAmount,
+    discountedSubtotal: money.displayMerchandise,
+    courierBreakdown: displayCourierBreakdown,
     gstEnabled: courierConfig.gstEnabled,
     gstPercentage: courierConfig.gstPercentage,
     gstAmount,
