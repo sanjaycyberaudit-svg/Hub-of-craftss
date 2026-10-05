@@ -7,7 +7,9 @@ import {
   buildLineItemsPlainText,
   buildLineItemsTableHtml,
   buildOrderMetaBlockHtml,
+  buildOrderNumberPlainTextLines,
   escapeHtml,
+  formatEmailOrderNumber,
   mapCustomerEmailLineItems,
   type OrderEmailLineItem,
   type OrderEmailShippingAddress,
@@ -16,6 +18,7 @@ import { buildShippingAddressLines } from "@/lib/orders/shipping-address-text";
 
 export type OrderDispatchEmailInput = {
   orderId: string;
+  internalRef?: string | null;
   customerName: string | null;
   customerEmail: string;
   createdAt: string | Date;
@@ -31,8 +34,11 @@ export type OrderDispatchEmailInput = {
   paymentMeta?: unknown;
 };
 
-export function buildOrderDispatchSubject(orderId: string) {
-  return `Your order has shipped — #${orderId} · ${siteConfig.name}`;
+export function buildOrderDispatchSubject(
+  orderId: string,
+  internalRef?: string | null,
+) {
+  return `Your order has shipped — ${formatEmailOrderNumber(orderId, internalRef)} · ${siteConfig.name}`;
 }
 
 function customerLineItems(input: OrderDispatchEmailInput) {
@@ -58,7 +64,8 @@ export function buildOrderDispatchPlainText(input: OrderDispatchEmailInput) {
   const displayLines = customerLineItems(input);
   return [
     `Hi ${input.customerName?.trim() || "there"},`,
-    `${siteConfig.name} order #${input.orderId} has been dispatched.`,
+    `Your ${siteConfig.name} order has been dispatched.`,
+    ...buildOrderNumberPlainTextLines(input.orderId, input.internalRef),
     `Dispatched: ${formatOrderDateTimeIst(input.dispatchedAt)}`,
     `Courier: ${input.courierName}`,
     input.trackingNumber ? `Tracking number: ${input.trackingNumber}` : null,
@@ -90,7 +97,7 @@ export function buildOrderDispatchHtml(input: OrderDispatchEmailInput) {
   const bodyHtml = `${buildEmailBrandHeaderHtml()}
     <p>Hi ${escapeHtml(input.customerName?.trim() || "there")},</p>
     <p>Your order is on its way.</p>
-    ${buildOrderMetaBlockHtml({ orderId: input.orderId, placedAt: input.createdAt, customerPhone: input.customerPhone })}
+    ${buildOrderMetaBlockHtml({ orderId: input.orderId, internalRef: input.internalRef, placedAt: input.createdAt, customerPhone: input.customerPhone })}
     <div style="padding:16px;background:#f8f8f8;border-radius:8px;line-height:1.6"><div><strong>Courier:</strong> ${escapeHtml(input.courierName)}</div><div><strong>Dispatched:</strong> ${escapeHtml(formatOrderDateTimeIst(input.dispatchedAt))}</div>${tracking}</div>
     <h2 style="font-size:16px">Items in this order</h2>${buildLineItemsTableHtml(displayLines)}
     <h2 style="font-size:16px">Shipping address</h2><div>${addressLines(input)
@@ -98,7 +105,7 @@ export function buildOrderDispatchHtml(input: OrderDispatchEmailInput) {
       .join("")}</div>
     <p><a href="${escapeHtml(input.orderUrl)}">View order</a></p>${buildEmailFooterHtml()}`;
   return buildEmailLayoutHtml({
-    preheader: `${siteConfig.name} order #${input.orderId} has been dispatched.`,
+    preheader: `${siteConfig.name} order ${formatEmailOrderNumber(input.orderId, input.internalRef)} has been dispatched.`,
     bodyHtml,
   });
 }

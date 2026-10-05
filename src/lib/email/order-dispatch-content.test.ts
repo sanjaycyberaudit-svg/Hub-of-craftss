@@ -49,6 +49,19 @@ describe("order dispatch email content", () => {
     );
   });
 
+  it("uses the HOC internal ref as the order number when assigned", () => {
+    expect(buildOrderDispatchSubject("ord_dispatch1", "26100041")).toBe(
+      "Your order has shipped — HOC26100041 · Hub of craftss",
+    );
+    const withRef = { ...input, internalRef: "26100041" };
+    const text = buildOrderDispatchPlainText(withRef);
+    expect(text).toContain("Order No: HOC26100041");
+    expect(text).toContain("Order ID: #ord_dispatch1");
+    const html = buildOrderDispatchHtml(withRef);
+    expect(html).toContain("Order No: HOC26100041");
+    expect(html).toContain("Order ID: #ord_dispatch1");
+  });
+
   it("includes dispatch details in text and html", () => {
     const text = buildOrderDispatchPlainText(input);
     const html = buildOrderDispatchHtml(input);
@@ -56,7 +69,8 @@ describe("order dispatch email content", () => {
       gstEnabled: true,
       gstPercentage: 18,
     });
-    expect(text).toContain("Hub of craftss order #ord_dispatch1");
+    expect(text).toContain("Your Hub of craftss order has been dispatched.");
+    expect(text).toContain("Order #ord_dispatch1");
     expect(text).toContain("Tracking number: DL123456789");
     expect(text).toContain(formatInr(inclusiveUnit * 2));
     expect(html).toContain("Hub of craftss");

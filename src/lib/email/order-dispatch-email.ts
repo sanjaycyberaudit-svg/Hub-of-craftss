@@ -64,6 +64,7 @@ export async function loadOrderDispatchInput(
   const token = createOrderAccessToken(order.id, order.createdAt);
   return {
     orderId: order.id,
+    internalRef: order.internal_ref ?? null,
     customerName: order.name,
     customerEmail: email,
     createdAt: order.createdAt,
@@ -105,7 +106,7 @@ export async function notifyOrderDispatchEmail(
     const response = await new Resend(config.apiKey).emails.send({
       from: config.fromEmail,
       to: input.customerEmail,
-      subject: buildOrderDispatchSubject(input.orderId),
+      subject: buildOrderDispatchSubject(input.orderId, input.internalRef),
       html: buildOrderDispatchHtml(input),
       text: buildOrderDispatchPlainText(input),
       replyTo: siteConfig.email || undefined,
