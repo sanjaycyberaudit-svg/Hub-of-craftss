@@ -4,10 +4,12 @@ import {
   type ResolvedProductPricing,
 } from "@/lib/products/pricing";
 import type { ProductPackFields } from "@/lib/products/pack";
+import { DEFAULT_PRODUCT_WEIGHT_KG, toWeightKg } from "@/lib/courier/calculate";
 
 export type CartProductPricing = ResolvedProductPricing &
   ProductPackFields & {
     productId: string;
+    weightKg?: number;
   };
 
 export async function getCartProductPricingByIds(
@@ -26,6 +28,7 @@ export async function getCartProductPricingByIds(
       ...resolved,
       soldAsPack: Boolean(row.soldAsPack),
       packSize: row.packSize ?? null,
+      weightKg: toWeightKg(row.weightKg) ?? DEFAULT_PRODUCT_WEIGHT_KG,
     };
   }
 

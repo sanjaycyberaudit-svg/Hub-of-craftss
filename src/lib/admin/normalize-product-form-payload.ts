@@ -115,6 +115,14 @@ export function normalizeProductFormPayload(
     packSize = raw;
   }
 
+  const weightKg = normalizeDecimalInput(data.weightKg, {
+    fallback: "0.5",
+    fieldLabel: "Weight (kg)",
+    min: 0.01,
+    max: 1000,
+    required: false,
+  });
+
   return {
     ...data,
     name,
@@ -132,6 +140,7 @@ export function normalizeProductFormPayload(
     discountPercent,
     soldAsPack,
     packSize,
+    weightKg,
   };
 }
 

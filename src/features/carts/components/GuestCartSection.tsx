@@ -6,6 +6,7 @@ import {
   buildCheckoutMoneyTotals,
   calculateCourierCharge,
   toGstInclusiveAmount,
+  totalWeightForShipping,
 } from "@/lib/courier/calculate";
 import { fetchWithTimeout } from "@/lib/network/fetchWithTimeout";
 import { useQuery } from "@urql/next";
@@ -122,6 +123,16 @@ function GuestCartSection({
     () => calcProductCountStorage(cartItems),
     [cartItems],
   );
+  const totalWeightKg = useMemo(
+    () =>
+      totalWeightForShipping(
+        Object.entries(cartItems).map(([productId, item]) => ({
+          quantity: Number(item.quantity ?? 0),
+          weightKg: livePricing[productId]?.weightKg,
+        })),
+      ),
+    [cartItems, livePricing],
+  );
   const pincodeLookup = usePincodeLookup(deliveryPincode);
   const activeOfferCodes = useMemo(() => {
     const map = new Map<string, number>();
@@ -146,10 +157,17 @@ function GuestCartSection({
     return calculateCourierCharge({
       state: deliveryState,
       quantity: productCount,
+      weightKg: totalWeightKg,
       orderAmount: discountedSubtotal,
       config: courierConfig,
     });
-  }, [courierConfig, deliveryState, discountedSubtotal, productCount]);
+  }, [
+    courierConfig,
+    deliveryState,
+    discountedSubtotal,
+    productCount,
+    totalWeightKg,
+  ]);
   const courierCharge = courierBreakdown?.charge ?? 0;
   const courierEnabled = courierConfig.enabled;
   const offerCodesEnabled = activeOfferCodes.size > 0;

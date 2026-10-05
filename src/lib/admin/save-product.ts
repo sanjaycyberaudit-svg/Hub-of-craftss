@@ -62,6 +62,7 @@ function toWritableProductFields(
     discountPercent: normalized.discountPercent,
     soldAsPack: normalized.soldAsPack,
     packSize: normalized.packSize,
+    weightKg: normalized.weightKg,
     featuredImageId,
     tags: [] as string[],
     images: Array.isArray(normalized.images) ? normalized.images : [],

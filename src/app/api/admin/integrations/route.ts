@@ -18,6 +18,7 @@ import {
   upsertIntegrationSetting,
   getIntegrationSetting,
 } from "@/lib/integrations/settings";
+import { parseCourierWeightSettings } from "@/lib/courier/calculate";
 import { invalidateStorefrontCache } from "@/lib/cache/invalidate-storefront";
 import { revalidatePath } from "next/cache";
 import { resolveHomeBannerSlideHref } from "@/lib/admin/home-banner-links";
@@ -108,6 +109,19 @@ const courierChargesPayloadSchema = z.object({
   freeShippingMin: z.number().int().min(0).max(999999),
   gstEnabled: z.boolean(),
   gstPercentage: z.number().min(0).max(50),
+  calculationMode: z.enum(["quantity", "weight"]),
+  weightSlabs: z
+    .array(
+      z.object({
+        upToKg: z.number().positive().max(1000),
+        tamilNadu: z.number().int().min(0).max(99999),
+        southStates: z.number().int().min(0).max(99999),
+        restOfIndia: z.number().int().min(0).max(99999),
+      }),
+    )
+    .min(1)
+    .max(20),
+  weightExtraPerKg: z.number().int().min(0).max(9999),
 });
 
 const offerCodeItemSchema = z.object({
@@ -442,6 +456,7 @@ export async function POST(request: NextRequest) {
         freeShippingMin: Number(incomingValue.freeShippingMin ?? 999),
         gstEnabled: Boolean(incomingValue.gstEnabled ?? true),
         gstPercentage: Number(incomingValue.gstPercentage ?? 5),
+        ...parseCourierWeightSettings(incomingValue),
       });
       if (!courierChargesParsed.success) {
         const courierError = courierChargesParsed as z.SafeParseError<

@@ -36,6 +36,7 @@ import {
 import { withRetry } from "@/lib/resilience";
 import db from "@/lib/supabase/db";
 import { address, medias, orderLines, orders } from "@/lib/supabase/schema";
+import { totalWeightForShipping } from "@/lib/courier/calculate";
 import {
   calculateCourierCharge,
   buildCheckoutMoneyTotals,
@@ -323,9 +324,11 @@ export async function POST(request: Request) {
       (sum, item) => sum + item.quantity,
       0,
     );
+    const totalWeightKg = totalWeightForShipping(productsQuantity);
     const courierBreakdown = calculateCourierCharge({
       state: checkout.shipping.state,
       quantity: totalQuantity,
+      weightKg: totalWeightKg,
       orderAmount: discountedSubtotal,
       config: courierConfig,
     });
@@ -382,6 +385,9 @@ export async function POST(request: Request) {
       gstPercentage: courierConfig.gstPercentage,
       courierState: checkout.shipping.state,
       courierRule: courierBreakdown.ruleApplied,
+      ...(courierBreakdown.weightKg !== undefined
+        ? { courierWeightKg: courierBreakdown.weightKg }
+        : {}),
       totalQuantity,
       paymentEnvironment,
       linePricing,

@@ -7,6 +7,7 @@ import {
   buildCheckoutMoneyTotals,
   calculateCourierCharge,
   toGstInclusiveAmount,
+  totalWeightForShipping,
 } from "@/lib/courier/calculate";
 import { fetchWithTimeout } from "@/lib/network/fetchWithTimeout";
 import { cn } from "@/lib/utils";
@@ -200,6 +201,16 @@ function UserCartSection({
     () => calcProductCount(visibleCart),
     [visibleCart],
   );
+  const totalWeightKg = useMemo(
+    () =>
+      totalWeightForShipping(
+        visibleCart.map((edge) => ({
+          quantity: edge.node.quantity,
+          weightKg: livePricing[edge.node.product_id]?.weightKg,
+        })),
+      ),
+    [visibleCart, livePricing],
+  );
   const pincodeLookup = usePincodeLookup(deliveryPincode);
   const activeOfferCodes = useMemo(() => {
     const map = new Map<string, number>();
@@ -223,10 +234,17 @@ function UserCartSection({
     return calculateCourierCharge({
       state: deliveryState,
       quantity: productCount,
+      weightKg: totalWeightKg,
       orderAmount: discountedSubtotal,
       config: courierConfig,
     });
-  }, [courierConfig, deliveryState, discountedSubtotal, productCount]);
+  }, [
+    courierConfig,
+    deliveryState,
+    discountedSubtotal,
+    productCount,
+    totalWeightKg,
+  ]);
   const courierCharge = courierBreakdown?.charge ?? 0;
   const courierEnabled = courierConfig.enabled;
   const offerCodesEnabled = activeOfferCodes.size > 0;

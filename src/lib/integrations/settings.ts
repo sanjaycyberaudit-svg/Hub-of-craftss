@@ -10,6 +10,7 @@ import {
   toGstInclusiveAmount,
   type CourierChargeBreakdown,
   type CourierChargesConfig,
+  parseCourierWeightSettings,
 } from "@/lib/courier/calculate";
 import {
   CACHE_TAGS,
@@ -339,6 +340,7 @@ export async function resolveCourierChargesConfig(): Promise<CourierChargesConfi
         value.gstPercentage,
         DEFAULT_COURIER_CONFIG.gstPercentage,
       ),
+      ...parseCourierWeightSettings(value),
     };
   } catch (error) {
     console.error("[settings] resolveCourierChargesConfig failed:", error);
@@ -630,6 +632,7 @@ function parseCourierFromRow(
       value.gstPercentage,
       DEFAULT_COURIER_CONFIG.gstPercentage,
     ),
+    ...parseCourierWeightSettings(value),
   };
 }
 
