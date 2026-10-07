@@ -33,6 +33,7 @@ import { CartOrderSummaryFields } from "./CartOrderSummaryFields";
 import { CartItemsList, cartPageBottomSpacerClass } from "./CartItemsList";
 import { FreeShippingProgress } from "./FreeShippingProgress";
 import {
+  buildCartPincodeDefaults,
   loadCheckoutAddressDraft,
   saveCheckoutAddressDraft,
 } from "@/features/addresses/lib/checkoutAddressDraft";
@@ -298,6 +299,16 @@ function UserCartSection({
       saveCheckoutAddressDraft({ postal_code: pincode });
     }
   };
+
+  const cartAddressDefaults = useMemo(() => {
+    const resolved =
+      pincodeLookup.status === "ready" ? pincodeLookup.result : null;
+    return buildCartPincodeDefaults({
+      postal_code: resolved?.pin ?? deliveryPincode,
+      city: resolved?.city,
+      state: resolved?.state,
+    });
+  }, [deliveryPincode, pincodeLookup.result, pincodeLookup.status]);
 
   const pincodeLocalityLabel =
     pincodeLookup.status === "ready" && pincodeLookup.result
@@ -633,6 +644,7 @@ function UserCartSection({
       sizeConfigsByProductId={sizeConfigsByProductId}
       requireDeliveryStateSelection={courierEnabled}
       hasDeliveryStateSelected={!courierEnabled || hasDeliveryStateSelected}
+      cartAddressDefaults={cartAddressDefaults}
     />
   );
 

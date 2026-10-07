@@ -9,6 +9,7 @@ import type { CartItems } from "@/features/carts";
 import { CheckoutAddressDialog } from "@/features/addresses";
 import type { SavedShippingAddress } from "@/features/addresses";
 import { clearCheckoutAddressDraft } from "@/features/addresses/lib/checkoutAddressDraft";
+import type { AddressFormValues } from "@/features/addresses/validations/addressFormSchema";
 import { clearClaimedOfferCode } from "@/features/offers/lib/welcomeOffer";
 import {
   formatCheckoutErrorMessage,
@@ -39,6 +40,8 @@ type CheckoutButtonProps = React.ComponentProps<typeof Button> & {
   sizeConfigsByProductId?: Record<string, CartSizeConfigPayload | undefined>;
   requireDeliveryStateSelection?: boolean;
   hasDeliveryStateSelected?: boolean;
+  /** PIN / city / state already captured on the cart page for shipping. */
+  cartAddressDefaults?: Partial<AddressFormValues>;
 };
 
 export function focusCartDeliveryPincode() {
@@ -66,6 +69,7 @@ function CheckoutButton({
   sizeConfigsByProductId,
   requireDeliveryStateSelection = false,
   hasDeliveryStateSelected = true,
+  cartAddressDefaults,
   ...props
 }: CheckoutButtonProps) {
   const { user } = useAuth();
@@ -100,15 +104,17 @@ function CheckoutButton({
   const sizeBlocked = missingSizeProductNames.length > 0;
 
   const accountDefaults = useMemo(
-    () =>
-      user?.email
+    () => ({
+      ...(user?.email
         ? {
             email: user.email,
             fullName:
               (user.user_metadata?.full_name as string | undefined) ?? "",
           }
-        : undefined,
-    [user?.email, user?.user_metadata?.full_name],
+        : {}),
+      ...cartAddressDefaults,
+    }),
+    [cartAddressDefaults, user?.email, user?.user_metadata?.full_name],
   );
 
   const handleCheckoutComplete = async (shipping: SavedShippingAddress) => {
