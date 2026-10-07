@@ -100,11 +100,8 @@ const SearchResultPage = ({
 
       {productsCollection && draftLoaded && !showSkeleton && (
         <>
-          {hasCollectionMatches ? (
-            <SearchMatchingCollections
-              collections={matchingCollections}
-              searchTerm={searchTerm}
-            />
+          {hasCollectionMatches && hasProductMatches ? (
+            <SearchMatchingCollections collections={matchingCollections} />
           ) : null}
 
           {!hasAnyMatches && searchTerm ? (
@@ -136,10 +133,23 @@ const SearchResultPage = ({
               ))}
             </section>
           ) : hasCollectionMatches ? (
-            <p className="py-2 text-sm text-muted-foreground">
-              No individual products matched this search, but the collections
-              above may have what you need.
-            </p>
+            <div className="space-y-3 py-4">
+              <p className="text-sm text-muted-foreground">
+                No products matched{" "}
+                {searchTerm ? (
+                  <span className="font-semibold text-foreground">
+                    {searchTerm}
+                  </span>
+                ) : (
+                  "this search"
+                )}
+                .
+              </p>
+              <SearchMatchingCollections
+                collections={matchingCollections}
+                heading="Try these collections"
+              />
+            </div>
           ) : null}
 
           {isLastPage && productsCollection.pageInfo.hasNextPage ? (
