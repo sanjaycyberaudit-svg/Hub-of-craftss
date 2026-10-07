@@ -93,7 +93,7 @@ const SearchResultPage = ({
   });
 
   return (
-    <div>
+    <div className="min-w-0">
       {error && <p>Oh no... {error}</p>}
 
       {showSkeleton && <SearchProductsGridSkeleton />}

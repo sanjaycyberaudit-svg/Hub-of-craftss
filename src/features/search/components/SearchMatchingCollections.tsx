@@ -15,8 +15,8 @@ export function SearchMatchingCollections({
   if (collections.length === 0) return null;
 
   return (
-    <nav aria-label="Matching collections" className="pt-1">
-      <div className="flex items-center gap-2 overflow-x-auto pb-1 [scrollbar-width:none] sm:flex-wrap sm:overflow-visible [&::-webkit-scrollbar]:hidden">
+    <nav aria-label="Matching collections" className="min-w-0 max-w-full pt-1">
+      <div className="flex min-w-0 items-center gap-2 overflow-x-auto pb-1 [scrollbar-width:none] sm:flex-wrap sm:overflow-visible [&::-webkit-scrollbar]:hidden">
         <span className="shrink-0 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
           {heading}
         </span>

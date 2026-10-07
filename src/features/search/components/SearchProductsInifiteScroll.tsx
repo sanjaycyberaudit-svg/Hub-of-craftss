@@ -41,7 +41,7 @@ function SearchProductsInifiteScroll({
   };
 
   return (
-    <section>
+    <section className="min-w-0">
       {pageVariables.map((variable, i) => (
         <SearchResultPage
           key={"" + variable.after}
