@@ -1,11 +1,13 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { Mail, PhoneCall, ShoppingBag } from "lucide-react";
 import { Icons } from "@/components/layouts/icons";
 import { useCartCount } from "@/features/carts/hooks/useCartCount";
 import { shopMailtoHref } from "@/lib/contact/links";
+import { cn } from "@/lib/utils";
 import { useStorefrontContact } from "@/providers/ShopContactProvider";
 import { useMobileMenu } from "./MobileMenuContext";
 import { useCheckoutChrome } from "@/providers/CheckoutChromeProvider";
@@ -27,6 +29,53 @@ function CartBadge({ count }: { count: number }) {
 const floatingActionButtonClass =
   "flex h-12 w-12 shrink-0 items-center justify-center rounded-full transition-transform hover:scale-105 active:scale-95 touch-manipulation";
 
+/** Mobile routes with their own fixed bottom dock that the stack would cover. */
+const MOBILE_HIDDEN_PATHS = new Set(["/cart"]);
+
+const NON_TEXT_INPUT_TYPES = new Set([
+  "button",
+  "checkbox",
+  "color",
+  "file",
+  "hidden",
+  "image",
+  "radio",
+  "range",
+  "reset",
+  "submit",
+]);
+
+function isTextEntryElement(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) return false;
+  if (target.isContentEditable || target instanceof HTMLTextAreaElement) {
+    return true;
+  }
+  return (
+    target instanceof HTMLInputElement && !NON_TEXT_INPUT_TYPES.has(target.type)
+  );
+}
+
+/** True while a text field has focus (on phones the keyboard is open). */
+function useTextEntryFocused(): boolean {
+  const [focused, setFocused] = useState(false);
+
+  useEffect(() => {
+    const onFocusIn = (event: FocusEvent) =>
+      setFocused(isTextEntryElement(event.target));
+    const onFocusOut = (event: FocusEvent) => {
+      if (!isTextEntryElement(event.relatedTarget)) setFocused(false);
+    };
+    document.addEventListener("focusin", onFocusIn);
+    document.addEventListener("focusout", onFocusOut);
+    return () => {
+      document.removeEventListener("focusin", onFocusIn);
+      document.removeEventListener("focusout", onFocusOut);
+    };
+  }, []);
+
+  return focused;
+}
+
 export function StoreFloatingActions() {
   const { isOpen: menuOpen } = useMobileMenu();
   const { hideStoreChrome } = useCheckoutChrome();
@@ -34,6 +83,10 @@ export function StoreFloatingActions() {
   const contact = useStorefrontContact();
   const mailHref = shopMailtoHref(contact.email);
   const [openPicker, setOpenPicker] = useState<ContactPickerMode | null>(null);
+  const pathname = usePathname();
+  const textEntryFocused = useTextEntryFocused();
+  const hideOnMobile =
+    textEntryFocused || MOBILE_HIDDEN_PATHS.has(pathname ?? "");
 
   const handlePickerChange = useCallback(
     (mode: ContactPickerMode, open: boolean) => {
@@ -55,7 +108,11 @@ export function StoreFloatingActions() {
       ) : null}
 
       <div
-        className="fixed right-4 z-[230] flex flex-col items-end gap-3 bottom-[calc(var(--mobile-nav-height)+1rem)] md:bottom-6"
+        className={cn(
+          "fixed right-4 z-[230] flex-col items-end gap-3 bottom-[calc(var(--mobile-nav-height)+1rem)] md:bottom-6 md:flex",
+          hideOnMobile ? "hidden" : "flex",
+        )}
+        data-mobile-hidden={hideOnMobile ? "true" : undefined}
         aria-label="Quick actions"
       >
         <FloatingContactPicker

@@ -61,3 +61,6 @@ wrangler.workers.new-account.jsonc
 
 
 .dev.vars.new-account
+
+# Local PIN directory shards (scripts/build-pincode-r2-shards.mjs)
+.tmp/

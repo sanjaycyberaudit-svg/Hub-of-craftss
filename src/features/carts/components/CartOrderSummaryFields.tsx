@@ -81,7 +81,7 @@ export function CartOrderSummaryFields({
               (deliveryPincode.length === 6 && pincodeStatus !== "ready")
             }
             className={cn(
-              "h-10",
+              "h-10 scroll-mb-[calc(var(--mobile-nav-height)+6rem)] text-base md:text-sm",
               (pincodeStatus === "error" ||
                 (deliveryPincode.length > 0 &&
                   deliveryPincode.length < 6 &&
@@ -127,7 +127,7 @@ export function CartOrderSummaryFields({
                 )
               }
               placeholder="ENTER CODE"
-              className="h-9"
+              className="h-9 text-base md:text-sm"
             />
             <Button
               type="button"

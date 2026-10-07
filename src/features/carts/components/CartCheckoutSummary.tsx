@@ -11,6 +11,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { formatPrice } from "@/lib/utils";
+import { focusCartDeliveryPincode } from "./CheckoutButton";
 import { CartOrderSummaryFields } from "./CartOrderSummaryFields";
 import type { CartOrderSummaryFieldsProps } from "./CartOrderSummaryFields";
 
@@ -35,19 +36,33 @@ export function CartCheckoutSummary({
   mobileStickyOnly = false,
 }: CartCheckoutSummaryProps) {
   const itemLabel = productCount === 1 ? "1 item" : `${productCount} items`;
+  const needsPin = headlineLabel === "Enter PIN";
 
   const mobileSticky = (
     <div className="fixed inset-x-0 bottom-[var(--mobile-nav-height)] z-[180] border-t border-border bg-background/95 px-4 py-3 shadow-[0_-4px_16px_rgba(0,0,0,0.08)] backdrop-blur md:hidden">
       <div className="mx-auto flex max-w-lg items-center gap-3">
-        <div className="min-w-0 flex-1">
-          <p className="text-xs text-muted-foreground">{itemLabel}</p>
-          <p className="text-lg font-bold leading-tight">
-            <span className="text-xs font-medium text-muted-foreground">
-              {headlineLabel}{" "}
-            </span>
-            {headlineLabel === "Enter PIN" ? "—" : formatPrice(headlineAmount)}
-          </p>
-        </div>
+        {needsPin ? (
+          <button
+            type="button"
+            onClick={focusCartDeliveryPincode}
+            className="min-w-0 flex-1 text-left"
+          >
+            <p className="text-xs text-muted-foreground">{itemLabel}</p>
+            <p className="text-sm font-semibold leading-tight text-primary underline underline-offset-2">
+              Enter delivery PIN
+            </p>
+          </button>
+        ) : (
+          <div className="min-w-0 flex-1">
+            <p className="text-xs text-muted-foreground">{itemLabel}</p>
+            <p className="text-lg font-bold leading-tight">
+              <span className="text-xs font-medium text-muted-foreground">
+                {headlineLabel}{" "}
+              </span>
+              {formatPrice(headlineAmount)}
+            </p>
+          </div>
+        )}
         <div className="shrink-0 [&_button]:h-10 [&_button]:min-w-[6.5rem] [&_button]:w-auto [&_button]:px-4 [&_button]:text-sm">
           {checkout}
         </div>

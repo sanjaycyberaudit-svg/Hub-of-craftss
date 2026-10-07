@@ -41,7 +41,7 @@ type CheckoutButtonProps = React.ComponentProps<typeof Button> & {
   hasDeliveryStateSelected?: boolean;
 };
 
-function focusCartDeliveryPincode() {
+export function focusCartDeliveryPincode() {
   const el = document.getElementById(CART_DELIVERY_PINCODE_INPUT_ID);
   if (!(el instanceof HTMLElement)) return;
   el.scrollIntoView({ behavior: "smooth", block: "center" });
