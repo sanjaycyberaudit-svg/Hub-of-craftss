@@ -5,7 +5,7 @@ import {
 } from "./welcome-gift-presets";
 
 describe("welcome gift presets", () => {
-  it("has 5 Tamil and 5 English lines", () => {
+  it("has 5 Tamil and 5 English lines matching the shop list", () => {
     expect(WELCOME_FREE_GIFT_MESSAGES).toHaveLength(10);
     expect(
       WELCOME_FREE_GIFT_MESSAGES.filter((line) => /மேல்/.test(line)),
@@ -15,6 +15,12 @@ describe("welcome gift presets", () => {
         line.startsWith("Buy above"),
       ),
     ).toHaveLength(5);
+    expect(WELCOME_FREE_GIFT_MESSAGES).toContain(
+      "₹1999க்கு மேல் வாங்கினால் — ₹299 worth FREE GIFT 🎁",
+    );
+    expect(WELCOME_FREE_GIFT_MESSAGES).toContain(
+      "₹1,999க்கு மேல் வாங்கினால் — ₹350 worth FREE GIFT 🎁",
+    );
   });
 
   it("parses and trims message arrays", () => {

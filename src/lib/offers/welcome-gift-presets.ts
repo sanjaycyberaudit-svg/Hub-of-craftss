@@ -1,19 +1,17 @@
 /**
  * Free-gift ladder for the Welcome Offer popup.
- * Tamil + English pairs (Tamil first for each threshold).
- *
- * Thresholds: ₹499 → ₹999 → ₹1,999 → ₹2,999 → ₹4,999
- * (₹2,999 is the second ₹1,999 line from the shop list, so the ladder is clear.)
+ * Tamil + English pairs (Tamil first for each shop line).
+ * Keeps the shop's exact ₹1,999 / ₹1999 wording (₹299 and ₹350 gifts).
  */
 export const WELCOME_FREE_GIFT_MESSAGES = [
   "₹499க்கு மேல் வாங்கினால் — ₹89 worth FREE GIFT 🎁",
   "Buy above ₹499 — get a FREE GIFT worth ₹89 🎁",
   "₹999 மேல் வாங்கினால் — ₹150 worth FREE GIFT 🎁",
   "Buy above ₹999 — get a FREE GIFT worth ₹150 🎁",
-  "₹1,999க்கு மேல் வாங்கினால் — ₹299 worth FREE GIFT 🎁",
-  "Buy above ₹1,999 — get a FREE GIFT worth ₹299 🎁",
-  "₹2,999க்கு மேல் வாங்கினால் — ₹350 worth FREE GIFT 🎁",
-  "Buy above ₹2,999 — get a FREE GIFT worth ₹350 🎁",
+  "₹1999க்கு மேல் வாங்கினால் — ₹299 worth FREE GIFT 🎁",
+  "Buy above ₹1999 — get a FREE GIFT worth ₹299 🎁",
+  "₹1,999க்கு மேல் வாங்கினால் — ₹350 worth FREE GIFT 🎁",
+  "Buy above ₹1,999 — get a FREE GIFT worth ₹350 🎁",
   "₹4,999க்கு மேல் வாங்கினால் — ₹500 worth FREE GIFT 🎁",
   "Buy above ₹4,999 — get a FREE GIFT worth ₹500 🎁",
 ] as const;
