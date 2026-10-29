@@ -5,11 +5,26 @@ import {
   selectWelcomeOfferCode,
 } from "./welcome-code";
 
+const welcome = (
+  partial: Omit<OfferCodesConfig["welcomeOffer"], "extraMessages"> & {
+    extraMessages?: string[];
+  },
+): OfferCodesConfig["welcomeOffer"] => ({
+  extraMessages: [],
+  ...partial,
+});
+
 const config = (
   enabled: boolean,
-  welcomeOffer: OfferCodesConfig["welcomeOffer"],
+  welcomeOffer: Omit<OfferCodesConfig["welcomeOffer"], "extraMessages"> & {
+    extraMessages?: string[];
+  },
   codes: OfferCodesConfig["codes"],
-): OfferCodesConfig => ({ enabled, welcomeOffer, codes });
+): OfferCodesConfig => ({
+  enabled,
+  welcomeOffer: welcome(welcomeOffer),
+  codes,
+});
 
 describe("selectWelcomeOfferCode", () => {
   it("returns the dedicated popup offer, not the first common code", () => {

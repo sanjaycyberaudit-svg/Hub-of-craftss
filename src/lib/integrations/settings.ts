@@ -31,6 +31,7 @@ import { getCanonicalSiteOrigin } from "@/lib/auth/site-urls";
 import { DEFAULT_VELO_ORDER_PUSH_URL } from "@/lib/integrations/velo-order-push-payload";
 import { resolveCashfreeBaseUrl } from "@/lib/integrations/payment-settings";
 import { siteConfig } from "@/config/site";
+import { parseWelcomeExtraMessages } from "@/lib/offers/welcome-gift-presets";
 import db from "@/lib/supabase/db";
 import { apiSettings, medias } from "@/lib/supabase/schema";
 import {
@@ -163,11 +164,15 @@ export type OfferCodeItem = {
   percentage: number;
   enabled: boolean;
 };
+/** First-order popup offer, with optional gift / promo lines under the discount. */
+export type WelcomeOfferConfig = OfferCodeItem & {
+  extraMessages: string[];
+};
 export type OfferCodesConfig = {
   /** Enables ordinary promo codes listed in `codes`. */
   enabled: boolean;
   /** Dedicated first-order popup offer, independent of ordinary promo codes. */
-  welcomeOffer: OfferCodeItem;
+  welcomeOffer: WelcomeOfferConfig;
   codes: OfferCodeItem[];
 };
 
@@ -218,6 +223,7 @@ const DEFAULT_OFFER_CODES_CONFIG: OfferCodesConfig = {
     code: "",
     percentage: 10,
     enabled: false,
+    extraMessages: [],
   },
   codes: [],
 };
@@ -392,12 +398,17 @@ function parseOfferCodesValue(
   const legacyWelcomeIndex = hasDedicatedWelcome
     ? -1
     : parsedCodes.findIndex((item) => item.enabled);
-  const welcomeOffer = hasDedicatedWelcome
+  const baseWelcome = hasDedicatedWelcome
     ? parseOfferCodeItem(value.welcomeOffer) ??
       DEFAULT_OFFER_CODES_CONFIG.welcomeOffer
     : legacyWelcomeIndex >= 0
       ? parsedCodes[legacyWelcomeIndex]
       : DEFAULT_OFFER_CODES_CONFIG.welcomeOffer;
+  const welcomeRaw = (value.welcomeOffer ?? {}) as Record<string, unknown>;
+  const welcomeOffer: WelcomeOfferConfig = {
+    ...baseWelcome,
+    extraMessages: parseWelcomeExtraMessages(welcomeRaw.extraMessages),
+  };
 
   const dedup = new Map<string, OfferCodeItem>();
   parsedCodes.forEach((item, index) => {

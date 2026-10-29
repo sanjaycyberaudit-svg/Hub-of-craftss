@@ -144,6 +144,16 @@ const welcomeOfferSchema = z
       .transform((value) => value.toUpperCase().replace(/\s+/g, "")),
     percentage: z.number().int().min(1).max(90),
     enabled: z.boolean(),
+    extraMessages: z
+      .array(z.string().trim().max(160))
+      .max(20)
+      .optional()
+      .transform((value) =>
+        (value ?? [])
+          .map((line) => line.replace(/\s+/g, " ").trim())
+          .filter(Boolean)
+          .slice(0, 20),
+      ),
   })
   .superRefine((value, ctx) => {
     if (value.enabled && value.code.length < 3) {

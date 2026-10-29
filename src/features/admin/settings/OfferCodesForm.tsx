@@ -11,6 +11,10 @@ import {
   LoadingButtonLabel,
 } from "@/components/admin/AdminLoadingState";
 import { fetchWithTimeout } from "@/lib/network/fetchWithTimeout";
+import {
+  mergeWelcomeGiftPresets,
+  parseWelcomeExtraMessages,
+} from "@/lib/offers/welcome-gift-presets";
 
 type ApiSettingRecord = {
   key: string;
@@ -28,15 +32,24 @@ type OfferFormItem = {
   enabled: boolean;
 };
 
+type WelcomeOfferForm = OfferFormItem & {
+  extraMessages: string[];
+};
+
 type FormState = {
   commonEnabled: boolean;
-  welcomeOffer: OfferFormItem;
+  welcomeOffer: WelcomeOfferForm;
   codes: OfferFormItem[];
 };
 
 const DEFAULT_FORM: FormState = {
   commonEnabled: true,
-  welcomeOffer: { code: "", percentage: 10, enabled: false },
+  welcomeOffer: {
+    code: "",
+    percentage: 10,
+    enabled: false,
+    extraMessages: [],
+  },
   codes: [{ code: "", percentage: 10, enabled: true }],
 };
 
@@ -100,7 +113,7 @@ export function OfferCodesForm() {
           : parsed.findIndex((item) => item.enabled);
         const legacyWelcome =
           legacyWelcomeIndex >= 0 ? parsed[legacyWelcomeIndex] : null;
-        const welcomeOffer = hasDedicatedWelcome
+        const welcomeBase = hasDedicatedWelcome
           ? {
               code: normalizeCode(String(rawWelcome.code ?? "")),
               percentage: Math.min(
@@ -109,7 +122,15 @@ export function OfferCodesForm() {
               ),
               enabled: Boolean(rawWelcome.enabled),
             }
-          : legacyWelcome ?? DEFAULT_FORM.welcomeOffer;
+          : legacyWelcome ?? {
+              code: DEFAULT_FORM.welcomeOffer.code,
+              percentage: DEFAULT_FORM.welcomeOffer.percentage,
+              enabled: DEFAULT_FORM.welcomeOffer.enabled,
+            };
+        const welcomeOffer: WelcomeOfferForm = {
+          ...welcomeBase,
+          extraMessages: parseWelcomeExtraMessages(rawWelcome.extraMessages),
+        };
         const commonCodes = parsed.filter(
           (item, index) =>
             index !== legacyWelcomeIndex && item.code !== welcomeOffer.code,
@@ -221,6 +242,9 @@ export function OfferCodesForm() {
                 Math.max(1, Math.round(form.welcomeOffer.percentage)),
               ),
               enabled: form.welcomeOffer.enabled,
+              extraMessages: parseWelcomeExtraMessages(
+                form.welcomeOffer.extraMessages,
+              ),
             },
             codes: Array.from(dedup.values()),
           },
@@ -338,6 +362,121 @@ export function OfferCodesForm() {
                 placeholder="10"
               />
             </div>
+          </div>
+
+          <div className="space-y-2 border-t border-primary/15 pt-3">
+            <div>
+              <h4 className="text-sm font-semibold">Popup gift messages</h4>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Optional lines shown under the discount in the welcome popup.
+                Use the button to insert the Tamil + English free-gift ladder,
+                then edit or reorder as needed.
+              </p>
+            </div>
+
+            <div className="flex flex-wrap gap-2">
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                disabled={!form.welcomeOffer.enabled}
+                onClick={() => {
+                  const next = mergeWelcomeGiftPresets(
+                    form.welcomeOffer.extraMessages,
+                  );
+                  const added =
+                    next.length - form.welcomeOffer.extraMessages.length;
+                  if (added > 0) {
+                    setForm((prev) => ({
+                      ...prev,
+                      welcomeOffer: {
+                        ...prev.welcomeOffer,
+                        extraMessages: next,
+                      },
+                    }));
+                  }
+                  toast({
+                    title:
+                      added > 0
+                        ? `Added ${added} gift lines`
+                        : "Gift lines already present",
+                    description:
+                      added > 0
+                        ? "Tamil and English free-gift lines were added. Save to publish."
+                        : "Those gift texts are already in the list.",
+                  });
+                }}
+              >
+                Add free gift offers (Tamil + English)
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={!form.welcomeOffer.enabled}
+                onClick={() =>
+                  setForm((prev) => ({
+                    ...prev,
+                    welcomeOffer: {
+                      ...prev.welcomeOffer,
+                      extraMessages: [...prev.welcomeOffer.extraMessages, ""],
+                    },
+                  }))
+                }
+              >
+                Add blank line
+              </Button>
+            </div>
+
+            {form.welcomeOffer.extraMessages.length === 0 ? (
+              <p className="text-xs text-muted-foreground">
+                No gift messages yet. Click the button above to add them.
+              </p>
+            ) : (
+              <div className="space-y-2">
+                {form.welcomeOffer.extraMessages.map((line, index) => (
+                  <div key={index} className="flex items-start gap-2">
+                    <Input
+                      value={line}
+                      disabled={!form.welcomeOffer.enabled}
+                      onChange={(event) =>
+                        setForm((prev) => ({
+                          ...prev,
+                          welcomeOffer: {
+                            ...prev.welcomeOffer,
+                            extraMessages: prev.welcomeOffer.extraMessages.map(
+                              (item, i) =>
+                                i === index ? event.target.value : item,
+                            ),
+                          },
+                        }))
+                      }
+                      placeholder="Gift offer line (Tamil or English)"
+                    />
+                    <Button
+                      type="button"
+                      variant="destructive"
+                      size="sm"
+                      disabled={!form.welcomeOffer.enabled}
+                      onClick={() =>
+                        setForm((prev) => ({
+                          ...prev,
+                          welcomeOffer: {
+                            ...prev.welcomeOffer,
+                            extraMessages:
+                              prev.welcomeOffer.extraMessages.filter(
+                                (_, i) => i !== index,
+                              ),
+                          },
+                        }))
+                      }
+                    >
+                      Remove
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </section>
 

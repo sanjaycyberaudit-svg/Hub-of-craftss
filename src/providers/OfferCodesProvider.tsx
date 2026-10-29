@@ -9,6 +9,7 @@ const defaultConfig: OfferCodesConfig = {
     code: "",
     percentage: 10,
     enabled: false,
+    extraMessages: [],
   },
   codes: [],
 };

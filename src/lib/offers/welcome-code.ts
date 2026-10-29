@@ -1,12 +1,13 @@
 import type {
   OfferCodeItem,
   OfferCodesConfig,
+  WelcomeOfferConfig,
 } from "@/lib/integrations/settings";
 
 /** Returns the dedicated, admin-controlled first-order popup offer. */
 export function selectWelcomeOfferCode(
   config: OfferCodesConfig,
-): OfferCodeItem | null {
+): WelcomeOfferConfig | null {
   const offer = config.welcomeOffer;
   if (!offer.enabled || !offer.code || offer.percentage <= 0) return null;
   return offer;

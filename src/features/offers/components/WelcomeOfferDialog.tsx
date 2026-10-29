@@ -141,6 +141,24 @@ export function WelcomeOfferDialog() {
             </p>
           </div>
 
+          {offer.extraMessages.length > 0 ? (
+            <div className="mt-5 w-full rounded-2xl border border-brand-rose/20 bg-background/60 px-3 py-3 text-left">
+              <p className="text-center text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                Free gifts
+              </p>
+              <ul className="mt-2 max-h-40 space-y-1.5 overflow-y-auto overscroll-contain pr-1">
+                {offer.extraMessages.map((line, index) => (
+                  <li
+                    key={`${index}-${line.slice(0, 24)}`}
+                    className="rounded-lg bg-brand-cream/60 px-2.5 py-1.5 text-[11px] leading-snug text-foreground/85 sm:text-xs"
+                  >
+                    {line}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+
           <button
             type="button"
             onClick={handleClaim}
