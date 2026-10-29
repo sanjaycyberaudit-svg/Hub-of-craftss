@@ -19,10 +19,10 @@ const StoreFloatingActions = dynamic(
   { ssr: false },
 );
 
-const WelcomeOfferDialog = dynamic(
+const WelcomePopups = dynamic(
   () =>
-    import("@/features/offers/components/WelcomeOfferDialog").then(
-      (mod) => mod.WelcomeOfferDialog,
+    import("@/features/offers/components/WelcomePopups").then(
+      (mod) => mod.WelcomePopups,
     ),
   { ssr: false },
 );
@@ -40,7 +40,7 @@ export function StoreDeferredChrome() {
     <>
       <CartSheet />
       <StoreFloatingActions />
-      <WelcomeOfferDialog />
+      <WelcomePopups />
       <InAppBrowserBanner />
     </>
   );

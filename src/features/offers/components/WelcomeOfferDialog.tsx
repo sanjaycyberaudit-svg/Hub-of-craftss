@@ -19,6 +19,7 @@ import {
   isWelcomeOfferDismissed,
   loadClaimedOfferCode,
   markWelcomeOfferDismissed,
+  notifyWelcomeOfferClosed,
   saveClaimedOfferCode,
 } from "@/features/offers/lib/welcomeOffer";
 import { useWelcomeOfferEligibility } from "@/features/offers/hooks/useWelcomeOfferEligibility";
@@ -27,10 +28,14 @@ import { useWelcomeOfferEligibility } from "@/features/offers/hooks/useWelcomeOf
 const OPEN_DELAY_MS = 1400;
 
 /**
- * First-visit welcome offer built from the first enabled admin offer code.
+ * First-visit % / code welcome popup.
  * Guests are sent to sign up; signed-in shoppers get the code auto-applied at checkout.
  */
-export function WelcomeOfferDialog() {
+export function WelcomeOfferDialog({
+  onClosed,
+}: {
+  onClosed?: () => void;
+} = {}) {
   const offerCodesConfig = useOfferCodesConfig();
   const { user } = useAuth();
   const router = useRouter();
@@ -41,7 +46,6 @@ export function WelcomeOfferDialog() {
 
   const offer = getWelcomeOfferCode(offerCodesConfig);
   const code = offer?.code ?? null;
-  // Only visitors who have not seen or claimed the offer cost an eligibility call.
   const { eligible } = useWelcomeOfferEligibility(unseen);
 
   useEffect(() => {
@@ -58,20 +62,35 @@ export function WelcomeOfferDialog() {
     return () => window.clearTimeout(timer);
   }, [unseen, eligible]);
 
+  // Let the free-gift popup proceed when this % offer will never open.
+  useEffect(() => {
+    if (!code || !unseen) return;
+    if (eligible === false) notifyWelcomeOfferClosed();
+  }, [code, unseen, eligible]);
+
+  const closeOffer = useCallback(() => {
+    if (code) markWelcomeOfferDismissed(code);
+    setOpen(false);
+    notifyWelcomeOfferClosed();
+    onClosed?.();
+  }, [code, onClosed]);
+
   const handleOpenChange = useCallback(
     (next: boolean) => {
-      setOpen(next);
-      if (!next && code) markWelcomeOfferDismissed(code);
+      if (next) {
+        setOpen(true);
+        return;
+      }
+      closeOffer();
     },
-    [code],
+    [closeOffer],
   );
 
   const handleClaim = useCallback(() => {
     if (!code) return;
 
     saveClaimedOfferCode(code);
-    markWelcomeOfferDismissed(code);
-    setOpen(false);
+    closeOffer();
 
     if (user) {
       toast({
@@ -84,7 +103,7 @@ export function WelcomeOfferDialog() {
 
     const from = isSafeRedirectPath(pathname) ? pathname : "/shop";
     router.push(`/sign-up?from=${encodeURIComponent(from)}`);
-  }, [code, pathname, router, toast, user]);
+  }, [closeOffer, code, pathname, router, toast, user]);
 
   if (!offer || !code) return null;
 
@@ -140,24 +159,6 @@ export function WelcomeOfferDialog() {
               {code}
             </p>
           </div>
-
-          {offer.extraMessages.length > 0 ? (
-            <div className="mt-5 w-full rounded-2xl border border-brand-rose/20 bg-background/60 px-3 py-3 text-left">
-              <p className="text-center text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-                Free gifts
-              </p>
-              <ul className="mt-2 max-h-40 space-y-1.5 overflow-y-auto overscroll-contain pr-1">
-                {offer.extraMessages.map((line, index) => (
-                  <li
-                    key={`${index}-${line.slice(0, 24)}`}
-                    className="rounded-lg bg-brand-cream/60 px-2.5 py-1.5 text-[11px] leading-snug text-foreground/85 sm:text-xs"
-                  >
-                    {line}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ) : null}
 
           <button
             type="button"

@@ -32,13 +32,15 @@ type OfferFormItem = {
   enabled: boolean;
 };
 
-type WelcomeOfferForm = OfferFormItem & {
-  extraMessages: string[];
+type WelcomeGiftForm = {
+  enabled: boolean;
+  messages: string[];
 };
 
 type FormState = {
   commonEnabled: boolean;
-  welcomeOffer: WelcomeOfferForm;
+  welcomeOffer: OfferFormItem;
+  welcomeGift: WelcomeGiftForm;
   codes: OfferFormItem[];
 };
 
@@ -48,7 +50,10 @@ const DEFAULT_FORM: FormState = {
     code: "",
     percentage: 10,
     enabled: false,
-    extraMessages: [],
+  },
+  welcomeGift: {
+    enabled: false,
+    messages: [],
   },
   codes: [{ code: "", percentage: 10, enabled: true }],
 };
@@ -113,7 +118,7 @@ export function OfferCodesForm() {
           : parsed.findIndex((item) => item.enabled);
         const legacyWelcome =
           legacyWelcomeIndex >= 0 ? parsed[legacyWelcomeIndex] : null;
-        const welcomeBase = hasDedicatedWelcome
+        const welcomeOffer: OfferFormItem = hasDedicatedWelcome
           ? {
               code: normalizeCode(String(rawWelcome.code ?? "")),
               percentage: Math.min(
@@ -122,15 +127,26 @@ export function OfferCodesForm() {
               ),
               enabled: Boolean(rawWelcome.enabled),
             }
-          : legacyWelcome ?? {
-              code: DEFAULT_FORM.welcomeOffer.code,
-              percentage: DEFAULT_FORM.welcomeOffer.percentage,
-              enabled: DEFAULT_FORM.welcomeOffer.enabled,
-            };
-        const welcomeOffer: WelcomeOfferForm = {
-          ...welcomeBase,
-          extraMessages: parseWelcomeExtraMessages(rawWelcome.extraMessages),
+          : legacyWelcome ?? { ...DEFAULT_FORM.welcomeOffer };
+
+        const hasWelcomeGift = Object.prototype.hasOwnProperty.call(
+          value,
+          "welcomeGift",
+        );
+        const rawGift = (value.welcomeGift ?? {}) as Record<string, unknown>;
+        const legacyGiftMessages = parseWelcomeExtraMessages(
+          rawWelcome.extraMessages,
+        );
+        const giftMessages = hasWelcomeGift
+          ? parseWelcomeExtraMessages(rawGift.messages)
+          : legacyGiftMessages;
+        const welcomeGift: WelcomeGiftForm = {
+          enabled: hasWelcomeGift
+            ? Boolean(rawGift.enabled)
+            : legacyGiftMessages.length > 0,
+          messages: giftMessages,
         };
+
         const commonCodes = parsed.filter(
           (item, index) =>
             index !== legacyWelcomeIndex && item.code !== welcomeOffer.code,
@@ -139,6 +155,7 @@ export function OfferCodesForm() {
         setForm({
           commonEnabled: payload.offerCodes?.isEnabled ?? true,
           welcomeOffer,
+          welcomeGift,
           codes: commonCodes.length > 0 ? commonCodes : DEFAULT_FORM.codes,
         });
       } catch (error) {
@@ -203,6 +220,13 @@ export function OfferCodesForm() {
         throw new Error("Popup offer discount must be at least 1%.");
       }
 
+      const giftMessages = parseWelcomeExtraMessages(form.welcomeGift.messages);
+      if (form.welcomeGift.enabled && giftMessages.length === 0) {
+        throw new Error(
+          "Add at least one free gift message, or disable the gift popup.",
+        );
+      }
+
       const dedup = new Map<string, OfferFormItem>();
       form.codes.forEach((item) => {
         const code = normalizeCode(item.code);
@@ -242,9 +266,10 @@ export function OfferCodesForm() {
                 Math.max(1, Math.round(form.welcomeOffer.percentage)),
               ),
               enabled: form.welcomeOffer.enabled,
-              extraMessages: parseWelcomeExtraMessages(
-                form.welcomeOffer.extraMessages,
-              ),
+            },
+            welcomeGift: {
+              enabled: form.welcomeGift.enabled,
+              messages: giftMessages,
             },
             codes: Array.from(dedup.values()),
           },
@@ -258,7 +283,8 @@ export function OfferCodesForm() {
 
       toast({
         title: "Offer settings saved",
-        description: "Popup and common offer settings have been updated.",
+        description:
+          "Welcome offer, free gifts, and common codes have been updated.",
       });
     } catch (error) {
       toast({
@@ -280,13 +306,14 @@ export function OfferCodesForm() {
         {isLoading ? (
           <AdminLoadingState message="Loading offer codes..." />
         ) : null}
+
         <section className="space-y-3 rounded-lg border border-primary/20 bg-primary/[0.03] p-4">
           <div>
             <h3 className="font-semibold">Welcome popup offer</h3>
             <p className="mt-1 text-xs text-muted-foreground">
-              Shown when visitors open the store. This dedicated code requires
-              an account and is accepted only on the customer&apos;s first
-              completed order.
+              Percentage / code popup when visitors open the store. Requires an
+              account and applies only on the customer&apos;s first completed
+              order. Independent of the free gift popup below.
             </p>
           </div>
 
@@ -363,129 +390,140 @@ export function OfferCodesForm() {
               />
             </div>
           </div>
+        </section>
 
-          <div className="space-y-2 border-t border-primary/15 pt-3">
-            <div>
-              <h4 className="text-sm font-semibold">Popup gift messages</h4>
-              <p className="mt-1 text-xs text-muted-foreground">
-                Optional lines shown under the discount in the welcome popup.
-                Use the button to insert the Tamil + English free-gift ladder,
-                then edit or reorder as needed.
-              </p>
-            </div>
+        <section className="space-y-3 rounded-lg border border-primary/20 bg-primary/[0.03] p-4">
+          <div>
+            <h3 className="font-semibold">Free gift popup</h3>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Separate popup listing free-gift thresholds (Tamil + English). Can
+              be on or off independently of the % welcome offer.
+            </p>
+          </div>
 
-            <div className="flex flex-wrap gap-2">
-              <Button
-                type="button"
-                variant="secondary"
-                size="sm"
-                disabled={!form.welcomeOffer.enabled}
-                onClick={() => {
-                  const next = mergeWelcomeGiftPresets(
-                    form.welcomeOffer.extraMessages,
-                  );
-                  const added =
-                    next.length - form.welcomeOffer.extraMessages.length;
-                  if (added > 0) {
-                    setForm((prev) => ({
-                      ...prev,
-                      welcomeOffer: {
-                        ...prev.welcomeOffer,
-                        extraMessages: next,
-                      },
-                    }));
-                  }
-                  toast({
-                    title:
-                      added > 0
-                        ? `Added ${added} gift lines`
-                        : "Gift lines already present",
-                    description:
-                      added > 0
-                        ? "Tamil and English free-gift lines were added. Save to publish."
-                        : "Those gift texts are already in the list.",
-                  });
-                }}
-              >
-                Add free gift offers (Tamil + English)
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                disabled={!form.welcomeOffer.enabled}
-                onClick={() =>
+          <label className="flex items-center gap-2 text-sm font-medium">
+            <input
+              type="checkbox"
+              checked={form.welcomeGift.enabled}
+              onChange={(event) =>
+                setForm((prev) => ({
+                  ...prev,
+                  welcomeGift: {
+                    ...prev.welcomeGift,
+                    enabled: event.target.checked,
+                  },
+                }))
+              }
+            />
+            Enable free gift popup
+          </label>
+
+          <div className="flex flex-wrap gap-2">
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              disabled={!form.welcomeGift.enabled}
+              onClick={() => {
+                const next = mergeWelcomeGiftPresets(form.welcomeGift.messages);
+                const added = next.length - form.welcomeGift.messages.length;
+                if (added > 0) {
                   setForm((prev) => ({
                     ...prev,
-                    welcomeOffer: {
-                      ...prev.welcomeOffer,
-                      extraMessages: [...prev.welcomeOffer.extraMessages, ""],
+                    welcomeGift: {
+                      ...prev.welcomeGift,
+                      messages: next,
                     },
-                  }))
+                  }));
                 }
-              >
-                Add blank line
-              </Button>
-            </div>
-
-            {form.welcomeOffer.extraMessages.length === 0 ? (
-              <p className="text-xs text-muted-foreground">
-                No gift messages yet. Click the button above to add them.
-              </p>
-            ) : (
-              <div className="space-y-2">
-                {form.welcomeOffer.extraMessages.map((line, index) => (
-                  <div key={index} className="flex items-start gap-2">
-                    <Input
-                      value={line}
-                      disabled={!form.welcomeOffer.enabled}
-                      onChange={(event) =>
-                        setForm((prev) => ({
-                          ...prev,
-                          welcomeOffer: {
-                            ...prev.welcomeOffer,
-                            extraMessages: prev.welcomeOffer.extraMessages.map(
-                              (item, i) =>
-                                i === index ? event.target.value : item,
-                            ),
-                          },
-                        }))
-                      }
-                      placeholder="Gift offer line (Tamil or English)"
-                    />
-                    <Button
-                      type="button"
-                      variant="destructive"
-                      size="sm"
-                      disabled={!form.welcomeOffer.enabled}
-                      onClick={() =>
-                        setForm((prev) => ({
-                          ...prev,
-                          welcomeOffer: {
-                            ...prev.welcomeOffer,
-                            extraMessages:
-                              prev.welcomeOffer.extraMessages.filter(
-                                (_, i) => i !== index,
-                              ),
-                          },
-                        }))
-                      }
-                    >
-                      Remove
-                    </Button>
-                  </div>
-                ))}
-              </div>
-            )}
+                toast({
+                  title:
+                    added > 0
+                      ? `Added ${added} gift lines`
+                      : "Gift lines already present",
+                  description:
+                    added > 0
+                      ? "Tamil and English free-gift lines were added. Save to publish."
+                      : "Those gift texts are already in the list.",
+                });
+              }}
+            >
+              Add free gift offers (Tamil + English)
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={!form.welcomeGift.enabled}
+              onClick={() =>
+                setForm((prev) => ({
+                  ...prev,
+                  welcomeGift: {
+                    ...prev.welcomeGift,
+                    messages: [...prev.welcomeGift.messages, ""],
+                  },
+                }))
+              }
+            >
+              Add blank line
+            </Button>
           </div>
+
+          {form.welcomeGift.messages.length === 0 ? (
+            <p className="text-xs text-muted-foreground">
+              No gift messages yet. Click the button above to add them.
+            </p>
+          ) : (
+            <div className="space-y-2">
+              {form.welcomeGift.messages.map((line, index) => (
+                <div key={index} className="flex items-start gap-2">
+                  <Input
+                    value={line}
+                    disabled={!form.welcomeGift.enabled}
+                    onChange={(event) =>
+                      setForm((prev) => ({
+                        ...prev,
+                        welcomeGift: {
+                          ...prev.welcomeGift,
+                          messages: prev.welcomeGift.messages.map((item, i) =>
+                            i === index ? event.target.value : item,
+                          ),
+                        },
+                      }))
+                    }
+                    placeholder="Gift offer line (Tamil or English)"
+                  />
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    size="sm"
+                    disabled={!form.welcomeGift.enabled}
+                    onClick={() =>
+                      setForm((prev) => ({
+                        ...prev,
+                        welcomeGift: {
+                          ...prev.welcomeGift,
+                          messages: prev.welcomeGift.messages.filter(
+                            (_, i) => i !== index,
+                          ),
+                        },
+                      }))
+                    }
+                  >
+                    Remove
+                  </Button>
+                </div>
+              ))}
+            </div>
+          )}
         </section>
 
         <section className="space-y-3 rounded-lg border p-4">
           <div>
             <h3 className="font-semibold">Common offer codes</h3>
             <p className="mt-1 text-xs text-muted-foreground">
-              Normal checkout promotions. These are separate from the welcome
-              popup and can be used on later orders.
+              Normal checkout promotions. Separate from the welcome and free
+              gift popups; can be used on later orders.
             </p>
           </div>
 

@@ -164,15 +164,20 @@ export type OfferCodeItem = {
   percentage: number;
   enabled: boolean;
 };
-/** First-order popup offer, with optional gift / promo lines under the discount. */
-export type WelcomeOfferConfig = OfferCodeItem & {
-  extraMessages: string[];
+/** First-order % / code popup (independent of free-gift messages). */
+export type WelcomeOfferConfig = OfferCodeItem;
+/** Free-gift ladder popup (independent of the % welcome offer). */
+export type WelcomeGiftConfig = {
+  enabled: boolean;
+  messages: string[];
 };
 export type OfferCodesConfig = {
   /** Enables ordinary promo codes listed in `codes`. */
   enabled: boolean;
   /** Dedicated first-order popup offer, independent of ordinary promo codes. */
   welcomeOffer: WelcomeOfferConfig;
+  /** Dedicated free-gift popup, independent of the % welcome offer. */
+  welcomeGift: WelcomeGiftConfig;
   codes: OfferCodeItem[];
 };
 
@@ -223,7 +228,10 @@ const DEFAULT_OFFER_CODES_CONFIG: OfferCodesConfig = {
     code: "",
     percentage: 10,
     enabled: false,
-    extraMessages: [],
+  },
+  welcomeGift: {
+    enabled: false,
+    messages: [],
   },
   codes: [],
 };
@@ -398,16 +406,31 @@ function parseOfferCodesValue(
   const legacyWelcomeIndex = hasDedicatedWelcome
     ? -1
     : parsedCodes.findIndex((item) => item.enabled);
-  const baseWelcome = hasDedicatedWelcome
+  const welcomeOffer: WelcomeOfferConfig = hasDedicatedWelcome
     ? parseOfferCodeItem(value.welcomeOffer) ??
       DEFAULT_OFFER_CODES_CONFIG.welcomeOffer
     : legacyWelcomeIndex >= 0
       ? parsedCodes[legacyWelcomeIndex]
       : DEFAULT_OFFER_CODES_CONFIG.welcomeOffer;
+
   const welcomeRaw = (value.welcomeOffer ?? {}) as Record<string, unknown>;
-  const welcomeOffer: WelcomeOfferConfig = {
-    ...baseWelcome,
-    extraMessages: parseWelcomeExtraMessages(welcomeRaw.extraMessages),
+  const hasWelcomeGift = Object.prototype.hasOwnProperty.call(
+    value,
+    "welcomeGift",
+  );
+  const welcomeGiftRaw = (value.welcomeGift ?? {}) as Record<string, unknown>;
+  // Migrate older installs that stored gift lines under welcomeOffer.extraMessages.
+  const legacyGiftMessages = parseWelcomeExtraMessages(
+    welcomeRaw.extraMessages,
+  );
+  const giftMessages = hasWelcomeGift
+    ? parseWelcomeExtraMessages(welcomeGiftRaw.messages)
+    : legacyGiftMessages;
+  const welcomeGift: WelcomeGiftConfig = {
+    enabled: hasWelcomeGift
+      ? Boolean(welcomeGiftRaw.enabled)
+      : legacyGiftMessages.length > 0,
+    messages: giftMessages,
   };
 
   const dedup = new Map<string, OfferCodeItem>();
@@ -419,6 +442,7 @@ function parseOfferCodesValue(
   return {
     enabled: commonEnabled,
     welcomeOffer,
+    welcomeGift,
     codes: Array.from(dedup.values()),
   };
 }

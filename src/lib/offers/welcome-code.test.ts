@@ -2,29 +2,19 @@ import type { OfferCodesConfig } from "@/lib/integrations/settings";
 import {
   isWelcomeOfferCode,
   selectActiveOfferCodes,
+  selectWelcomeGift,
   selectWelcomeOfferCode,
 } from "./welcome-code";
 
-const welcome = (
-  partial: Omit<OfferCodesConfig["welcomeOffer"], "extraMessages"> & {
-    extraMessages?: string[];
-  },
-): OfferCodesConfig["welcomeOffer"] => ({
-  extraMessages: [],
-  ...partial,
-});
-
 const config = (
   enabled: boolean,
-  welcomeOffer: Omit<OfferCodesConfig["welcomeOffer"], "extraMessages"> & {
-    extraMessages?: string[];
-  },
+  welcomeOffer: OfferCodesConfig["welcomeOffer"],
   codes: OfferCodesConfig["codes"],
-): OfferCodesConfig => ({
-  enabled,
-  welcomeOffer: welcome(welcomeOffer),
-  codes,
-});
+  welcomeGift: OfferCodesConfig["welcomeGift"] = {
+    enabled: false,
+    messages: [],
+  },
+): OfferCodesConfig => ({ enabled, welcomeOffer, welcomeGift, codes });
 
 describe("selectWelcomeOfferCode", () => {
   it("returns the dedicated popup offer, not the first common code", () => {
@@ -53,6 +43,28 @@ describe("selectWelcomeOfferCode", () => {
         config(false, { code: "WELCOME10", percentage: 10, enabled: true }, []),
       )?.code,
     ).toBe("WELCOME10");
+  });
+});
+
+describe("selectWelcomeGift", () => {
+  it("returns gifts only when enabled with messages", () => {
+    expect(
+      selectWelcomeGift(
+        config(true, { code: "WELCOME", percentage: 5, enabled: true }, [], {
+          enabled: true,
+          messages: ["Gift A"],
+        }),
+      )?.messages,
+    ).toEqual(["Gift A"]);
+
+    expect(
+      selectWelcomeGift(
+        config(true, { code: "WELCOME", percentage: 5, enabled: true }, [], {
+          enabled: false,
+          messages: ["Gift A"],
+        }),
+      ),
+    ).toBeNull();
   });
 });
 

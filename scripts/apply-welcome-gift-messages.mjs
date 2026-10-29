@@ -1,5 +1,6 @@
 /**
- * One-off: set Welcome Offer popup gift messages (Tamil + English) on offer_codes.
+ * Set free-gift popup messages on offer_codes as welcomeGift
+ * (independent of the % welcomeOffer). Strips legacy extraMessages.
  * Usage: node --env-file=.env.local scripts/apply-welcome-gift-messages.mjs
  */
 import postgres from "postgres";
@@ -38,13 +39,21 @@ try {
     typeof row.value === "string"
       ? JSON.parse(row.value)
       : { ...(row.value ?? {}) };
-  const welcomeOffer = {
-    ...(value.welcomeOffer && typeof value.welcomeOffer === "object"
-      ? value.welcomeOffer
-      : {}),
-    extraMessages: MESSAGES,
+
+  const welcomeOfferRaw =
+    value.welcomeOffer && typeof value.welcomeOffer === "object"
+      ? { ...value.welcomeOffer }
+      : {};
+  delete welcomeOfferRaw.extraMessages;
+
+  const nextValue = {
+    ...value,
+    welcomeOffer: welcomeOfferRaw,
+    welcomeGift: {
+      enabled: true,
+      messages: MESSAGES,
+    },
   };
-  const nextValue = { ...value, welcomeOffer };
 
   await sql`
     update api_settings
@@ -57,11 +66,22 @@ try {
     JSON.stringify(
       {
         ok: true,
-        enabled: welcomeOffer.enabled ?? null,
-        code: welcomeOffer.code ?? null,
-        percentage: welcomeOffer.percentage ?? null,
-        extraMessages: welcomeOffer.extraMessages.length,
-        tamil: welcomeOffer.extraMessages.filter((line) => /மேல்/.test(line)),
+        welcomeOffer: {
+          enabled: welcomeOfferRaw.enabled ?? null,
+          code: welcomeOfferRaw.code ?? null,
+          percentage: welcomeOfferRaw.percentage ?? null,
+          hasExtraMessages: Object.prototype.hasOwnProperty.call(
+            welcomeOfferRaw,
+            "extraMessages",
+          ),
+        },
+        welcomeGift: {
+          enabled: nextValue.welcomeGift.enabled,
+          messages: nextValue.welcomeGift.messages.length,
+          tamil: nextValue.welcomeGift.messages.filter((line) =>
+            /மேல்/.test(line),
+          ),
+        },
       },
       null,
       2,

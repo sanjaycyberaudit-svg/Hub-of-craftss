@@ -144,16 +144,6 @@ const welcomeOfferSchema = z
       .transform((value) => value.toUpperCase().replace(/\s+/g, "")),
     percentage: z.number().int().min(1).max(90),
     enabled: z.boolean(),
-    extraMessages: z
-      .array(z.string().trim().max(160))
-      .max(20)
-      .optional()
-      .transform((value) =>
-        (value ?? [])
-          .map((line) => line.replace(/\s+/g, " ").trim())
-          .filter(Boolean)
-          .slice(0, 20),
-      ),
   })
   .superRefine((value, ctx) => {
     if (value.enabled && value.code.length < 3) {
@@ -165,8 +155,32 @@ const welcomeOfferSchema = z
     }
   });
 
+const welcomeGiftSchema = z
+  .object({
+    enabled: z.boolean(),
+    messages: z
+      .array(z.string().trim().max(160))
+      .max(20)
+      .transform((value) =>
+        value
+          .map((line) => line.replace(/\s+/g, " ").trim())
+          .filter(Boolean)
+          .slice(0, 20),
+      ),
+  })
+  .superRefine((value, ctx) => {
+    if (value.enabled && value.messages.length === 0) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Add at least one gift message, or disable free gifts.",
+        path: ["messages"],
+      });
+    }
+  });
+
 const offerCodesPayloadSchema = z.object({
   welcomeOffer: welcomeOfferSchema,
+  welcomeGift: welcomeGiftSchema,
   codes: z.array(offerCodeItemSchema).max(200),
 });
 
@@ -489,6 +503,7 @@ export async function POST(request: NextRequest) {
         : [];
       const parsed = offerCodesPayloadSchema.safeParse({
         welcomeOffer: incomingValue.welcomeOffer,
+        welcomeGift: incomingValue.welcomeGift,
         codes: rawCodes,
       });
       if (!parsed.success) {
@@ -521,6 +536,7 @@ export async function POST(request: NextRequest) {
         );
       }
       normalizedValue.welcomeOffer = parsed.data.welcomeOffer;
+      normalizedValue.welcomeGift = parsed.data.welcomeGift;
       normalizedValue.codes = Array.from(dedup.values());
     }
 

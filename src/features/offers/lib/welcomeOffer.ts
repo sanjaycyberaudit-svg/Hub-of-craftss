@@ -1,9 +1,14 @@
 "use client";
 
-export { selectWelcomeOfferCode as getWelcomeOfferCode } from "@/lib/offers/welcome-code";
+export {
+  selectWelcomeGift as getWelcomeGift,
+  selectWelcomeOfferCode as getWelcomeOfferCode,
+} from "@/lib/offers/welcome-code";
 
 const DISMISSED_KEY = "hoc:welcome-offer-dismissed";
 const CLAIMED_KEY = "hoc:welcome-offer-claimed";
+const GIFT_DISMISSED_KEY = "hoc:welcome-gift-dismissed";
+export const WELCOME_OFFER_CLOSED_EVENT = "hoc:welcome-offer-closed";
 
 function readStorage(key: string): string | null {
   try {
@@ -48,4 +53,17 @@ export function saveClaimedOfferCode(code: string) {
 
 export function clearClaimedOfferCode() {
   removeStorage(CLAIMED_KEY);
+}
+
+export function isWelcomeGiftDismissed(): boolean {
+  return readStorage(GIFT_DISMISSED_KEY) === "1";
+}
+
+export function markWelcomeGiftDismissed() {
+  writeStorage(GIFT_DISMISSED_KEY, "1");
+}
+
+export function notifyWelcomeOfferClosed() {
+  if (typeof window === "undefined") return;
+  window.dispatchEvent(new Event(WELCOME_OFFER_CLOSED_EVENT));
 }

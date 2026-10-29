@@ -1,6 +1,7 @@
 import type {
   OfferCodeItem,
   OfferCodesConfig,
+  WelcomeGiftConfig,
   WelcomeOfferConfig,
 } from "@/lib/integrations/settings";
 
@@ -11,6 +12,15 @@ export function selectWelcomeOfferCode(
   const offer = config.welcomeOffer;
   if (!offer.enabled || !offer.code || offer.percentage <= 0) return null;
   return offer;
+}
+
+/** Returns the free-gift popup when enabled with at least one message. */
+export function selectWelcomeGift(
+  config: OfferCodesConfig,
+): WelcomeGiftConfig | null {
+  const gift = config.welcomeGift;
+  if (!gift?.enabled || gift.messages.length === 0) return null;
+  return gift;
 }
 
 /** All currently usable codes, with the dedicated welcome code kept separate. */
