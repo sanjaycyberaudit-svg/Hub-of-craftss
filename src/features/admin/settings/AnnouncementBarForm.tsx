@@ -153,26 +153,15 @@ export function AnnouncementBarForm() {
 
   /** Append Tamil + English free-gift ladder lines (skips texts already present). */
   const addFreeGiftOfferLines = () => {
-    const existingTexts = new Set(
-      form.lines.map((line) => line.text.trim().toLowerCase()).filter(Boolean),
-    );
-    const fresh = buildFreeGiftOfferLines(form.lines.length + 1).filter(
-      (line) => !existingTexts.has(line.text.trim().toLowerCase()),
-    );
-
-    if (fresh.length > 0) {
-      setForm((prev) => ({ ...prev, lines: [...prev.lines, ...fresh] }));
-    }
-
-    toast({
-      title:
-        fresh.length > 0
-          ? `Added ${fresh.length} free gift lines`
-          : "Gift lines already present",
-      description:
-        fresh.length > 0
-          ? "Tamil and English gift offers were added. Review the order, then Save."
-          : "Those gift texts are already in the list. Edit or reorder them, then Save.",
+    setForm((prev) => {
+      const existingTexts = new Set(
+        prev.lines.map((line) => line.text.trim().toLowerCase()).filter(Boolean),
+      );
+      const fresh = buildFreeGiftOfferLines(prev.lines.length + 1).filter(
+        (line) => !existingTexts.has(line.text.trim().toLowerCase()),
+      );
+      if (fresh.length === 0) return prev;
+      return { ...prev, lines: [...prev.lines, ...fresh] };
     });
   };
 
