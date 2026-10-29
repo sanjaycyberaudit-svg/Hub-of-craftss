@@ -7,7 +7,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { getDefaultAnnouncementLines } from "@/lib/announcements/defaults";
-import { buildFreeGiftOfferLines } from "@/lib/announcements/gift-offer-presets";
 import type { StorefrontAnnouncement } from "@/lib/announcements/types";
 import { fetchWithTimeout } from "@/lib/network/fetchWithTimeout";
 import {
@@ -151,20 +150,6 @@ export function AnnouncementBarForm() {
     }));
   };
 
-  /** Append Tamil + English free-gift ladder lines (skips texts already present). */
-  const addFreeGiftOfferLines = () => {
-    setForm((prev) => {
-      const existingTexts = new Set(
-        prev.lines.map((line) => line.text.trim().toLowerCase()).filter(Boolean),
-      );
-      const fresh = buildFreeGiftOfferLines(prev.lines.length + 1).filter(
-        (line) => !existingTexts.has(line.text.trim().toLowerCase()),
-      );
-      if (fresh.length === 0) return prev;
-      return { ...prev, lines: [...prev.lines, ...fresh] };
-    });
-  };
-
   const removeLine = (index: number) => {
     setForm((prev) => {
       if (prev.lines.length <= 1) return prev;
@@ -237,11 +222,7 @@ export function AnnouncementBarForm() {
           </label>
           <p className="text-xs text-muted-foreground">
             Existing default lines are pre-filled below. Add new lines, edit
-            text, CTA, and links, then reorder as needed. Use{" "}
-            <span className="font-medium text-foreground">
-              Add free gift offers
-            </span>{" "}
-            to insert the Tamil + English gift ladder in one click.
+            text, CTA, and links, then reorder as needed.
           </p>
         </CardContent>
       </Card>
@@ -327,9 +308,6 @@ export function AnnouncementBarForm() {
       <div className="flex flex-wrap items-center gap-2">
         <Button type="button" variant="outline" onClick={addLine}>
           Add line
-        </Button>
-        <Button type="button" variant="secondary" onClick={addFreeGiftOfferLines}>
-          Add free gift offers (Tamil + English)
         </Button>
         <Button onClick={onSave} disabled={saveDisabled}>
           <LoadingButtonLabel
